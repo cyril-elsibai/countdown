@@ -1,0 +1,236 @@
+*, *::after, *::before{
+    box-sizing: border-box;
+    font-family: Helvetica, Arial, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+body{
+    /*background-color: hsl(198, 12%, 18%);*/
+
+    background-color: #eee;
+    background-image: linear-gradient(90deg, #ccc 1px, transparent 1px),linear-gradient(0deg, #ccc 1px, transparent 1px);
+    background-size: 120px 120px; /* Adjust size for larger/smaller squares */
+    height: 100vh;
+    margin: 0;
+    font-size: clamp(.5rem, 2.5vmin, 1.5rem);
+    color: white;
+}
+
+.container {
+    width:1000px;
+    margin: 0 auto;
+    display: flex;
+    flex-flow: column;
+    height: 100%;
+}
+.header{
+    display: flex;
+    justify-content: center;
+}
+.header h1{
+    display: inline-block;
+    padding: 0.1em 1em 0.1em 0.2em;
+    color:#283033;
+    background-color: #f2d73a;
+}
+
+.target-grid {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+
+.target-grid .tile{
+    background-color: white;
+    color: black;
+    padding: 15px 20px;
+    /*border: .10em solid hsl(56, 20%, 40%);*/
+    border:1px solid lightblue;
+    font-size: 5rem;
+    font-weight: bold;
+}
+
+.guess-grid {
+  flex: 1 1 auto;
+}
+
+.keyboard {
+  flex: 0 1 60px;
+}
+
+.victory, .alert-container{
+    display: none;
+}
+
+
+.brand{
+    padding-left: 10px;
+    width: 400px;
+}
+
+.tile{background-color: #FFF;}
+
+
+
+.guess-grid{
+    display: grid;
+    justify-content: center;
+    align-content: center;
+    grid-template-columns: repeat(10, 1.4em);
+    grid-template-rows: repeat(5, 3em);
+    gap: .5em;
+}
+
+.guess-grid .tile{
+    grid-column: span 2;
+    font-size: 1.5em;
+    color: #000;
+    /*border: .05em solid hsl(240, 2%, 40%);*/
+    border: .05em solid hsl(56, 20%, 40%);
+    font-weight: bold;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    user-select: none;
+}
+
+.tile.equal{
+    border: none;
+    /*color: hsl(56, 20%, 40%);*/
+    color:#222;
+    font-size: 24px;
+    box-shadow: none;
+    background: none;
+}
+
+.tile.target-tile{
+    background-color: hsl(50, 43%, 97%);
+    color: #000;
+    grid-column: span 1;
+}
+
+.tile-num[data-state="active"]{
+    border-color: hwb(27 2% 2%);
+}
+
+.tile-operator[data-state="active"]{
+    border-color: hsl(198, 40%, 49%);
+}
+
+.tile.result[data-thebest]{
+    background-color: hsl(56, 20%, 40%);
+}
+
+.keyboard{
+    display: grid;
+    grid-template-columns: repeat(18, minmax(auto, 1em));
+    grid-auto-rows: 2.5em;
+    gap: .35em;
+    justify-content: center;
+    padding-bottom: 1em;
+}
+
+.key{
+    font-size: inherit; /* for the variable size to work (clamp) */
+    grid-column: span 3;
+    border: none;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    background-color: hsl(
+        var(--hue, 200),
+        var(--saturation, 1%),
+        calc(var(--lightness-offset, 0%) + var(--lightness, 51%))
+    );
+    color:#333;
+    fill: white;
+    /*border-radius: .25em;*/
+    cursor: pointer;
+    user-select: none;
+    font-size: 1.3em;
+    font-weight: bold;
+}
+
+.key.large{
+    grid-column: span 4;
+}
+.key.large.delete, .key.large.reset{
+    grid-column: span 4;
+    background: #f2d73a;
+}
+.key.large.reset{
+    grid-column: span 6;
+    font-size: 1.5em;
+    padding-right:60px;
+}
+
+.key:hover, .key:focus{
+    --lightness-offset: 10%;
+}
+
+.key.inactive{
+    --lightness-offset: -20%;
+    cursor: default;
+}
+
+.key.init{
+    --hue: 27;
+    --saturation: 95%;
+    --lightness: 50%;
+}
+
+.key.operator{
+    /*--hue: 198;
+    --saturation: 40%;
+    --lightness: 49%;*/
+    --hue: 186;
+    --saturation: 57%;
+    --lightness: 53%;
+    font-size: 1.3em;
+    grid-column: span 2;
+}
+
+.key.calculated{
+    --hue: 47;
+    --saturation: 93%;
+    --lightness: 45%;
+}
+
+.key > svg{
+    width: 1.75em;
+    height: 1.75em;
+    pointer-events: none;
+}
+
+@media only screen and (max-width: 768px) {
+    /* For mobile phones: */
+    .keyboard {
+        grid-template-columns: repeat(18, minmax(auto, 1.5em));
+        grid-auto-rows: 3.5em;
+        gap: .5em;
+    }
+
+    .guess-grid{
+        grid-template-columns: repeat(10, 2.5em);
+        grid-template-rows: repeat(5, 5em);
+    }
+
+    .guess-grid .tile{
+        font-weight: normal;
+        font-size: 2.5em;
+    }
+
+    .key{
+        font-size: 1.5em;
+    }
+
+    .key.operator{
+        font-size: 1.9em;
+    }
+
+}
