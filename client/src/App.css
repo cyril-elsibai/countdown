@@ -94,6 +94,14 @@ body {
   max-width: 400px;
 }
 
+/* Loading state */
+.loading {
+  text-align: center;
+  font-size: 1.5rem;
+  color: #666;
+  padding: 60px 20px;
+}
+
 /* Victory Overlay - blocks interaction */
 .victory-overlay {
   position: fixed;

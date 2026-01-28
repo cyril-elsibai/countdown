@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { gameApi, Frame } from './api';
 
 // Types
 type TileState = {
@@ -20,7 +21,6 @@ type KeyState = {
   inactive: boolean;
 };
 
-const CARD_DECK = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 25, 50, 75, 100];
 const COUNTDOWN_SECONDS = 60;
 
 export default function App() {
@@ -41,6 +41,8 @@ export default function App() {
   const [timer, setTimer] = useState(0);
   const [timerStopped, setTimerStopped] = useState(false);
   const [alert, setAlert] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [frame, setFrame] = useState<Frame | null>(null);
   
   const startTimeRef = useRef(Date.now());
   const gameStartTimeRef = useRef(Date.now()); // Never reset - for tracking real solve time
@@ -71,59 +73,53 @@ export default function App() {
     };
   }, [timerStopped]);
 
-  const initializeGame = () => {
-    // Reset the game start time
-    gameStartTimeRef.current = Date.now();
+  const initializeGame = async () => {
+    setLoading(true);
 
-    // Generate target
-    const newTarget = Math.floor(Math.random() * 900) + 100;
-    setTarget(newTarget);
+    try {
+      // Fetch daily challenge from backend
+      const response = await gameApi.getDaily();
+      const { frame: fetchedFrame } = response;
 
-    // Draw cards (max 2 big numbers, i.e. value >= 10)
-    let pulledCards: number[] = [];
-    let multiplied = 1;
+      setFrame(fetchedFrame);
+      setTarget(fetchedFrame.targetNumber);
 
-    while (multiplied < newTarget) {
-      pulledCards = [];
-      multiplied = 1;
-      let bigCount = 0;
-      let i = 0;
-      while (i < 6) {
-        const nb = Math.floor(Math.random() * 24);
-        const cardValue = CARD_DECK[nb];
-        const isBig = cardValue >= 10;
+      // Convert tiles to KeyState format
+      const cards = fetchedFrame.tiles.map(tile => ({
+        value: String(tile),
+        used: false,
+        inactive: false,
+      }));
+      setInitCards(cards);
 
-        // Skip if this would exceed 2 big numbers
-        if (isBig && bigCount >= 2) continue;
+      // Reset the game start time
+      gameStartTimeRef.current = Date.now();
 
-        if (!pulledCards.includes(nb)) {
-          pulledCards.push(nb);
-          multiplied *= cardValue;
-          if (isBig) bigCount++;
-          i++;
-        }
-      }
+      // Initialize 5 rows
+      const initialRows: Row[] = Array(5).fill(null).map(() => ({
+        num1: { value: '', filled: false, active: false },
+        operator: { value: '', filled: false, active: false },
+        num2: { value: '', filled: false, active: false },
+        result: { value: '', filled: false, active: false },
+      }));
+
+      initialRows[0].num1.active = true;
+      setRows(initialRows);
+      setActivePosition({ row: 0, type: 'num1' });
+      setGameWon(false);
+      setCurrentBest(0);
+      setCalculatedKeys([
+        { value: '', used: false, inactive: true },
+        { value: '', used: false, inactive: true },
+        { value: '', used: false, inactive: true },
+        { value: '', used: false, inactive: true },
+      ]);
+    } catch (error) {
+      console.error('Failed to load game:', error);
+      showAlert('Failed to load game. Please refresh.');
+    } finally {
+      setLoading(false);
     }
-
-    const cards = pulledCards.map(index => ({
-      value: String(CARD_DECK[index]),
-      used: false,
-      inactive: false,
-    }));
-    setInitCards(cards);
-
-    // Initialize 5 rows
-    const initialRows: Row[] = Array(5).fill(null).map(() => ({
-      num1: { value: '', filled: false, active: false },
-      operator: { value: '', filled: false, active: false },
-      num2: { value: '', filled: false, active: false },
-      result: { value: '', filled: false, active: false },
-    }));
-    
-    initialRows[0].num1.active = true;
-    setRows(initialRows);
-    setActivePosition({ row: 0, type: 'num1' });
-    setGameWon(false);
   };
 
   const showAlert = (message: string) => {
@@ -191,6 +187,13 @@ export default function App() {
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         setRows(newRows);
         setCalculatedKeys(newCalcKeys);
+
+        // Submit solution to backend
+        if (frame) {
+          const expression = buildExpression(newRows, row + 1);
+          gameApi.submit(frame.id, expression, Math.round(endTime))
+            .catch(err => console.error('Failed to submit solution:', err));
+        }
         return;
       }
 
@@ -238,6 +241,19 @@ export default function App() {
     }
     
     return { error: null, value: String(result) };
+  };
+
+  // Build expression string from completed rows for backend submission
+  const buildExpression = (completedRows: Row[], stepCount: number): string => {
+    const expressions: string[] = [];
+    for (let i = 0; i < stepCount; i++) {
+      const row = completedRows[i];
+      if (row.result.filled) {
+        const op = row.operator.value === '×' ? '*' : row.operator.value;
+        expressions.push(`(${row.num1.value} ${op} ${row.num2.value})`);
+      }
+    }
+    return expressions.join(' -> ');
   };
 
   const deleteRow = (rowIndex: number) => {
@@ -370,6 +386,19 @@ export default function App() {
   const currentWorkingRowIndex = rows.reduce((lastIndex, row, index) => {
     return row.num1.filled ? index : lastIndex;
   }, -1);
+
+  if (loading) {
+    return (
+      <div className="app-container">
+        <div className="content-wrapper">
+          <div className="header">
+            <h1>Number.Le</h1>
+          </div>
+          <div className="loading">Loading today's challenge...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app-container">
