@@ -1,379 +1,490 @@
-import { useEffect, useRef, useState } from "react";
-import Header from "./components/Header";
-import TargetGrid from "./components/TargetGrid";
-import GuessGrid from "./components/GuessGrid";
-import Keyboard from "./components/Keyboard";
-import VictoryModal from "./components/VictoryModal";
-import AlertContainer from "./components/AlertContainer";
-import { cardDeck, getRandomInt, generateTarget, calculateRow } from "./utils/gameLogic";
+import { useState, useEffect, useRef } from 'react';
 
-type KeyObj = {
-  id: string;
-  value: number | null;     // null for empty calculated slots
-  kind: "init" | "calculated";
-  used?: boolean;          // for init keys when consumed
-  valueIn?: boolean;       // for calculated keys when the result was "used" into the grid
-  active?: boolean;
+// Types
+type TileState = {
+  value: string;
+  filled: boolean;
+  active: boolean;
 };
 
 type Row = {
-  num1: number | null;
-  op: string | null;
-  num2: number | null;
-  result: number | null;
-  filled: boolean; // whether the result tile is filled (row complete)
-  isLast?: boolean;
+  num1: TileState;
+  operator: TileState;
+  num2: TileState;
+  result: TileState;
 };
 
-const ALERT_DURATION = 1500;
+type KeyState = {
+  value: string;
+  used: boolean;
+  inactive: boolean;
+};
+
+const CARD_DECK = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 25, 50, 75, 100];
+const COUNTDOWN_SECONDS = 60;
 
 export default function App() {
-  const [target, setTarget] = useState<number>(0);
-  const [keys, setKeys] = useState<KeyObj[]>([]);
+  const [target, setTarget] = useState(0);
   const [rows, setRows] = useState<Row[]>([]);
-  const [activeRow, setActiveRow] = useState(0);
-  const [activeTile, setActiveTile] = useState<"num1" | "operator" | "num2">("num1");
-  const [alertMsg, setAlertMsg] = useState<string | null>(null);
-  const [currentBest, setCurrentBest] = useState<number | null>(null);
-  const [gameOver, setGameOver] = useState(false);
-  const [inputMode, setInputMode] = useState<'number' | 'operator'>('number');
-  const startTime = useRef<number | null>(null);
+  const [initCards, setInitCards] = useState<KeyState[]>([]);
+  const [calculatedKeys, setCalculatedKeys] = useState<KeyState[]>([
+    { value: '', used: false, inactive: true },
+    { value: '', used: false, inactive: true },
+    { value: '', used: false, inactive: true },
+    { value: '', used: false, inactive: true },
+  ]);
+  const [currentBest, setCurrentBest] = useState(0);
+  const [activePosition, setActivePosition] = useState({ row: 0, type: 'num1' as 'num1' | 'operator' | 'num2' });
+  const [gameWon, setGameWon] = useState(false);
+  const [winTime, setWinTime] = useState(0);
+  const [winSteps, setWinSteps] = useState(0);
+  const [timer, setTimer] = useState(0);
+  const [timerStopped, setTimerStopped] = useState(false);
+  const [alert, setAlert] = useState('');
+  
+  const startTimeRef = useRef(Date.now());
+  const gameStartTimeRef = useRef(Date.now()); // Never reset - for tracking real solve time
+  const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Initialize game
   useEffect(() => {
-    initGame();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    initializeGame();
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
   }, []);
 
-  function showAlert(message: string, duration = ALERT_DURATION) {
-    setAlertMsg(message);
-    setTimeout(() => setAlertMsg(null), duration);
-  }
+  // Timer effect
+  useEffect(() => {
+    startTimeRef.current = Date.now();
+    timerIntervalRef.current = setInterval(() => {
+      const elapsed = (Date.now() - startTimeRef.current) / 1000;
+      setTimer(elapsed);
+      
+      if (elapsed >= COUNTDOWN_SECONDS && !timerStopped) {
+        setTimerStopped(true);
+      }
+    }, 100);
 
-  function initGame() {
-    // target
-    const t = generateTarget();
-    setTarget(t);
-    startTime.current = Date.now();
-    setCurrentBest(0);
+    return () => {
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    };
+  }, [timerStopped]);
 
-    // keys: 6 init keys + 4 calculated slots (empty)
-    // draw 6 unique card indices (not indices but values with duplicates handled by deck)
-    const pulledIdx: number[] = [];
+  const initializeGame = () => {
+    // Reset the game start time
+    gameStartTimeRef.current = Date.now();
+
+    // Generate target
+    const newTarget = Math.floor(Math.random() * 900) + 100;
+    setTarget(newTarget);
+
+    // Draw cards (max 2 big numbers, i.e. value >= 10)
+    let pulledCards: number[] = [];
     let multiplied = 1;
 
-    // draw until product >= target for solvability as you had originally
-    while (multiplied < t) {
-      pulledIdx.length = 0;
+    while (multiplied < newTarget) {
+      pulledCards = [];
       multiplied = 1;
-      while (pulledIdx.length < 6) {
-        const idx = getRandomInt(cardDeck.length);
-        if (!pulledIdx.includes(idx)) {
-          pulledIdx.push(idx);
-          multiplied *= cardDeck[idx];
+      let bigCount = 0;
+      let i = 0;
+      while (i < 6) {
+        const nb = Math.floor(Math.random() * 24);
+        const cardValue = CARD_DECK[nb];
+        const isBig = cardValue >= 10;
+
+        // Skip if this would exceed 2 big numbers
+        if (isBig && bigCount >= 2) continue;
+
+        if (!pulledCards.includes(nb)) {
+          pulledCards.push(nb);
+          multiplied *= cardValue;
+          if (isBig) bigCount++;
+          i++;
         }
       }
-      // if still < target, loop to draw a new set
     }
 
-    const initKeys: KeyObj[] = pulledIdx.map((idx, i) => ({
-      id: `init-${i}-${cardDeck[idx]}`,
-      value: cardDeck[idx],
-      kind: "init",
+    const cards = pulledCards.map(index => ({
+      value: String(CARD_DECK[index]),
       used: false,
+      inactive: false,
     }));
+    setInitCards(cards);
 
-    // add 4 calculated slots
-    for (let i = 0; i < 4; i++) {
-      initKeys.push({
-        id: `calc-${i}`,
-        value: null,
-        kind: "calculated",
-        valueIn: false,
-      });
-    }
-
-    setKeys(initKeys);
-
-    // rows: 5 rows pre-created
-    const r: Row[] = Array.from({ length: 5 }).map((_, i) => ({
-      num1: null,
-      op: null,
-      num2: null,
-      result: null,
-      filled: false,
-      isLast: i === 4,
+    // Initialize 5 rows
+    const initialRows: Row[] = Array(5).fill(null).map(() => ({
+      num1: { value: '', filled: false, active: false },
+      operator: { value: '', filled: false, active: false },
+      num2: { value: '', filled: false, active: false },
+      result: { value: '', filled: false, active: false },
     }));
-    setRows(r);
+    
+    initialRows[0].num1.active = true;
+    setRows(initialRows);
+    setActivePosition({ row: 0, type: 'num1' });
+    setGameWon(false);
+  };
 
-    setActiveRow(0);
-    setActiveTile("num1");
-    setGameOver(false);
-  }
+  const showAlert = (message: string) => {
+    setAlert(message);
+    setTimeout(() => setAlert(''), 1500);
+  };
 
-  // helper to update a key by id
-  function updateKey(id: string, patch: Partial<KeyObj>) {
-    setKeys((prev) => prev.map(k => k.id === id ? { ...k, ...patch } : k));
-  }
+  const handleKeyPress = (value: string, isCalculated: boolean, calcKeyIndex?: number) => {
+    const { row, type } = activePosition;
+    const currentRow = rows[row];
 
-  // find first calculated slot that is empty and not valueIn
-  function findNextCalculatedSlotIndex() {
-    return keys.findIndex(k => k.kind === "calculated" && k.value === null && !k.valueIn);
-  }
+    const isNumber = type === 'num1' || type === 'num2';
+    const keyIsNumber = !['+', '-', '×', '/'].includes(value);
 
-  function computeResultAndAdvance(a: number, op: string, b: number) {
-    const calc = calculateRow(a, b, op);
-    if (!calc.ok) {
-      showAlert(calc.error || "Invalid operation");
-      return false;
-    }
-    const numResult = calc.result!;
-    // set row result and mark as filled
-    setRows((prev) => {
-      const copy = prev.map(r => ({ ...r }));
-      copy[activeRow].result = numResult;
-      copy[activeRow].filled = true;
-      return copy;
-    });
+    if (isNumber !== keyIsNumber) return;
 
-    // update best
-    setCurrentBest((prevBest) => {
-      const current = prevBest ?? 0;
-      const diff = Math.abs(target - current);
-      const newDiff = Math.abs(target - numResult);
-      if (newDiff <= diff) return numResult;
-      return prevBest;
-    });
+    const newRows = [...rows];
+    newRows[row] = { ...currentRow };
+    newRows[row][type] = { value, filled: true, active: false };
 
-    // create new calculated key: put result into first available calculated slot
-    setKeys((prevKeys) => {
-      const copy = prevKeys.map(k => ({ ...k }));
-      const idx = copy.findIndex(k => k.kind === "calculated" && k.value === null && !k.valueIn);
-      if (idx !== -1) {
-        copy[idx].value = numResult;
-        // ensure it's active (clickable)
-        copy[idx].used = false;
-      } else {
-        // If somehow no calculated slot is free, drop it (shouldn't happen)
-        console.warn("No calculated slot free for result", numResult);
+    // Track calculated keys updates in a single array to avoid state overwrites
+    let newCalcKeys = [...calculatedKeys];
+
+    // Mark the used key as inactive first (before calculating result)
+    if (isNumber) {
+      if (isCalculated && calcKeyIndex !== undefined) {
+        newCalcKeys[calcKeyIndex] = { ...newCalcKeys[calcKeyIndex], used: true, inactive: true };
+      } else if (!isCalculated) {
+        const newInitCards = [...initCards];
+        const cardIndex = newInitCards.findIndex(k => k.value === value && !k.used);
+        if (cardIndex !== -1) {
+          newInitCards[cardIndex] = { ...newInitCards[cardIndex], used: true, inactive: true };
+          setInitCards(newInitCards);
+        }
       }
-      return copy;
-    });
+    }
 
-    // move to next row or end game
-    if (activeRow === rows.length - 1) {
-      // last row completed → stop game
-      setGameOver(true);
-      const endTime = Date.now();
-      const duration = startTime.current ? Math.round((endTime - startTime.current)/1000) : 0;
-      showAlert(`Game finished in ${duration}s`);
+    if (type === 'num2') {
+      const result = calculateResult(
+        parseInt(currentRow.num1.value),
+        currentRow.operator.value,
+        parseInt(value)
+      );
+
+      if (result.error) {
+        showAlert(result.error);
+        return;
+      }
+
+      newRows[row].result = { value: result.value, filled: true, active: false };
+
+      const newValue = parseInt(result.value);
+      const currentDiff = Math.abs(target - currentBest);
+      const newDiff = Math.abs(target - newValue);
+
+      if (newDiff <= currentDiff || currentBest === 0) {
+        setCurrentBest(newValue);
+      }
+
+      if (Math.abs(target - newValue) === 0) {
+        const endTime = (Date.now() - gameStartTimeRef.current) / 1000;
+        setWinTime(parseFloat(endTime.toFixed(2)));
+        setWinSteps(row + 1);
+        setGameWon(true);
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+        setRows(newRows);
+        setCalculatedKeys(newCalcKeys);
+        return;
+      }
+
+      if (row < 4) {
+        const emptyIndex = newCalcKeys.findIndex(k => !k.value);
+        if (emptyIndex !== -1) {
+          newCalcKeys[emptyIndex] = { value: result.value, used: false, inactive: false };
+        }
+
+        newRows[row + 1].num1.active = true;
+        setActivePosition({ row: row + 1, type: 'num1' });
+      } else {
+        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      }
     } else {
-      // next row: num1 should become the result (not automatically in your original — you left it for the player to pick the new number? In original, result becomes a new card to be used)
-      // We will set next row active and expect player to click the new number (from calculated keys).
-      setActiveRow((r) => r + 1);
-      setActiveTile("num1");
+      const nextType = type === 'num1' ? 'operator' : 'num2';
+      newRows[row][nextType].active = true;
+      setActivePosition({ row, type: nextType });
     }
 
-    return true;
-  }
+    setRows(newRows);
+    setCalculatedKeys(newCalcKeys);
+  };
 
-  // press a key (either init or calculated)
-  // This mirrors pressKey in your original code
-  function handleKeyPress(keyId: string) {
-    if (gameOver) return;
-    const key = keys.find(k => k.id === keyId);
-    if (!key) return;
-    if (key.kind === "calculated" && key.value === null) return; // empty calculated slot
-
-    // if key marked inactive (used true) we ignore
-    if (key.used) return;
-
-    // depending on activeTile
-    const val = key.value!;
-    if (activeTile === "num1") {
-      // set current row num1
-      setRows((prev) => {
-        const copy = prev.map(r => ({ ...r }));
-        copy[activeRow].num1 = val;
-        return copy;
-      });
-
-      // mark key used if init (only init keys become used)
-      if (key.kind === "init") updateKey(keyId, { used: true });
-      // calculated keys are not marked 'used' per se in your original logic, but your original sets data-valuein on calculated when used into tile; we mimic it:
-      if (key.kind === "calculated") updateKey(keyId, { valueIn: true });
-
-      // next step: operator
-      setActiveTile("operator");
-      return;
+  const calculateResult = (num1: number, operator: string, num2: number) => {
+    let result: number;
+    
+    switch (operator) {
+      case '+':
+        result = num1 + num2;
+        break;
+      case '-':
+        if (num2 >= num1) return { error: 'Error: result must be positive', value: '' };
+        result = num1 - num2;
+        break;
+      case '×':
+        result = num1 * num2;
+        break;
+      case '/':
+        result = num1 / num2;
+        if (!Number.isInteger(result)) return { error: 'Error: result must be an integer', value: '' };
+        break;
+      default:
+        return { error: 'Invalid operator', value: '' };
     }
+    
+    return { error: null, value: String(result) };
+  };
 
-    if (activeTile === "operator") {
-      // operator chosen
-      setRows((prev) => {
-        const copy = prev.map(r => ({ ...r }));
-        copy[activeRow].op = String(val);
-        return copy;
-      });
+  const deleteRow = (rowIndex: number) => {
+    const newRows = [...rows];
+    const rowToDelete = newRows[rowIndex];
 
-      // operator keys in keyboard had data-key of + - x / — those are separate keys in keyboard component, so this branch is for number keys only; but we keep for safety.
-      setActiveTile("num2");
-      return;
-    }
+    const valuesToReactivate: string[] = [];
+    if (rowToDelete.num1.filled) valuesToReactivate.push(rowToDelete.num1.value);
+    if (rowToDelete.num2.filled) valuesToReactivate.push(rowToDelete.num2.value);
+    const resultValue = rowToDelete.result.value;
 
-    if (activeTile === "num2") {
-      // set num2, calculate
-      setRows((prev) => {
-        const copy = prev.map(r => ({ ...r }));
-        copy[activeRow].num2 = val;
-        return copy;
-      });
+    newRows[rowIndex] = {
+      num1: { value: '', filled: false, active: false },
+      operator: { value: '', filled: false, active: false },
+      num2: { value: '', filled: false, active: false },
+      result: { value: '', filled: false, active: false },
+    };
 
-      // mark key used
-      if (key.kind === "init") updateKey(keyId, { used: true });
-      if (key.kind === "calculated") updateKey(keyId, { valueIn: true });
+    const newInitCards = [...initCards];
+    const newCalcKeys = [...calculatedKeys];
 
-      // compute result
-      const r = rows[activeRow];
-      // careful: r may be stale due to setState; compute using latest from state by reading the row after setRows above
-      // read values directly from current rows state
-      const currentRow = (() => {
-        const curr = rows[activeRow];
-        // but we already updated via setRows; to be safer, recompute a and op from state updater
-        const a = curr?.num1 ?? null;
-        const op = curr?.op ?? null;
-        const b = val;
-        if (a === null || op === null) {
-          // fallback: try to read from the DOM-like state via prev rows after setRows — simplest approach: read latest via functional updater
-          // We'll use a small trick: read rows from state directly (this closure uses stale rows but should be OK in typical small app)
-        }
-        return { a, op, b };
-      })();
-
-      // Because of potential stale state inside closure, compute row using the most recent state by reading rows variable (React batches, but this works)
-      const rowNow = rows[activeRow];
-      const a = rowNow?.num1 ?? null;
-      const op = rowNow?.op ?? null;
-      const b = val;
-
-      if (a === null || op === null) {
-        // This shouldn't happen, but protect
-        showAlert("Incomplete operation");
-        return;
-      }
-
-      // calculate and advance
-      computeResultAndAdvance(a, op, b);
-    }
-  }
-
-  // operator click handler (separate operator buttons)
-  function handleOperatorClick(op: string) {
-    if (gameOver) return;
-    if (activeTile !== "operator") return;
-    // set the operator on the row
-    setRows(prev => {
-      const copy = prev.map(r => ({ ...r }));
-      copy[activeRow].op = op;
-      return copy;
-    });
-    setActiveTile("num2");
-  }
-
-  // Undo: revert last edit
-  function handleUndo() {
-    if (gameOver) return;
-    // find last filled element in rows (search from activeRow backwards)
-    // rules mirror your deleteKey: depending on activeTile, we undo previous element
-    // We'll implement a best-effort consistent behavior:
-    const r = [...rows];
-
-    // if activeTile is num1 (we are at the start of a row), then we need to go back to previous row's result or num2 etc.
-    if (activeTile === "num1") {
-      // if we're at the first tile of game do nothing
-      if (activeRow === 0 && r[0].num1 === null) return;
-      // if previous row has result, revert that result and set activeRow to that row and activeTile to num2 (so user can re-enter second operand)
-      if (r[activeRow].num1 === null && activeRow > 0) {
-        const prevIdx = activeRow - 1;
-        // revert prev row's result to null and free the calculated key that holds it if any
-        const prevRow = r[prevIdx];
-        if (prevRow.filled) {
-          // find calculated key with that value and free it
-          setKeys((prevKeys) => prevKeys.map(k => (k.kind === 'calculated' && k.value === prevRow.result) ? { ...k, value: null, valueIn: false } : k));
-          prevRow.result = null;
-          prevRow.filled = false;
-          // revert the last used num2 and operator back into their tiles
-        }
-        setRows(r);
-        setActiveRow(prevIdx);
-        setActiveTile("num2");
-        return;
-      }
-      // otherwise (there is something in num1 of current row) clear it
-      if (r[activeRow].num1 !== null) {
-        // reactivate the key that was used (try to find a key with value and used true)
-        const val = r[activeRow].num1!;
-        setKeys(prev => prev.map(k => (k.value === val && k.kind === 'init' && k.used) ? { ...k, used: false } : k));
-        r[activeRow].num1 = null;
-        setRows(r);
-        return;
-      }
-    }
-
-    // if activeTile is operator: remove operator and set activeTile to num1
-    if (activeTile === "operator") {
-      if (r[activeRow].op !== null) {
-        r[activeRow].op = null;
-        setRows(r);
-      }
-      setActiveTile("num1");
-      return;
-    }
-
-    // if activeTile is num2: clear num2 or if already empty, go back to operator
-    if (activeTile === "num2") {
-      if (r[activeRow].num2 !== null) {
-        const val = r[activeRow].num2!;
-        // reactivate key if it was init
-        setKeys(prev => prev.map(k => (k.value === val && k.kind === 'init' && k.used) ? { ...k, used: false } : k));
-        r[activeRow].num2 = null;
-        setRows(r);
-        setActiveTile("operator");
-        return;
+    valuesToReactivate.forEach(value => {
+      const initIndex = newInitCards.findIndex(k => k.value === value && k.used);
+      if (initIndex !== -1) {
+        newInitCards[initIndex] = { ...newInitCards[initIndex], used: false, inactive: false };
       } else {
-        setActiveTile("operator");
-        return;
+        const calcIndex = newCalcKeys.findIndex(k => k.value === value);
+        if (calcIndex !== -1) {
+          newCalcKeys[calcIndex] = { ...newCalcKeys[calcIndex], used: false, inactive: false };
+        }
+      }
+    });
+
+    if (resultValue) {
+      const calcIndex = newCalcKeys.findIndex(k => k.value === resultValue);
+      if (calcIndex !== -1) {
+        newCalcKeys[calcIndex] = { value: '', used: false, inactive: true };
       }
     }
-  }
 
-  // Reset: clear tiles and keyboard but keep same target and card draw? In original resetTiles/resetKeyboard didn't regenerate target
-  function handleReset() {
-    // reset tiles:
-    setRows(prev => prev.map((r) => ({ ...r, num1: null, op: null, num2: null, result: null, filled: false })));
-    // reset keys: init keys become unused, calculated keys cleared
-    setKeys(prev => prev.map(k => k.kind === "init" ? { ...k, used: false } : { ...k, value: null, valueIn: false }));
-    setActiveRow(0);
-    setActiveTile("num1");
+    setInitCards(newInitCards);
+    setCalculatedKeys(newCalcKeys);
+
+    // Clear all active states first
+    newRows.forEach(row => {
+      row.num1.active = false;
+      row.operator.active = false;
+      row.num2.active = false;
+    });
+
+    // Set active position on the deleted row
+    newRows[rowIndex].num1.active = true;
+    setActivePosition({ row: rowIndex, type: 'num1' });
+
+    setRows(newRows);
+    recalculateBest(newRows);
+  };
+
+  const recalculateBest = (currentRows: Row[]) => {
+    let best = 0;
+    let bestDiff = Infinity;
+
+    currentRows.forEach(row => {
+      if (row.result.filled) {
+        const value = parseInt(row.result.value);
+        const diff = Math.abs(target - value);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = value;
+        }
+      }
+    });
+
+    setCurrentBest(best);
+  };
+
+  const resetGame = () => {
+    // Don't reset the timer - keep it running
+    
+    // Reset game state but keep target and cards
+    setRows(Array(5).fill(null).map(() => ({
+      num1: { value: '', filled: false, active: false },
+      operator: { value: '', filled: false, active: false },
+      num2: { value: '', filled: false, active: false },
+      result: { value: '', filled: false, active: false },
+    })));
+    
+    // First row, first tile active
+    setRows(prev => {
+      const newRows = [...prev];
+      newRows[0].num1.active = true;
+      return newRows;
+    });
+    
+    // Reset all init cards to unused
+    setInitCards(prev => prev.map(card => ({
+      ...card,
+      used: false,
+      inactive: false,
+    })));
+    
+    // Clear all calculated keys
+    setCalculatedKeys([
+      { value: '', used: false, inactive: true },
+      { value: '', used: false, inactive: true },
+      { value: '', used: false, inactive: true },
+      { value: '', used: false, inactive: true },
+    ]);
+    
+    setActivePosition({ row: 0, type: 'num1' });
     setCurrentBest(0);
-  }
+    setGameWon(false);
+  };
+
+  const getAvailableKeys = () => {
+    const { type } = activePosition;
+    if (type === 'operator') {
+      return { numbers: [], operators: ['+', '-', '×', '/'] };
+    } else {
+      const availableNumbers = [
+        ...initCards.filter(k => !k.inactive).map(k => ({ value: k.value, isCalculated: false })),
+        ...calculatedKeys.filter(k => k.value && !k.inactive).map(k => ({ value: k.value, isCalculated: true }))
+      ];
+      return { numbers: availableNumbers, operators: [] };
+    }
+  };
+
+  const available = getAvailableKeys();
+  // Find the current row being worked on (highest row with num1 filled)
+  const currentWorkingRowIndex = rows.reduce((lastIndex, row, index) => {
+    return row.num1.filled ? index : lastIndex;
+  }, -1);
 
   return (
-    <div className="container">
-      <Header />
-      <TargetGrid target={target} />
-      <AlertContainer />
-      <GuessGrid rows={rows} activeRow={activeRow} activeTile={activeTile} />
-      <Keyboard
-        keys={keys}
-        onKeyPress={handleKeyPress}
-        onOperatorPress={handleOperatorClick}
-        onReset={handleReset}
-        onUndo={handleUndo}
-        disabled={gameOver}
-        activeTile={activeTile}
-      />
-      {gameOver && <VictoryModal onRestart={() => initGame()} />}
-      {alertMsg && <div className="alert" style={{position:'fixed',left:20,top:80}}>{alertMsg}</div>}
+    <div className="app-container">
+      <div className="content-wrapper">
+        {/* Header */}
+        <div className="header">
+          <h1>Number.Le</h1>
+        </div>
+
+        {/* Target */}
+        <div className="target-grid">
+          {String(target).split('').map((digit, i) => (
+            <div key={i} className="target-tile">{digit}</div>
+          ))}
+        </div>
+
+        {/* Timer */}
+        <div className="timer-container">
+          <div className={`timer ${timerStopped ? 'overtime' : ''}`}>
+            {timerStopped ? `${COUNTDOWN_SECONDS}++ seconds` : `${timer.toFixed(1)}s`}
+          </div>
+        </div>
+
+        {/* Alert */}
+        {alert && <div className="alert-inline">{alert}</div>}
+
+        {/* Victory Modal */}
+        {gameWon && (
+          <>
+            <div className="victory-overlay" onClick={(e) => e.stopPropagation()} />
+            <div className="victory-modal">
+              <h1>Congratulations!</h1>
+              <p>
+                You finished the puzzle
+                {winTime <= 300 ? ` in ${winTime}s` : ''} with {winSteps} step{winSteps > 1 ? 's' : ''}.
+              </p>
+            </div>
+          </>
+        )}
+
+        {/* Game Grid */}
+        <div className="game-grid">
+          {rows.map((row, rowIndex) => {
+            const isBest = row.result.filled && parseInt(row.result.value) === currentBest;
+            const showDelete = row.num1.filled && rowIndex === currentWorkingRowIndex;
+
+            return (
+              <div key={rowIndex} className="grid-row">
+                <div className={`tile ${row.num1.active ? 'active' : ''} ${isBest ? 'best' : ''}`}>
+                  {row.num1.value}
+                </div>
+                <div className={`tile operator-tile ${row.operator.active ? 'active' : ''}`}>
+                  {row.operator.value}
+                </div>
+                <div className={`tile ${row.num2.active ? 'active' : ''} ${isBest ? 'best' : ''}`}>
+                  {row.num2.value}
+                </div>
+                <div className="equals">=</div>
+                <div className={`tile result-tile ${isBest ? 'best' : ''}`}>
+                  {row.result.value}
+                </div>
+                <button
+                  onClick={() => deleteRow(rowIndex)}
+                  className="delete-row-btn"
+                  style={{ visibility: showDelete ? 'visible' : 'hidden' }}
+                >
+                  ×
+                </button>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Keyboard */}
+        <div className="keyboard">
+          {initCards.map((card, i) => (
+            <button
+              key={i}
+              onClick={() => handleKeyPress(card.value, false)}
+              disabled={gameWon || card.inactive || available.operators.length > 0}
+              className={`key init-key ${card.inactive || available.operators.length > 0 ? 'inactive' : ''}`}
+            >
+              {card.value}
+            </button>
+          ))}
+          
+          <div className="spacer" />
+          
+          {calculatedKeys.map((key, i) => (
+            <button
+              key={`calc-${i}`}
+              onClick={() => handleKeyPress(key.value, true, i)}
+              disabled={gameWon || key.inactive || !key.value || available.operators.length > 0}
+              className={`key calc-key ${key.inactive || !key.value || available.operators.length > 0 ? 'inactive' : ''}`}
+            >
+              {key.value}
+            </button>
+          ))}
+          
+          <div className="spacer" />
+          
+          <button className="key reset-key" onClick={resetGame} disabled={gameWon}>Reset</button>
+          
+          {['+', '-', '×', '/'].map(op => (
+            <button
+              key={op}
+              onClick={() => handleKeyPress(op, false)}
+              disabled={gameWon || available.numbers.length > 0}
+              className={`key operator-key ${available.numbers.length > 0 ? 'inactive' : ''}`}
+            >
+              {op}
+            </button>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
