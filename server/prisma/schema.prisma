@@ -1,0 +1,64 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String       @id @default(cuid())
+  email          String       @unique
+  hashedPassword String
+  name           String?
+  createdAt      DateTime     @default(now())
+
+  gameResults    GameResult[]
+  sentRequests   Friendship[] @relation("SentRequests")
+  receivedRequests Friendship[] @relation("ReceivedRequests")
+}
+
+model Frame {
+  id           String       @id @default(cuid())
+  tiles        Int[]        // Array of 6 numbers
+  targetNumber Int
+  date         DateTime?    @unique // null for random frames, set for daily challenges
+  createdAt    DateTime     @default(now())
+
+  gameResults  GameResult[]
+}
+
+model GameResult {
+  id         String   @id @default(cuid())
+  expression String?  // The solution expression submitted
+  result     Int?     // The calculated result
+  solved     Boolean  @default(false)
+  duration   Int?     // Time taken in seconds
+  playedAt   DateTime @default(now())
+
+  userId     String?  // null for anonymous plays
+  user       User?    @relation(fields: [userId], references: [id])
+
+  frameId    String
+  frame      Frame    @relation(fields: [frameId], references: [id])
+}
+
+model Friendship {
+  id        String           @id @default(cuid())
+  status    FriendshipStatus @default(PENDING)
+  createdAt DateTime         @default(now())
+
+  userId    String
+  user      User   @relation("SentRequests", fields: [userId], references: [id])
+
+  friendId  String
+  friend    User   @relation("ReceivedRequests", fields: [friendId], references: [id])
+
+  @@unique([userId, friendId])
+}
+
+enum FriendshipStatus {
+  PENDING
+  ACCEPTED
+}
