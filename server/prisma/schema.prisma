@@ -1,64 +1,365 @@
+// =============================================================================
+// PRISMA SCHEMA (schema.prisma)
+// =============================================================================
+//
+// This file defines the database schema for the Countdown Numbers Game.
+// Prisma ORM uses this schema to generate TypeScript types and database
+// migrations.
+//
+// DATABASE: PostgreSQL
+// ORM: Prisma with @prisma/adapter-pg
+//
+// MODELS OVERVIEW:
+// - User: Player accounts with authentication data
+// - VerificationToken: Email verification tokens (24h expiry)
+// - PasswordResetToken: Password reset tokens (1h expiry)
+// - Frame: Game puzzles with tiles and target numbers
+// - GameResult: Records of player attempts and solutions
+// - DailyAttempt: Tracks when users start daily challenges (for timing)
+// - Friendship: Friend relationships between users
+//
+// CONVENTIONS:
+// - All models use CUID for primary keys (@id @default(cuid()))
+// - Timestamps use @default(now()) for automatic creation time
+// - Cascade delete is used where child records should be removed with parent
+//
+// MIGRATIONS:
+// Run `npx prisma migrate dev` after modifying this file
+// Run `npx prisma generate` to regenerate the Prisma client
+
+// =============================================================================
+// GENERATOR & DATASOURCE CONFIGURATION
+// =============================================================================
+
+// Prisma Client generator configuration
+// The output path specifies where the generated TypeScript client is placed
 generator client {
   provider = "prisma-client"
   output   = "../src/generated/prisma"
 }
 
+// Database connection configuration
+// Uses PostgreSQL as the database provider
+// Connection string is provided via DATABASE_URL environment variable
 datasource db {
   provider = "postgresql"
 }
 
+// =============================================================================
+// USER MODEL
+// =============================================================================
+
+// User: Represents a player account in the system
+//
+// AUTHENTICATION:
+// - Email is unique and used as the login identifier
+// - Password is stored as a bcrypt hash (12 rounds)
+// - emailVerified must be true before login is allowed
+//
+// RELATIONS:
+// - gameResults: All game attempts by this user
+// - dailyAttempts: Daily challenge start times for timing
+// - sentRequests/receivedRequests: Friend relationships (bidirectional)
+// - verificationTokens: Email verification tokens
+// - passwordResetTokens: Password reset tokens
 model User {
-  id             String       @id @default(cuid())
-  email          String       @unique
-  hashedPassword String
-  name           String?
-  createdAt      DateTime     @default(now())
+  id             String       @id @default(cuid())  // Unique identifier (CUID)
+  email          String       @unique               // Login email (must be unique)
+  hashedPassword String                             // Bcrypt hash of password
+  name           String?                            // Optional display name
+  emailVerified  Boolean      @default(false)       // Must verify email before login
+  createdAt      DateTime     @default(now())       // Account creation timestamp
 
-  gameResults    GameResult[]
-  sentRequests   Friendship[] @relation("SentRequests")
-  receivedRequests Friendship[] @relation("ReceivedRequests")
+  // Relations to other models
+  gameResults    GameResult[]           // User's game submissions
+  dailyAttempts  DailyAttempt[]         // Daily challenge attempt records
+  sentRequests   Friendship[] @relation("SentRequests")      // Friend requests sent by user
+  receivedRequests Friendship[] @relation("ReceivedRequests") // Friend requests received
+  verificationTokens VerificationToken[]   // Email verification tokens
+  passwordResetTokens PasswordResetToken[]  // Password reset tokens
+  stats          UserStats?             // Aggregate stats for leaderboard
 }
 
+// =============================================================================
+// VERIFICATION TOKEN MODEL
+// =============================================================================
+
+// VerificationToken: Temporary token for email verification
+//
+// LIFECYCLE:
+// 1. Created when user registers
+// 2. User clicks link with token to verify email
+// 3. Token is deleted after successful verification
+//
+// SECURITY:
+// - Token is a random 64-character hex string
+// - Expires after 24 hours
+// - Deleted on cascade when user is deleted
+model VerificationToken {
+  id        String   @id @default(cuid())   // Unique identifier
+  token     String   @unique                 // The verification token (64 hex chars)
+  expiresAt DateTime                         // When the token expires (24h from creation)
+  createdAt DateTime @default(now())         // Token creation timestamp
+
+  // Relation to the user this token belongs to
+  userId    String                           // Foreign key to User
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =============================================================================
+// PASSWORD RESET TOKEN MODEL
+// =============================================================================
+
+// PasswordResetToken: Temporary token for password reset
+//
+// LIFECYCLE:
+// 1. Created when user requests password reset
+// 2. User clicks link with token to reset password
+// 3. Token is deleted after successful reset (or expiration)
+//
+// SECURITY:
+// - Token is a random 64-character hex string
+// - Expires after 1 hour (shorter than verification for security)
+// - Only one active token per user (old ones are deleted on new request)
+// - Deleted on cascade when user is deleted
+model PasswordResetToken {
+  id        String   @id @default(cuid())   // Unique identifier
+  token     String   @unique                 // The reset token (64 hex chars)
+  expiresAt DateTime                         // When the token expires (1h from creation)
+  createdAt DateTime @default(now())         // Token creation timestamp
+
+  // Relation to the user this token belongs to
+  userId    String                           // Foreign key to User
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =============================================================================
+// FRAME MODEL
+// =============================================================================
+
+// Frame: Represents a game puzzle (the "board")
+//
+// STRUCTURE:
+// - tiles: Array of 6 numbers (typically 2 large + 4 small)
+// - targetNumber: The number players must reach (101-999)
+//
+// DAILY VS RANDOM:
+// - Daily challenges have a date set (unique per day)
+// - Random frames have date = null
+//
+// MANUAL VS AUTO:
+// - isManual = true: Created/edited by admin with specific values
+// - isManual = false: Auto-generated by the system
+//
+// UNIQUENESS:
+// - Daily challenges are unique per date (@@unique on date)
+// - Tile/target combinations should be unique (enforced in code)
 model Frame {
-  id           String       @id @default(cuid())
-  tiles        Int[]        // Array of 6 numbers
-  targetNumber Int
-  date         DateTime?    @unique // null for random frames, set for daily challenges
-  createdAt    DateTime     @default(now())
+  id           String       @id @default(cuid())   // Unique identifier
+  tiles        Int[]                               // Array of 6 number tiles
+  targetNumber Int                                 // Target number (101-999)
+  date         DateTime?    @unique                // null for random, set for daily
+  isManual     Boolean      @default(false)        // true if admin-created
+  createdAt    DateTime     @default(now())        // Frame creation timestamp
 
-  gameResults  GameResult[]
+  // Cached stats for leaderboard calculation (updated by daily job)
+  totalAttempts     Int      @default(0)           // Total GameResults for this frame
+  solvedCount       Int      @default(0)           // GameResults where solved=true
+  completionPercent Int      @default(0)           // (solvedCount/totalAttempts)*100
+
+  // Relations
+  gameResults   GameResult[]       // All submissions for this frame
+  dailyAttempts DailyAttempt[]     // Daily challenge attempts (for timing)
 }
 
-model GameResult {
-  id         String   @id @default(cuid())
-  expression String?  // The solution expression submitted
-  result     Int?     // The calculated result
-  solved     Boolean  @default(false)
-  duration   Int?     // Time taken in seconds
-  playedAt   DateTime @default(now())
+// =============================================================================
+// GAME RESULT MODEL
+// =============================================================================
 
-  userId     String?  // null for anonymous plays
+// GameResult: Records a player's submission/attempt for a frame
+//
+// DATA CAPTURED:
+// - expression: The mathematical solution (e.g., "(25 + 75) * 4")
+// - result: The calculated value of the expression
+// - solved: Whether result equals the target
+// - duration: Time taken in seconds (for daily challenges)
+//
+// USER HANDLING:
+// - userId = null: Anonymous play (not logged in)
+// - userId set: Logged-in user (can only submit once per frame)
+//
+// TIMING:
+// - For daily challenges, duration is calculated from DailyAttempt.startedAt
+// - This ensures accurate timing even if client clock is wrong
+model GameResult {
+  id         String   @id @default(cuid())   // Unique identifier
+  expression String?                          // The solution expression submitted
+  result     Int?                             // The calculated result
+  solved     Boolean  @default(false)         // Did result match target?
+  duration   Float?                           // Time taken in seconds (to hundredths)
+  playedAt   DateTime @default(now())         // When the submission was made
+
+  // Optional relation to user (null for anonymous plays)
+  userId     String?                          // Foreign key to User (nullable)
   user       User?    @relation(fields: [userId], references: [id])
 
-  frameId    String
+  // Required relation to the frame played
+  frameId    String                           // Foreign key to Frame
   frame      Frame    @relation(fields: [frameId], references: [id])
+
+  // Unique constraint: one result per user per frame (for logged-in users)
+  // Note: This only applies when userId is not null
+  @@unique([userId, frameId])
+
+  // Index for efficient leaderboard calculation queries
+  @@index([frameId, solved])
+  @@index([solved, frameId])
 }
 
-model Friendship {
-  id        String           @id @default(cuid())
-  status    FriendshipStatus @default(PENDING)
-  createdAt DateTime         @default(now())
+// =============================================================================
+// DAILY ATTEMPT MODEL
+// =============================================================================
 
-  userId    String
+// DailyAttempt: Tracks when a user starts a daily challenge
+//
+// PURPOSE:
+// - Records the exact time a user began the challenge
+// - Used to calculate accurate duration on submission
+// - Prevents timing manipulation by using server time
+//
+// CONSTRAINTS:
+// - One attempt per user per frame (@@unique on userId+frameId)
+// - Only created for daily challenges (frames with date set)
+// - Deleted on cascade when user or frame is deleted
+model DailyAttempt {
+  id        String   @id @default(cuid())   // Unique identifier
+  startedAt DateTime @default(now())        // When the user started the challenge
+
+  // Relation to the user
+  userId    String                           // Foreign key to User
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Relation to the frame
+  frameId   String                           // Foreign key to Frame
+  frame     Frame    @relation(fields: [frameId], references: [id], onDelete: Cascade)
+
+  // Composite unique constraint: one attempt per user per frame
+  @@unique([userId, frameId])
+}
+
+// =============================================================================
+// FRIENDSHIP MODEL
+// =============================================================================
+
+// Friendship: Represents a friend relationship or request between two users
+//
+// DIRECTION:
+// - userId: The user who sent the request (sender)
+// - friendId: The user who received the request (receiver)
+//
+// STATUS:
+// - PENDING: Request sent but not yet accepted
+// - ACCEPTED: Both users are friends
+//
+// OPERATIONS:
+// - Sender can cancel pending request
+// - Receiver can accept or decline pending request
+// - Either party can remove an accepted friendship
+//
+// UNIQUENESS:
+// - Only one relationship can exist between two users (@@unique on userId+friendId)
+// - Code also checks reverse direction to prevent duplicate requests
+model Friendship {
+  id        String           @id @default(cuid())   // Unique identifier
+  status    FriendshipStatus @default(PENDING)      // PENDING or ACCEPTED
+  createdAt DateTime         @default(now())        // When request was sent
+
+  // Sender of the friend request
+  userId    String                                  // Foreign key to User (sender)
   user      User   @relation("SentRequests", fields: [userId], references: [id])
 
-  friendId  String
+  // Receiver of the friend request
+  friendId  String                                  // Foreign key to User (receiver)
   friend    User   @relation("ReceivedRequests", fields: [friendId], references: [id])
 
+  // Composite unique constraint: one friendship per user pair (in this direction)
   @@unique([userId, friendId])
 }
 
+// =============================================================================
+// USER STATS MODEL
+// =============================================================================
+
+// UserStats: Stores aggregate statistics for leaderboard ranking
+//
+// PURPOSE:
+// - Tracks total points earned across all challenges
+// - Points are recalculated daily at UTC midnight (or on-demand)
+// - Used for overall leaderboard ranking
+//
+// POINT CALCULATION:
+// - Base points = 100 - completionPercent (harder challenges = more points)
+// - Time bonus: <60s = 1.2x, <5min = 1.1x, >=5min = 1.0x
+// - Only solved challenges earn points
+model UserStats {
+  id             String   @id @default(cuid())   // Unique identifier
+  totalPoints    Int      @default(0)            // Sum of all challenge points
+  lastCalculated DateTime @default(now())        // When points were last recalculated
+
+  // Relation to the user
+  userId         String   @unique                // Foreign key to User (one stats per user)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// =============================================================================
+// POINTS CALCULATION MODEL
+// =============================================================================
+
+// PointsCalculation: Tracks daily points recalculation job runs
+//
+// PURPOSE:
+// - Monitor the daily batch job that recalculates all user points
+// - Track duration, rows processed, and any errors
+// - Allows admin to view history and trigger manual recalculations
+//
+// STATUS:
+// - RUNNING: Job is currently executing
+// - COMPLETED: Job finished successfully
+// - FAILED: Job encountered an error
+model PointsCalculation {
+  id              String                   @id @default(cuid())
+  status          PointsCalculationStatus  @default(RUNNING)
+  startedAt       DateTime                 @default(now())
+  completedAt     DateTime?
+
+  // Stats
+  framesProcessed Int                      @default(0)
+  usersProcessed  Int                      @default(0)
+  resultsProcessed Int                     @default(0)
+
+  // Duration in milliseconds
+  durationMs      Int?
+
+  // Error message if failed
+  error           String?
+
+  // Who triggered it (null = scheduled job, string = admin user)
+  triggeredBy     String?
+}
+
+// =============================================================================
+// ENUMS
+// =============================================================================
+
+// PointsCalculationStatus: Status of a points calculation job
+enum PointsCalculationStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+// FriendshipStatus: Possible states of a friendship
 enum FriendshipStatus {
-  PENDING
-  ACCEPTED
+  PENDING   // Request sent, awaiting acceptance
+  ACCEPTED  // Request accepted, users are friends
 }

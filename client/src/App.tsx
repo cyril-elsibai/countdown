@@ -1,5 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
-import { gameApi, Frame } from './api';
+import { gameApi, authApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult } from './api';
+import AuthForm from './components/AuthForm';
+import ResetPasswordForm from './components/ResetPasswordForm';
+import Profile from './components/Profile';
+import Admin from './components/Admin';
+import { Dashboard } from './components/Dashboard';
 
 // Types
 type TileState = {
@@ -22,8 +27,48 @@ type KeyState = {
 };
 
 const COUNTDOWN_SECONDS = 60;
+const OVERTIME_THRESHOLD = 300; // 5 minutes in seconds
+
+type GamePhase = 'loading' | 'pre-game' | 'countdown' | 'playing';
+
+// Epoch date for calculating daily challenge number (Day 1 = Jan 1, 2026 UTC)
+const DAILY_EPOCH = Date.UTC(2026, 0, 1); // January 1, 2026
+
+/**
+ * Calculate the daily challenge number based on the frame's date.
+ * Day 1 = January 1, 2026
+ */
+function getDailyNumber(frameDate: string | undefined): number | null {
+  if (!frameDate) return null;
+  const date = new Date(frameDate);
+  const daysSinceEpoch = Math.floor((date.getTime() - DAILY_EPOCH) / (24 * 60 * 60 * 1000));
+  return daysSinceEpoch + 1; // Day 1, not Day 0
+}
 
 export default function App() {
+  // Check if we're on the admin page
+  if (window.location.pathname === '/admin') {
+    return <Admin />;
+  }
+
+  // Check for /play/:frameId route
+  const playMatch = window.location.pathname.match(/^\/play\/(.+)$/);
+  const initialFrameId = playMatch ? playMatch[1] : null;
+
+  // Non-logged-in users can only access the daily challenge (home)
+  const loggedIn = isLoggedIn();
+  const initialRoute = loggedIn
+    ? (window.location.pathname === '/dashboard' ? 'dashboard' : initialFrameId ? 'play' : 'home')
+    : 'home';
+
+  // Redirect URL to home if not logged in and on a protected route
+  if (!loggedIn && (window.location.pathname === '/dashboard' || initialFrameId)) {
+    window.history.replaceState({}, '', '/');
+  }
+
+  const [currentRoute, setCurrentRoute] = useState<'home' | 'dashboard' | 'play'>(initialRoute);
+  const [playFrameId, setPlayFrameId] = useState<string | null>(loggedIn ? initialFrameId : null);
+
   const [target, setTarget] = useState(0);
   const [rows, setRows] = useState<Row[]>([]);
   const [initCards, setInitCards] = useState<KeyState[]>([]);
@@ -36,17 +81,127 @@ export default function App() {
   const [currentBest, setCurrentBest] = useState(0);
   const [activePosition, setActivePosition] = useState({ row: 0, type: 'num1' as 'num1' | 'operator' | 'num2' });
   const [gameWon, setGameWon] = useState(false);
+  const [wonWhileSignedIn, setWonWhileSignedIn] = useState(false);
   const [winTime, setWinTime] = useState(0);
   const [winSteps, setWinSteps] = useState(0);
   const [timer, setTimer] = useState(0);
   const [timerStopped, setTimerStopped] = useState(false);
-  const [alert, setAlert] = useState('');
+  const [alert, setAlert] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [loading, setLoading] = useState(true);
   const [frame, setFrame] = useState<Frame | null>(null);
-  
+  const [user, setUser] = useState<{ id: string; email: string; name?: string } | null>(null);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<'none' | 'verifying' | 'success' | 'error'>('none');
+  const [verificationMessage, setVerificationMessage] = useState('');
+  const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(null);
+  const [showProfile, setShowProfile] = useState(false);
+  const [previousResult, setPreviousResult] = useState<PreviousResult | null>(null);
+  const [dailyPlayed, setDailyPlayed] = useState(false);
+  const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
+  const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
+  const [countdownNumber, setCountdownNumber] = useState(3);
+
   const startTimeRef = useRef(Date.now());
-  const gameStartTimeRef = useRef(Date.now()); // Never reset - for tracking real solve time
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Handle browser back/forward navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname;
+      const playMatch = path.match(/^\/play\/(.+)$/);
+
+      // Non-logged-in users can only access home
+      if (!isLoggedIn() && (path === '/dashboard' || playMatch)) {
+        window.history.replaceState({}, '', '/');
+        setCurrentRoute('home');
+        setPlayFrameId(null);
+        return;
+      }
+
+      if (path === '/dashboard') {
+        setCurrentRoute('dashboard');
+      } else if (playMatch) {
+        setCurrentRoute('play');
+        setPlayFrameId(playMatch[1]);
+        handlePlayHistorical(playMatch[1]);
+      } else {
+        setCurrentRoute('home');
+        setPlayFrameId(null);
+        initializeGame();
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  // Check for verification or reset token in URL
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    const path = window.location.pathname;
+
+    // Check if this is a password reset URL
+    if (path === '/reset-password' && token) {
+      setResetPasswordToken(token);
+      // Clean up URL
+      window.history.replaceState({}, '', '/');
+      return;
+    }
+
+    // Check if this is a verification URL (/verify?token=xxx or /?token=xxx)
+    if ((path === '/verify' || path === '/') && token) {
+      setVerificationStatus('verifying');
+
+      authApi.verify(token)
+        .then(async response => {
+          setToken(response.token);
+          setUser(response.user);
+
+          setVerificationStatus('success');
+          setVerificationMessage('Email verified successfully! You are now logged in.');
+
+          // Clean up URL
+          window.history.replaceState({}, '', '/');
+
+          // Refresh game data now that user is authenticated
+          initializeGame();
+
+          // Clear success message after 5 seconds
+          setTimeout(() => setVerificationStatus('none'), 5000);
+        })
+        .catch(err => {
+          // Only show error if user isn't already logged in
+          // (token may have been used successfully but page was refreshed)
+          if (!isLoggedIn()) {
+            setVerificationStatus('error');
+            setVerificationMessage(err instanceof Error ? err.message : 'Verification failed');
+          }
+
+          // Clean up URL even on error
+          window.history.replaceState({}, '', '/');
+        });
+    }
+  }, []);
+
+  // Check if user is already logged in
+  useEffect(() => {
+    if (isLoggedIn()) {
+      authApi.me()
+        .then(response => setUser(response.user))
+        .catch(() => {
+          clearToken();
+          setUser(null);
+        });
+    }
+  }, []);
+
+  // Auto-redirect to dashboard if daily challenge is already solved
+  useEffect(() => {
+    if (previousResult?.solved && user && currentRoute === 'home' && !gameWon) {
+      navigateToDashboard();
+    }
+  }, [previousResult, user, currentRoute, gameWon]);
 
   // Initialize game
   useEffect(() => {
@@ -56,13 +211,25 @@ export default function App() {
     };
   }, []);
 
-  // Timer effect
+  // Timer effect - only starts when game is in 'playing' phase
   useEffect(() => {
-    startTimeRef.current = Date.now();
+    if (gamePhase !== 'playing' || previousResult?.solved) {
+      return;
+    }
+
+    // If no serverStartTime set yet (fresh start after countdown), set it now
+    if (!serverStartTime) {
+      const now = new Date();
+      setServerStartTime(now);
+      startTimeRef.current = now.getTime();
+    } else {
+      startTimeRef.current = serverStartTime.getTime();
+    }
+
     timerIntervalRef.current = setInterval(() => {
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
       setTimer(elapsed);
-      
+
       if (elapsed >= COUNTDOWN_SECONDS && !timerStopped) {
         setTimerStopped(true);
       }
@@ -71,7 +238,29 @@ export default function App() {
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
-  }, [timerStopped]);
+  }, [gamePhase, serverStartTime, timerStopped, previousResult]);
+
+  // Countdown animation effect (3, 2, 1)
+  useEffect(() => {
+    if (gamePhase !== 'countdown') return;
+
+    setCountdownNumber(3);
+    setTimer(0);
+    setTimerStopped(false);
+
+    const timer2 = setTimeout(() => setCountdownNumber(2), 1000);
+    const timer1 = setTimeout(() => setCountdownNumber(1), 2000);
+    const timerGo = setTimeout(() => {
+      setServerStartTime(new Date());
+      setGamePhase('playing');
+    }, 3000);
+
+    return () => {
+      clearTimeout(timer2);
+      clearTimeout(timer1);
+      clearTimeout(timerGo);
+    };
+  }, [gamePhase]);
 
   const initializeGame = async () => {
     setLoading(true);
@@ -79,10 +268,14 @@ export default function App() {
     try {
       // Fetch daily challenge from backend
       const response = await gameApi.getDaily();
-      const { frame: fetchedFrame } = response;
+      const { frame: fetchedFrame, startedAt, previousResult: prevResult } = response;
 
       setFrame(fetchedFrame);
       setTarget(fetchedFrame.targetNumber);
+      setPreviousResult(prevResult);
+      setDailyPlayed(!!prevResult);
+
+      // Don't set serverStartTime here - defer to when gamePhase transitions to 'playing'
 
       // Convert tiles to KeyState format
       const cards = fetchedFrame.tiles.map(tile => ({
@@ -91,9 +284,6 @@ export default function App() {
         inactive: false,
       }));
       setInitCards(cards);
-
-      // Reset the game start time
-      gameStartTimeRef.current = Date.now();
 
       // Initialize 5 rows
       const initialRows: Row[] = Array(5).fill(null).map(() => ({
@@ -107,13 +297,23 @@ export default function App() {
       setRows(initialRows);
       setActivePosition({ row: 0, type: 'num1' });
       setGameWon(false);
-      setCurrentBest(0);
+      setWonWhileSignedIn(false);
+      // Load previous best result if available (for non-solved attempts)
+      setCurrentBest(prevResult?.result ?? 0);
       setCalculatedKeys([
         { value: '', used: false, inactive: true },
         { value: '', used: false, inactive: true },
         { value: '', used: false, inactive: true },
         { value: '', used: false, inactive: true },
       ]);
+      // Set game phase based on auth status
+      if (prevResult?.solved) {
+        setGamePhase('playing'); // Already solved, show result directly
+      } else if (isLoggedIn()) {
+        setGamePhase('countdown'); // Signed in, start countdown
+      } else {
+        setGamePhase('pre-game'); // Show sign-in / guest overlay
+      }
     } catch (error) {
       console.error('Failed to load game:', error);
       showAlert('Failed to load game. Please refresh.');
@@ -122,12 +322,194 @@ export default function App() {
     }
   };
 
-  const showAlert = (message: string) => {
-    setAlert(message);
-    setTimeout(() => setAlert(''), 1500);
+  const showAlert = (message: string, type: 'error' | 'success' = 'error', duration: number = 1500) => {
+    setAlert({ message, type });
+    setTimeout(() => setAlert(null), duration);
   };
 
-  const handleKeyPress = (value: string, isCalculated: boolean, calcKeyIndex?: number) => {
+  const handleLogout = () => {
+    clearToken();
+    setUser(null);
+    setCurrentRoute('home');
+    setPlayFrameId(null);
+    setDailyPlayed(false);
+    window.history.replaceState({}, '', '/');
+    // Reload the daily challenge so we don't show a stale frame
+    initializeGame();
+  };
+
+  const handleAuthSuccess = async (loggedInUser: { id: string; email: string; name?: string }) => {
+    setUser(loggedInUser);
+    setShowAuthModal(false);
+
+    // Re-fetch daily data now that we're authenticated
+    if (currentRoute === 'home' && frame) {
+      try {
+        const response = await gameApi.getDaily();
+        const { previousResult: prevResult } = response;
+        setPreviousResult(prevResult);
+
+        if (prevResult?.solved) {
+          setGamePhase('playing');
+        } else {
+          setGamePhase('countdown');
+        }
+      } catch (err) {
+        console.error('Failed to refresh daily data after login:', err);
+        setGamePhase('countdown');
+      }
+    }
+  };
+
+  const handleResetPasswordSuccess = () => {
+    setResetPasswordToken(null);
+    window.history.replaceState({}, '', '/');
+    setShowAuthModal(true);
+  };
+
+  const handleResetPasswordCancel = () => {
+    setResetPasswordToken(null);
+    window.history.replaceState({}, '', '/');
+  };
+
+  const handleUserUpdate = (updatedUser: User) => {
+    setUser(updatedUser);
+  };
+
+  const navigateToDashboard = () => {
+    setCurrentRoute('dashboard');
+    window.history.pushState({}, '', '/dashboard');
+  };
+
+  const navigateToHome = () => {
+    setCurrentRoute('home');
+    setPlayFrameId(null);
+    window.history.pushState({}, '', '/');
+    // Reload daily challenge
+    initializeGame();
+  };
+
+  const handlePlayHistorical = async (frameId: string) => {
+    setLoading(true);
+    setCurrentRoute('play');
+    setPlayFrameId(frameId);
+    window.history.pushState({}, '', `/play/${frameId}`);
+
+    try {
+      const response = await gameApi.playHistoricalFrame(frameId);
+      const { frame: fetchedFrame, startedAt, previousResult: prevResult } = response;
+
+      setFrame(fetchedFrame);
+      setTarget(fetchedFrame.targetNumber);
+      setPreviousResult(prevResult);
+
+      // Set server start time for accurate timing
+      if (startedAt) {
+        setServerStartTime(new Date(startedAt));
+      } else {
+        setServerStartTime(new Date());
+      }
+
+      // Convert tiles to KeyState format
+      const cards = fetchedFrame.tiles.map(tile => ({
+        value: String(tile),
+        used: false,
+        inactive: false,
+      }));
+      setInitCards(cards);
+
+      // Initialize 5 rows
+      const initialRows: Row[] = Array(5).fill(null).map(() => ({
+        num1: { value: '', filled: false, active: false },
+        operator: { value: '', filled: false, active: false },
+        num2: { value: '', filled: false, active: false },
+        result: { value: '', filled: false, active: false },
+      }));
+
+      initialRows[0].num1.active = true;
+      setRows(initialRows);
+      setActivePosition({ row: 0, type: 'num1' });
+      setGameWon(false);
+      setWonWhileSignedIn(false);
+      setCurrentBest(prevResult?.result ?? 0);
+      setCalculatedKeys([
+        { value: '', used: false, inactive: true },
+        { value: '', used: false, inactive: true },
+        { value: '', used: false, inactive: true },
+        { value: '', used: false, inactive: true },
+      ]);
+
+      // Reset timer state
+      setTimer(0);
+      setTimerStopped(false);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    } catch (error) {
+      console.error('Failed to load historical frame:', error);
+      showAlert('Failed to load challenge. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePlayRandom = async () => {
+    setLoading(true);
+    try {
+      const response = await gameApi.getRandom();
+      const { frame: fetchedFrame, startedAt } = response;
+
+      setCurrentRoute('play');
+      setPlayFrameId(fetchedFrame.id);
+      window.history.pushState({}, '', `/play/${fetchedFrame.id}`);
+
+      setFrame(fetchedFrame);
+      setTarget(fetchedFrame.targetNumber);
+      setPreviousResult(null); // New random frame, no previous result
+
+      // Set server start time for accurate timing
+      setServerStartTime(new Date(startedAt));
+
+      // Convert tiles to KeyState format
+      const cards = fetchedFrame.tiles.map(tile => ({
+        value: String(tile),
+        used: false,
+        inactive: false,
+      }));
+      setInitCards(cards);
+
+      // Initialize 5 rows
+      const initialRows: Row[] = Array(5).fill(null).map(() => ({
+        num1: { value: '', filled: false, active: false },
+        operator: { value: '', filled: false, active: false },
+        num2: { value: '', filled: false, active: false },
+        result: { value: '', filled: false, active: false },
+      }));
+
+      initialRows[0].num1.active = true;
+      setRows(initialRows);
+      setActivePosition({ row: 0, type: 'num1' });
+      setGameWon(false);
+      setWonWhileSignedIn(false);
+      setCurrentBest(0);
+      setCalculatedKeys([
+        { value: '', used: false, inactive: true },
+        { value: '', used: false, inactive: true },
+        { value: '', used: false, inactive: true },
+        { value: '', used: false, inactive: true },
+      ]);
+
+      // Reset timer state
+      setTimer(0);
+      setTimerStopped(false);
+      if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+    } catch (error) {
+      console.error('Failed to generate random frame:', error);
+      showAlert('Failed to generate random challenge. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleKeyPress = (value: string, isCalculated: boolean, calcKeyIndex?: number, initCardIndex?: number) => {
     const { row, type } = activePosition;
     const currentRow = rows[row];
 
@@ -147,13 +529,10 @@ export default function App() {
     if (isNumber) {
       if (isCalculated && calcKeyIndex !== undefined) {
         newCalcKeys[calcKeyIndex] = { ...newCalcKeys[calcKeyIndex], used: true, inactive: true };
-      } else if (!isCalculated) {
+      } else if (!isCalculated && initCardIndex !== undefined) {
         const newInitCards = [...initCards];
-        const cardIndex = newInitCards.findIndex(k => k.value === value && !k.used);
-        if (cardIndex !== -1) {
-          newInitCards[cardIndex] = { ...newInitCards[cardIndex], used: true, inactive: true };
-          setInitCards(newInitCards);
-        }
+        newInitCards[initCardIndex] = { ...newInitCards[initCardIndex], used: true, inactive: true };
+        setInitCards(newInitCards);
       }
     }
 
@@ -180,19 +559,26 @@ export default function App() {
       }
 
       if (Math.abs(target - newValue) === 0) {
-        const endTime = (Date.now() - gameStartTimeRef.current) / 1000;
+        const endTime = serverStartTime
+          ? (Date.now() - serverStartTime.getTime()) / 1000
+          : timer;
         setWinTime(parseFloat(endTime.toFixed(2)));
         setWinSteps(row + 1);
         setGameWon(true);
+        setWonWhileSignedIn(!!user);
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         setRows(newRows);
         setCalculatedKeys(newCalcKeys);
 
-        // Submit solution to backend
         if (frame) {
           const expression = buildExpression(newRows, row + 1);
-          gameApi.submit(frame.id, expression, Math.round(endTime))
-            .catch(err => console.error('Failed to submit solution:', err));
+
+          if (user) {
+            // Signed in user - submit to backend with time tracking
+            gameApi.submit(frame.id, expression, parseFloat(endTime.toFixed(2)), newValue)
+              .catch(err => console.error('Failed to submit solution:', err));
+            if (frame.date) setDailyPlayed(true);
+          }
         }
         return;
       }
@@ -316,11 +702,13 @@ export default function App() {
     let best = 0;
     let bestDiff = Infinity;
 
+    // Iterate through rows in order - when distances are equal, take the last one
     currentRows.forEach(row => {
       if (row.result.filled) {
         const value = parseInt(row.result.value);
         const diff = Math.abs(target - value);
-        if (diff < bestDiff) {
+        // Use <= to prefer later results when distances are equal
+        if (diff <= bestDiff) {
           bestDiff = diff;
           best = value;
         }
@@ -332,7 +720,7 @@ export default function App() {
 
   const resetGame = () => {
     // Don't reset the timer - keep it running
-    
+
     // Reset game state but keep target and cards
     setRows(Array(5).fill(null).map(() => ({
       num1: { value: '', filled: false, active: false },
@@ -340,21 +728,21 @@ export default function App() {
       num2: { value: '', filled: false, active: false },
       result: { value: '', filled: false, active: false },
     })));
-    
+
     // First row, first tile active
     setRows(prev => {
       const newRows = [...prev];
       newRows[0].num1.active = true;
       return newRows;
     });
-    
+
     // Reset all init cards to unused
     setInitCards(prev => prev.map(card => ({
       ...card,
       used: false,
       inactive: false,
     })));
-    
+
     // Clear all calculated keys
     setCalculatedKeys([
       { value: '', used: false, inactive: true },
@@ -362,10 +750,77 @@ export default function App() {
       { value: '', used: false, inactive: true },
       { value: '', used: false, inactive: true },
     ]);
-    
+
     setActivePosition({ row: 0, type: 'num1' });
     setCurrentBest(0);
     setGameWon(false);
+    setWonWhileSignedIn(false);
+  };
+
+  const handleSubmit = async () => {
+    // Require authentication to submit
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
+
+    // Get the maximum value from initial tiles
+    const maxInitialTile = Math.max(...initCards.map(card => parseInt(card.value)));
+
+    // Check if user made progress (bestResult must be greater than max initial tile)
+    if (currentBest <= maxInitialTile) {
+      showAlert('No progress made - combine tiles to get closer to the target!');
+      return;
+    }
+
+    // Check if this submission is at least as good as previous best
+    const previousBest = previousResult?.result;
+    if (previousBest !== null && previousBest !== undefined) {
+      const previousDiff = Math.abs(target - previousBest);
+      const currentDiff = Math.abs(target - currentBest);
+      if (currentDiff > previousDiff) {
+        showAlert(`Your current best (${currentBest}) is not better than your previous submission (${previousBest})`);
+        return;
+      }
+    }
+
+    // Calculate duration
+    const endTime = serverStartTime
+      ? (Date.now() - serverStartTime.getTime()) / 1000
+      : timer;
+
+    // Build expression from completed rows
+    const completedRowCount = rows.filter(row => row.result.filled).length;
+    const expression = buildExpression(rows, completedRowCount);
+
+    // Submit to backend
+    if (frame) {
+      try {
+        await gameApi.submit(frame.id, expression, parseFloat(endTime.toFixed(2)), currentBest);
+        if (frame.date) setDailyPlayed(true);
+        // Show success message with result
+        const diff = Math.abs(target - currentBest);
+        if (diff === 0) {
+          // Exact solve (shouldn't happen here since auto-submit handles it, but just in case)
+          if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+          setGameWon(true);
+          setWinTime(parseFloat(endTime.toFixed(2)));
+          setWinSteps(completedRowCount);
+        } else {
+          // Close but not exact - show result and update previousResult
+          showAlert(`Submitted! Your best: ${currentBest} (${diff} away from ${target})`, 'success', 3000);
+          // Update previousResult with new best (allows continued play)
+          setPreviousResult({
+            solved: false,
+            duration: parseFloat(endTime.toFixed(2)),
+            result: currentBest,
+          });
+        }
+      } catch (err) {
+        console.error('Failed to submit:', err);
+        showAlert('Failed to submit. Please try again.');
+      }
+    }
   };
 
   const getAvailableKeys = () => {
@@ -387,29 +842,136 @@ export default function App() {
     return row.num1.filled ? index : lastIndex;
   }, -1);
 
+  if (verificationStatus === 'verifying') {
+    return (
+      <div className="app-container">
+        <div className="content-wrapper">
+          <div className="header">
+            <h1>6-7 Numbers</h1>
+          </div>
+          <div className="verify-container">
+            <h2>Verifying your email...</h2>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (loading) {
     return (
       <div className="app-container">
         <div className="content-wrapper">
           <div className="header">
-            <h1>Number.Le</h1>
+            <h1>6-7 Numbers</h1>
           </div>
+          {verificationStatus === 'success' && (
+            <div className="verify-container verify-success">
+              <h2>{verificationMessage}</h2>
+            </div>
+          )}
+          {verificationStatus === 'error' && (
+            <div className="verify-container verify-error">
+              <h2>{verificationMessage}</h2>
+            </div>
+          )}
           <div className="loading">Loading today's challenge...</div>
         </div>
       </div>
     );
   }
 
+  // Redirect to home if not logged in on dashboard
+  if (currentRoute === 'dashboard' && !user) {
+    navigateToHome();
+    return null;
+  }
+
   return (
     <div className="app-container">
       <div className="content-wrapper">
-        {/* Header */}
-        <div className="header">
-          <h1>Number.Le</h1>
+        {/* Shared header */}
+        <div className="user-bar">
+          <div className="user-bar-left">
+            <h1 className="site-title" onClick={navigateToHome}>6-7 Numbers</h1>
+          </div>
+          <div className="user-bar-right">
+            {user ? (
+              <>
+                <span className="user-info">Hi, {user.name || user.email}</span>
+                {currentRoute !== 'dashboard' && (
+                  <button className="bar-btn primary" onClick={navigateToDashboard}>Dashboard</button>
+                )}
+                {currentRoute === 'dashboard' && !dailyPlayed && (
+                  <button className="bar-btn primary" onClick={navigateToHome}>Daily Challenge</button>
+                )}
+                <button className="bar-btn secondary" onClick={() => setShowProfile(true)}>Profile</button>
+                <button className="bar-btn secondary" onClick={handleLogout}>Sign Out</button>
+              </>
+            ) : (
+              <button className="bar-btn primary" onClick={() => setShowAuthModal(true)}>Sign In</button>
+            )}
+          </div>
         </div>
 
+        {/* Auth modal */}
+        {showAuthModal && (
+          <AuthForm
+            onSuccess={handleAuthSuccess}
+            onCancel={() => setShowAuthModal(false)}
+          />
+        )}
+
+        {/* Reset password modal */}
+        {resetPasswordToken && (
+          <ResetPasswordForm
+            token={resetPasswordToken}
+            onSuccess={handleResetPasswordSuccess}
+            onCancel={handleResetPasswordCancel}
+          />
+        )}
+
+        {/* Profile modal */}
+        {showProfile && user && (
+          <Profile
+            user={user}
+            onUserUpdate={handleUserUpdate}
+            onClose={() => setShowProfile(false)}
+          />
+        )}
+
+        {currentRoute === 'dashboard' ? (
+          <Dashboard
+            onNavigateHome={navigateToHome}
+            onPlayFrame={handlePlayHistorical}
+            onPlayRandom={handlePlayRandom}
+          />
+        ) : (
+        <>
+
+
+        {/* Verification message */}
+        {verificationStatus === 'success' && (
+          <div className="verify-container verify-success">
+            <p>{verificationMessage}</p>
+          </div>
+        )}
+        {verificationStatus === 'error' && (
+          <div className="verify-container verify-error">
+            <p>{verificationMessage}</p>
+            <p className="verify-hint">The link may have expired. Sign in to request a new verification email.</p>
+            <button onClick={() => { setVerificationStatus('none'); setShowAuthModal(true); }}>
+              Sign In
+            </button>
+          </div>
+        )}
+
+        {/* Daily number */}
+        {frame?.date && (
+          <div className="daily-number">Daily #{getDailyNumber(frame.date)}</div>
+        )}
+
         {/* Target */}
-        <div className="target-grid">
+        <div className={`target-grid ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
           {String(target).split('').map((digit, i) => (
             <div key={i} className="target-tile">{digit}</div>
           ))}
@@ -418,29 +980,121 @@ export default function App() {
         {/* Timer */}
         <div className="timer-container">
           <div className={`timer ${timerStopped ? 'overtime' : ''}`}>
-            {timerStopped ? `${COUNTDOWN_SECONDS}++ seconds` : `${timer.toFixed(1)}s`}
+            {gamePhase === 'playing'
+              ? (timerStopped ? `${COUNTDOWN_SECONDS}++ seconds` : `${timer.toFixed(1)}s`)
+              : '0.0s'}
           </div>
         </div>
 
-        {/* Alert */}
-        {alert && <div className="alert-inline">{alert}</div>}
+        {/* Pre-game overlay */}
+        {gamePhase === 'pre-game' && !showAuthModal && (
+          <>
+            <div className="pregame-overlay" />
+            <div className="pregame-modal">
+              <h1 className="pregame-title">6-7 Numbers</h1>
+              <p className="pregame-description">
+                Play as guest or sign in to compete with your friends!
+              </p>
+              <div className="pregame-actions">
+                <button className="pregame-btn primary" onClick={() => setShowAuthModal(true)}>
+                  Sign In
+                </button>
+                <button className="pregame-btn secondary" onClick={() => setGamePhase('countdown')}>
+                  Play as Guest
+                </button>
+              </div>
+            </div>
+          </>
+        )}
 
-        {/* Victory Modal */}
-        {gameWon && (
+        {/* Countdown animation */}
+        {gamePhase === 'countdown' && (
+          <>
+            <div className="countdown-overlay" />
+            <div className="countdown-number" key={countdownNumber}>
+              {countdownNumber}
+            </div>
+          </>
+        )}
+
+        {/* Alert */}
+        {alert && <div className={`alert-inline ${alert.type === 'success' ? 'success' : ''}`}>{alert.message}</div>}
+
+        {/* Already Solved Banner - only shows when puzzle was solved */}
+        {previousResult?.solved && (
+          <div className="already-played-banner">
+            <strong>Already Solved</strong>
+            {previousResult.duration !== null && previousResult.duration <= OVERTIME_THRESHOLD
+              ? ` in ${previousResult.duration}s`
+              : previousResult.duration !== null
+              ? ' (overtime)'
+              : ''
+            }!
+            {user && currentRoute === 'home' ? (
+              <span className="comeback-hint"> Redirecting to dashboard...</span>
+            ) : (
+              <span className="comeback-hint"> Come back tomorrow for a new challenge.</span>
+            )}
+          </div>
+        )}
+
+        {/* Current Best Banner - shows when there's a previous submission but not solved */}
+        {previousResult && !previousResult.solved && previousResult.result !== null && (
+          <div className="current-best-banner">
+            <strong>Current best: {previousResult.result}</strong>
+            <span> ({Math.abs(target - previousResult.result)} away from target)</span>
+          </div>
+        )}
+
+        {/* Victory Modal - Signed In User */}
+        {gameWon && !previousResult?.solved && wonWhileSignedIn && (
           <>
             <div className="victory-overlay" onClick={(e) => e.stopPropagation()} />
-            <div className="victory-modal">
-              <h1>Congratulations!</h1>
-              <p>
-                You finished the puzzle
-                {winTime <= 300 ? ` in ${winTime}s` : ''} with {winSteps} step{winSteps > 1 ? 's' : ''}.
+            <div className="victory-modal-new">
+              <div className="victory-icon">&#x2713;</div>
+              <h1 className="victory-title">Congratulations!</h1>
+              <p className="victory-stats">
+                {winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'Overtime'} &middot; {winSteps} step{winSteps > 1 ? 's' : ''}
               </p>
+              <p className="victory-hint">
+                Come back tomorrow for a new daily challenge.
+              </p>
+              <div className="victory-actions">
+                <button className="victory-btn primary" onClick={handlePlayRandom}>
+                  Play Random Challenge
+                </button>
+                <button className="victory-btn secondary" onClick={navigateToDashboard}>
+                  View Dashboard
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Victory Modal - Guest user (not signed in) */}
+        {gameWon && !user && (
+          <>
+            <div className="victory-overlay" onClick={(e) => e.stopPropagation()} />
+            <div className="victory-modal-new">
+              <div className="victory-icon">&#x2713;</div>
+              <h1 className="victory-title">Congratulations!</h1>
+              <p className="victory-hint">
+                Come back tomorrow for a new daily challenge.
+              </p>
+              <p className="victory-hint">
+                Sign up to play random challenges and compete with friends!
+              </p>
+              <div className="victory-actions">
+                <button className="victory-btn primary" onClick={() => setShowAuthModal(true)}>
+                  Sign Up / Sign In
+                </button>
+              </div>
             </div>
           </>
         )}
 
         {/* Game Grid */}
-        <div className="game-grid">
+        <div className={`game-grid ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
           {rows.map((row, rowIndex) => {
             const isBest = row.result.filled && parseInt(row.result.value) === currentBest;
             const showDelete = row.num1.filled && rowIndex === currentWorkingRowIndex;
@@ -463,7 +1117,7 @@ export default function App() {
                 <button
                   onClick={() => deleteRow(rowIndex)}
                   className="delete-row-btn"
-                  style={{ visibility: showDelete ? 'visible' : 'hidden' }}
+                  style={{ visibility: showDelete && !previousResult?.solved ? 'visible' : 'hidden' }}
                 >
                   ×
                 </button>
@@ -473,46 +1127,54 @@ export default function App() {
         </div>
 
         {/* Keyboard */}
-        <div className="keyboard">
+        <div className={`keyboard ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
           {initCards.map((card, i) => (
             <button
               key={i}
-              onClick={() => handleKeyPress(card.value, false)}
-              disabled={gameWon || card.inactive || available.operators.length > 0}
+              onClick={() => handleKeyPress(card.value, false, undefined, i)}
+              disabled={gameWon || (previousResult?.solved) || card.inactive || available.operators.length > 0}
               className={`key init-key ${card.inactive || available.operators.length > 0 ? 'inactive' : ''}`}
             >
               {card.value}
             </button>
           ))}
-          
+
           <div className="spacer" />
-          
+
           {calculatedKeys.map((key, i) => (
             <button
               key={`calc-${i}`}
               onClick={() => handleKeyPress(key.value, true, i)}
-              disabled={gameWon || key.inactive || !key.value || available.operators.length > 0}
+              disabled={gameWon || (previousResult?.solved) || key.inactive || !key.value || available.operators.length > 0}
               className={`key calc-key ${key.inactive || !key.value || available.operators.length > 0 ? 'inactive' : ''}`}
             >
               {key.value}
             </button>
           ))}
-          
-          <div className="spacer" />
-          
-          <button className="key reset-key" onClick={resetGame} disabled={gameWon}>Reset</button>
-          
+
+          <button className="key reset-key" onClick={resetGame} disabled={gameWon || (previousResult?.solved)}>Reset</button>
+
           {['+', '-', '×', '/'].map(op => (
             <button
               key={op}
               onClick={() => handleKeyPress(op, false)}
-              disabled={gameWon || available.numbers.length > 0}
+              disabled={gameWon || (previousResult?.solved) || available.numbers.length > 0}
               className={`key operator-key ${available.numbers.length > 0 ? 'inactive' : ''}`}
             >
               {op}
             </button>
           ))}
+
+          <button
+            className="key submit-key"
+            onClick={handleSubmit}
+            disabled={gameWon || (previousResult?.solved) || currentBest === 0}
+          >
+            Submit
+          </button>
         </div>
+        </>
+        )}
       </div>
     </div>
   );
