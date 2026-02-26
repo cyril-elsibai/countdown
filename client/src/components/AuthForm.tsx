@@ -63,12 +63,6 @@ export default function AuthForm({ onSuccess, onCancel }: AuthFormProps) {
     }
   };
 
-  const getTitle = () => {
-    if (mode === 'login') return 'Sign In';
-    if (mode === 'register') return 'Create Account';
-    return 'Reset Password';
-  };
-
   const getSubmitText = () => {
     if (loading) return 'Please wait...';
     if (mode === 'login') return 'Sign In';
@@ -82,7 +76,6 @@ export default function AuthForm({ onSuccess, onCancel }: AuthFormProps) {
         <button className="auth-close" onClick={onCancel}>&times;</button>
 
         <h1 className="auth-title">6-7 Numbers</h1>
-        <h2>{getTitle()}</h2>
 
         {message && <div className="auth-message">{message}</div>}
 

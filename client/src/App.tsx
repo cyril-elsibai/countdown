@@ -213,7 +213,7 @@ export default function App() {
 
   // Timer effect - only starts when game is in 'playing' phase
   useEffect(() => {
-    if (gamePhase !== 'playing' || previousResult?.solved) {
+    if (gamePhase !== 'playing' || previousResult) {
       return;
     }
 
@@ -307,10 +307,19 @@ export default function App() {
         { value: '', used: false, inactive: true },
       ]);
       // Set game phase based on auth status
-      if (prevResult?.solved) {
-        setGamePhase('playing'); // Already solved, show result directly
+      if (prevResult) {
+        // Already played (solved or not) — skip countdown, restore previous time
+        if (prevResult.duration != null) {
+          setTimer(prevResult.duration);
+          setTimerStopped(prevResult.duration >= COUNTDOWN_SECONDS);
+        }
+        setGamePhase('playing');
+      } else if (isLoggedIn() && startedAt) {
+        // Mid-game reload — skip countdown, restore timer from server start time
+        setServerStartTime(new Date(startedAt));
+        setGamePhase('playing');
       } else if (isLoggedIn()) {
-        setGamePhase('countdown'); // Signed in, start countdown
+        setGamePhase('countdown'); // Fresh game, start countdown
       } else {
         setGamePhase('pre-game'); // Show sign-in / guest overlay
       }
@@ -403,13 +412,6 @@ export default function App() {
       setTarget(fetchedFrame.targetNumber);
       setPreviousResult(prevResult);
 
-      // Set server start time for accurate timing
-      if (startedAt) {
-        setServerStartTime(new Date(startedAt));
-      } else {
-        setServerStartTime(new Date());
-      }
-
       // Convert tiles to KeyState format
       const cards = fetchedFrame.tiles.map(tile => ({
         value: String(tile),
@@ -443,6 +445,13 @@ export default function App() {
       setTimer(0);
       setTimerStopped(false);
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      setServerStartTime(null);
+
+      if (prevResult?.solved) {
+        setGamePhase('playing');
+      } else {
+        setGamePhase('countdown');
+      }
     } catch (error) {
       console.error('Failed to load historical frame:', error);
       showAlert('Failed to load challenge. Please try again.');
@@ -464,9 +473,6 @@ export default function App() {
       setFrame(fetchedFrame);
       setTarget(fetchedFrame.targetNumber);
       setPreviousResult(null); // New random frame, no previous result
-
-      // Set server start time for accurate timing
-      setServerStartTime(new Date(startedAt));
 
       // Convert tiles to KeyState format
       const cards = fetchedFrame.tiles.map(tile => ({
@@ -501,6 +507,8 @@ export default function App() {
       setTimer(0);
       setTimerStopped(false);
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
+      setServerStartTime(null);
+      setGamePhase('countdown');
     } catch (error) {
       console.error('Failed to generate random frame:', error);
       showAlert('Failed to generate random challenge. Please try again.');
@@ -897,15 +905,24 @@ export default function App() {
           <div className="user-bar-right">
             {user ? (
               <>
-                <span className="user-info">Hi, {user.name || user.email}</span>
                 {currentRoute !== 'dashboard' && (
                   <button className="bar-btn primary" onClick={navigateToDashboard}>Dashboard</button>
                 )}
-                {currentRoute === 'dashboard' && !dailyPlayed && (
-                  <button className="bar-btn primary" onClick={navigateToHome}>Daily Challenge</button>
-                )}
-                <button className="bar-btn secondary" onClick={() => setShowProfile(true)}>Profile</button>
-                <button className="bar-btn secondary" onClick={handleLogout}>Sign Out</button>
+                <button className="bar-btn secondary" onClick={() => setShowProfile(true)}>
+                  <span className="btn-label">Profile</span>
+                  <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="8" r="4"/>
+                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+                  </svg>
+                </button>
+                <button className="bar-btn secondary" onClick={handleLogout}>
+                  <span className="btn-label">Sign Out</span>
+                  <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                    <polyline points="16 17 21 12 16 7"/>
+                    <line x1="21" y1="12" x2="9" y2="12"/>
+                  </svg>
+                </button>
               </>
             ) : (
               <button className="bar-btn primary" onClick={() => setShowAuthModal(true)}>Sign In</button>

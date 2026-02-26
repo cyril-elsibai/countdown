@@ -125,11 +125,12 @@ body {
   transform: translateX(-50%);
   text-align: center;
   z-index: 1051;
+  white-space: nowrap;
 }
 
 .pregame-title {
   display: inline-block;
-  padding: 0.1em 1em 0.1em 0.2em;
+  padding: 0.1em 0.5em;
   color: #283033;
   background-color: #f2d73a;
   margin: 0 0 15px 0;
@@ -633,6 +634,15 @@ body {
 .form-group input:focus {
   outline: none;
   border-color: #f2d73a;
+}
+
+.form-group input:-webkit-autofill,
+.form-group input:-webkit-autofill:hover,
+.form-group input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px rgba(30, 34, 37, 1) inset;
+  -webkit-text-fill-color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  transition: background-color 5000s ease-in-out 0s;
 }
 
 .auth-error {
@@ -1328,7 +1338,7 @@ body {
   justify-content: space-between;
   align-items: center;
   gap: 15px;
-  margin-bottom: 16px;
+  margin-bottom: 80px;
   padding-bottom: 12px;
   border-bottom: 2px solid #eee;
 }
@@ -1340,12 +1350,11 @@ body {
 
 .site-title {
   display: inline-block;
-  padding: 0.05em 0.5em;
+  padding: 0.15em 0.5em 0.15em 1.5em;
   margin: 0;
   font-size: 3rem;
   color: #283033;
   background-color: #f2d73a;
-  cursor: pointer;
 }
 
 .user-bar-right {
@@ -1357,6 +1366,17 @@ body {
 .user-info {
   color: #666;
   font-size: 0.9rem;
+}
+
+.btn-label {
+  display: none;
+}
+
+.btn-icon {
+  display: inline-block;
+  width: 22px;
+  height: 22px;
+  vertical-align: middle;
 }
 
 .bar-btn {
@@ -1379,37 +1399,48 @@ body {
 
 .bar-btn.secondary {
   background: transparent;
-  color: #555;
-  border: 2px solid #ccc;
+  color: #000;
+  border: 2px solid #f2d73a;
+  background:#f2d73a;
+  padding: 3px 16px;
 }
 
 .bar-btn.secondary:hover {
-  background: #f5f5f5;
-  color: #333;
-  border-color: #999;
+  background: #e6cb35;
 }
 
 /* Mobile user bar */
 @media only screen and (max-width: 768px) {
   .user-bar {
     flex-direction: column;
-    gap: 8px;
+    align-items: flex-start;
+    gap: 6px;
   }
 
   .site-title {
-    font-size: 1.5rem;
+    font-size: 2rem;
   }
 
   .user-bar-right {
     gap: 6px;
-  }
-
-  .user-info {
-    font-size: 0.8rem;
+    width: 100%;
+    justify-content: flex-end;
   }
 
   .bar-btn {
     padding: 5px 10px;
     font-size: 0.75rem;
+  }
+
+  .bar-btn.secondary .btn-label {
+    display: none;
+  }
+
+  .bar-btn.secondary .btn-icon {
+    display: inline-block;
+  }
+
+  .bar-btn.secondary {
+    padding: 4px 8px;
   }
 }

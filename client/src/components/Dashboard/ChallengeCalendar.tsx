@@ -171,10 +171,11 @@ export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: Challe
               onMouseLeave={handleMouseLeave}
               onClick={() => !challenge.userResult?.solved && onPlayFrame(challenge.id)}
             >
-              <span className="tile-status-icon">
-                {challenge.userResult?.solved && <span className="solved">&#x2713;</span>}
-                {challenge.userResult && !challenge.userResult.solved && <span className="failed">&#x2717;</span>}
-              </span>
+              {challenge.userResult && (
+                <span className="tile-status-icon">
+                  {challenge.userResult.solved ? <span className="solved">&#x2713;</span> : <span className="failed">&#x2717;</span>}
+                </span>
+              )}
               <span className="daily-number">#{challenge.dailyNumber}</span>
             </div>
           );

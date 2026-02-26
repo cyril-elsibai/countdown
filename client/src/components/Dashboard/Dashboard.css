@@ -30,14 +30,14 @@
 }
 
 .challenge-btn {
-  padding: 12px 24px;
+  padding: 8px 16px;
   background: #f2d73a;
   border: none;
   border-radius: 4px;
   font-weight: bold;
   cursor: pointer;
-  color: #333;
-  font-size: 1rem;
+  color: #283033;
+  font-size: 0.9rem;
 }
 
 .challenge-btn:hover:not(:disabled) {
@@ -111,38 +111,56 @@
   color: #333;
 }
 
+.burger-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.6);
+  z-index: 99;
+}
+
+.burger-menu {
+  position: relative;
+  z-index: 100;
+}
+
 .burger-btn {
   background: none;
-  border: 2px solid #ccc;
+  border: 2px solid rgba(255, 255, 255, 0.3);
   border-radius: 6px;
   font-size: 1.4rem;
   cursor: pointer;
-  color: #333;
+  color: #f2d73a;
   padding: 4px 10px;
   line-height: 1;
 }
 
 .burger-menu {
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   margin-bottom: 16px;
+  background: rgba(30, 34, 37, 0.97);
+  border-radius: 8px;
+  padding: 8px;
 }
 
 .burger-menu button {
   padding: 10px 16px;
-  background: #fff;
+  background: none;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.95rem;
-  color: #666;
+  color: #ccc;
   text-align: left;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  width: 100%;
 }
 
 .burger-menu button.active {
   background: #f2d73a;
-  color: #333;
+  color: #283033;
   font-weight: bold;
 }
 
@@ -200,14 +218,16 @@
 }
 
 .challenge-tile {
+  position: relative;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  padding: 8px 6px;
+  padding: 40px 6px 30px 6px;
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border:2px solid #999;
+  border-radius: 5px;
 }
 
 .challenge-tile:hover {
@@ -255,10 +275,12 @@
 }
 
 .tile-status-icon {
-  font-size: 1.2rem;
+  position: absolute;
+  top: 3px;
+  right: 4px;
+  font-size: 2rem;
   font-weight: bold;
   line-height: 1;
-  min-height: 1.2rem;
 }
 
 .tile-status-icon .solved {
@@ -270,7 +292,7 @@
 }
 
 .challenge-tile .daily-number {
-  font-size: 1.4rem;
+  font-size: 2rem;
   font-weight: bold;
   color: #283033;
 }

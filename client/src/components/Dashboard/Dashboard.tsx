@@ -115,6 +115,9 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
           </button>
         </div>
         {menuOpen && (
+          <div className="burger-overlay mobile-only" onClick={() => setMenuOpen(false)} />
+        )}
+        {menuOpen && (
           <div className="burger-menu mobile-only">
             <button
               className={activeTab === 'history' ? 'active' : ''}
