@@ -29,6 +29,7 @@ import { Router, Response } from 'express';
 import { prisma } from '../db';
 import { requireAuth, optionalAuth, AuthRequest } from '../middleware/auth';
 import { generateFrame, generateUniqueFrame, getDailyDateKey } from '../services/frameGenerator';
+import { generateUniqueName } from '../services/nameGenerator';
 
 // Create Express router instance
 const router = Router();
@@ -157,6 +158,7 @@ router.get('/daily', optionalAuth, async (req: AuthRequest, res: Response) => {
         tiles: frame.tiles,
         targetNumber: frame.targetNumber,
         date: frame.date,
+        name: frame.name ?? null,
       },
       startedAt,        // When the attempt started (null for anonymous)
       previousResult,   // Previous submission (null if not played)
@@ -215,23 +217,32 @@ router.post('/random', requireAuth, async (req: AuthRequest, res: Response) => {
       // Use the friend's frame
       frame = friendFrame;
     } else {
-      // No friend frames available - generate a new one
-      const generated = await generateUniqueFrame();
+      // No friend frames — try the general pool (frames played by anyone but not this user)
+      const generalFrame = await findUnplayedGeneralFrame(req.userId!);
 
-      if (!generated) {
-        return res.status(500).json({ error: 'Failed to generate unique frame' });
+      if (generalFrame) {
+        frame = generalFrame;
+      } else {
+        // Nothing in the pool — generate a new frame
+        const generated = await generateUniqueFrame();
+
+        if (!generated) {
+          return res.status(500).json({ error: 'Failed to generate unique frame' });
+        }
+
+        const { tiles, targetNumber } = generated;
+
+        // Save the frame to the database with a unique friendly name
+        const name = await generateUniqueName();
+        frame = await prisma.frame.create({
+          data: {
+            tiles,
+            targetNumber,
+            date: null,
+            ...(name && { name }),
+          },
+        });
       }
-
-      const { tiles, targetNumber } = generated;
-
-      // Save the frame to the database
-      frame = await prisma.frame.create({
-        data: {
-          tiles,
-          targetNumber,
-          date: null, // Random frames have no date (distinguishes from daily)
-        },
-      });
     }
 
     // Create a DailyAttempt to track start time for duration calculation
@@ -248,6 +259,7 @@ router.post('/random', requireAuth, async (req: AuthRequest, res: Response) => {
         id: frame.id,
         tiles: frame.tiles,
         targetNumber: frame.targetNumber,
+        name: frame.name ?? null,
       },
       startedAt: new Date().toISOString(),
     });
@@ -259,7 +271,8 @@ router.post('/random', requireAuth, async (req: AuthRequest, res: Response) => {
 
 /**
  * Find a random frame played by friends that the current user hasn't played yet.
- * Limited to the 100 most recent random frames from friends for performance.
+ * Includes both random frames and past daily challenges from friends.
+ * Limited to the 100 most recent results from friends for performance.
  *
  * @param userId - Current user's ID
  * @returns A random frame from friends, or null if none available
@@ -285,6 +298,8 @@ async function findUnplayedFriendFrame(userId: string) {
     return null;
   }
 
+  const today = getDailyDateKey();
+
   // Get the IDs of frames the current user has already played
   const playedFrames = await prisma.gameResult.findMany({
     where: { userId },
@@ -292,15 +307,18 @@ async function findUnplayedFriendFrame(userId: string) {
   });
   const playedFrameIds = playedFrames.map(r => r.frameId);
 
-  // Find random frames (date = null) that:
+  // Find frames (random or past daily) that:
   // 1. Were played by at least one friend
   // 2. Haven't been played by the current user
-  // Limited to last 100 random frames from friends for performance
+  // Excludes today's daily challenge (played from the home screen)
   const friendResults = await prisma.gameResult.findMany({
     where: {
       userId: { in: friendIds },
       frame: {
-        date: null, // Random frames only
+        OR: [
+          { date: null },          // random frames
+          { date: { lt: today } }, // past daily challenges
+        ],
       },
       frameId: playedFrameIds.length > 0 ? { notIn: playedFrameIds } : undefined,
     },
@@ -322,6 +340,41 @@ async function findUnplayedFriendFrame(userId: string) {
   // Pick a random frame from the pool
   const randomIndex = Math.floor(Math.random() * friendResults.length);
   return friendResults[randomIndex].frame;
+}
+
+async function findUnplayedGeneralFrame(userId: string) {
+  const today = getDailyDateKey();
+
+  // Get frames the user has already played
+  const playedFrames = await prisma.gameResult.findMany({
+    where: { userId },
+    select: { frameId: true },
+  });
+  const playedFrameIds = playedFrames.map(r => r.frameId);
+
+  // Find any frame (random or past daily) that has at least one result from any
+  // user but hasn't been played by this user. Excludes today's daily challenge.
+  const candidates = await prisma.frame.findMany({
+    where: {
+      OR: [
+        { date: null },          // random frames
+        { date: { lt: today } }, // past daily challenges
+      ],
+      id: playedFrameIds.length > 0 ? { notIn: playedFrameIds } : undefined,
+      gameResults: {
+        some: {},
+      },
+    },
+    orderBy: {
+      createdAt: 'desc',
+    },
+    take: 100,
+  });
+
+  if (candidates.length === 0) return null;
+
+  const randomIndex = Math.floor(Math.random() * candidates.length);
+  return candidates[randomIndex];
 }
 
 // =============================================================================
@@ -374,6 +427,7 @@ router.get('/frame/:id', optionalAuth, async (req: AuthRequest, res: Response) =
         tiles: frame.tiles,
         targetNumber: frame.targetNumber,
         date: frame.date,
+        name: frame.name ?? null,
       },
     });
   } catch (error) {
@@ -520,6 +574,82 @@ router.post('/frame/:id/submit', requireAuth, async (req: AuthRequest, res: Resp
 });
 
 // =============================================================================
+// START FRAME ENDPOINT
+// =============================================================================
+
+/**
+ * POST /api/game/frame/:id/start
+ *
+ * Creates a GameResult record the moment a user starts playing a frame.
+ * Marks the frame as "attempted" even if the user never submits.
+ * Idempotent — safe to call if a record already exists.
+ */
+router.post('/frame/:id/start', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const frameId = req.params.id as string;
+
+    const existing = await prisma.gameResult.findFirst({
+      where: { frameId, userId: req.userId },
+    });
+
+    if (!existing) {
+      await prisma.gameResult.create({
+        data: {
+          frameId,
+          userId: req.userId,
+          solved: false,
+          result: null,
+          duration: null,
+          expression: null,
+        },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Start frame error:', error);
+    res.status(500).json({ error: 'Failed to record start' });
+  }
+});
+
+// =============================================================================
+// PROGRESS ENDPOINT
+// =============================================================================
+
+/**
+ * POST /api/game/frame/:id/progress
+ *
+ * Updates an existing GameResult with the current duration and closest result.
+ * Called on navigation away or tab/browser close (via sendBeacon).
+ * Only updates if not already solved.
+ */
+router.post('/frame/:id/progress', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const frameId = req.params.id as string;
+    const { duration, result } = req.body;
+
+    const existing = await prisma.gameResult.findFirst({
+      where: { frameId, userId: req.userId },
+    });
+
+    if (existing && !existing.solved) {
+      await prisma.gameResult.update({
+        where: { id: existing.id },
+        data: {
+          duration: typeof duration === 'number' ? Math.round(duration * 100) / 100 : existing.duration,
+          result: typeof result === 'number' && result > 0 ? result : existing.result,
+        },
+      });
+    }
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Progress error:', error);
+    res.status(500).json({ error: 'Failed to save progress' });
+  }
+});
+
+// =============================================================================
 // PLAY HISTORICAL FRAME ENDPOINT
 // =============================================================================
 
@@ -614,6 +744,7 @@ router.get('/frame/:id/play', requireAuth, async (req: AuthRequest, res: Respons
         tiles: frame.tiles,
         targetNumber: frame.targetNumber,
         date: frame.date,
+        name: frame.name ?? null,
       },
       startedAt,
       previousResult,

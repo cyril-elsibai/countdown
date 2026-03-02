@@ -62,7 +62,11 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
 
   const handleSelectFrame = (frameId: string) => {
     setSelectedFrameId(frameId);
-    setActiveTab('leaderboard');
+    setActiveTab('history'); // stays on history tab, shows inline leaderboard
+  };
+
+  const handleBackToHistory = () => {
+    setSelectedFrameId(null);
   };
 
   // Determine button text and disabled state
@@ -87,7 +91,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
         <nav className="dashboard-tabs desktop-only">
           <button
             className={`dashboard-tab ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveTab('history')}
+            onClick={() => { setActiveTab('history'); setSelectedFrameId(null); }}
           >
             Challenge History
           </button>
@@ -95,7 +99,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
             className={`dashboard-tab ${activeTab === 'leaderboard' ? 'active' : ''}`}
             onClick={() => setActiveTab('leaderboard')}
           >
-            Leaderboard
+            Main Leaderboard
           </button>
           <button
             className={`dashboard-tab ${activeTab === 'friends' ? 'active' : ''}`}
@@ -108,7 +112,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
         {/* Mobile menu */}
         <div className="mobile-menu-bar mobile-only">
           <span className="mobile-active-tab">
-            {activeTab === 'history' ? 'Challenge History' : activeTab === 'leaderboard' ? 'Leaderboard' : 'Friends Activity'}
+            {activeTab === 'history' ? 'Challenge History' : activeTab === 'leaderboard' ? 'Main Leaderboard' : 'Friends Activity'}
           </span>
           <button className="burger-btn" onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? '\u2715' : '\u2630'}
@@ -121,7 +125,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
           <div className="burger-menu mobile-only">
             <button
               className={activeTab === 'history' ? 'active' : ''}
-              onClick={() => { setActiveTab('history'); setMenuOpen(false); }}
+              onClick={() => { setActiveTab('history'); setSelectedFrameId(null); setMenuOpen(false); }}
             >
               Challenge History
             </button>
@@ -129,7 +133,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
               className={activeTab === 'leaderboard' ? 'active' : ''}
               onClick={() => { setActiveTab('leaderboard'); setMenuOpen(false); }}
             >
-              Leaderboard
+              Main Leaderboard
             </button>
             <button
               className={activeTab === 'friends' ? 'active' : ''}
@@ -141,15 +145,26 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
         )}
 
         <main className="dashboard-content">
-          {activeTab === 'history' && (
+          {activeTab === 'history' && !selectedFrameId && (
             <ChallengeCalendar
               onSelectFrame={handleSelectFrame}
               onPlayFrame={onPlayFrame}
             />
           )}
+          {activeTab === 'history' && selectedFrameId && (
+            <div>
+              <button className="back-btn" onClick={handleBackToHistory}>
+                ← Back to challenges
+              </button>
+              <Leaderboard
+                frameId={selectedFrameId}
+                onSelectFrame={setSelectedFrameId}
+              />
+            </div>
+          )}
           {activeTab === 'leaderboard' && (
             <Leaderboard
-              frameId={selectedFrameId}
+              frameId={null}
               onSelectFrame={setSelectedFrameId}
             />
           )}

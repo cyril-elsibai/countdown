@@ -147,6 +147,7 @@ export interface Frame {
   tiles: number[];      // Array of 6 number tiles
   targetNumber: number; // Target to reach (101-999)
   date?: string;        // ISO date string for daily challenges
+  name?: string | null; // Friendly name for random frames (e.g. "Golden Fox")
 }
 
 /**
@@ -262,6 +263,15 @@ export const gameApi = {
    */
   playHistoricalFrame: (frameId: string) =>
     request<PlayFrameResponse>(`/game/frame/${frameId}/play`),
+
+  startFrame: (frameId: string) =>
+    request<{ success: boolean }>(`/game/frame/${frameId}/start`, { method: 'POST' }),
+
+  saveProgress: (frameId: string, duration: number, result: number) =>
+    request<{ success: boolean }>(`/game/frame/${frameId}/progress`, {
+      method: 'POST',
+      body: JSON.stringify({ duration, result }),
+    }),
 };
 
 // =============================================================================
@@ -645,6 +655,9 @@ export interface LeaderboardEntry {
   name: string | null;
   duration: number | null;
   solved: boolean;
+  result: number | null;
+  difference: number | null;
+  playedAt: string;
 }
 
 /**

@@ -26,37 +26,51 @@
   gap: 10px;
   margin-top: 30px;
   padding-top: 20px;
-  border-top: 2px solid #eee;
+  border-top: 2px solid var(--gray-eee);
+}
+
+.back-btn {
+  background: none;
+  border: none;
+  color: var(--gray-666);
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 0 0 16px 0;
+  display: block;
+}
+
+.back-btn:hover {
+  color: var(--gray-333);
 }
 
 .challenge-btn {
   padding: 8px 16px;
-  background: #f2d73a;
+  background: var(--yellow);
   border: none;
   border-radius: 4px;
   font-weight: bold;
   cursor: pointer;
-  color: #283033;
+  color: var(--dark);
   font-size: 0.9rem;
 }
 
 .challenge-btn:hover:not(:disabled) {
-  background: #e6cb35;
+  background: var(--yellow-hover);
 }
 
 .challenge-btn:disabled {
   background: #e0e0e0;
-  color: #999;
+  color: var(--gray-999);
   cursor: default;
 }
 
 .challenge-btn.random-btn {
-  background: hsl(198, 40%, 49%);
+  background: var(--blue);
   color: #fff;
 }
 
 .challenge-btn.random-btn:hover {
-  background: hsl(198, 40%, 42%);
+  background: var(--blue-hover);
 }
 
 /* =============================================================================
@@ -66,31 +80,29 @@
 .dashboard-tabs {
   display: flex;
   gap: 10px;
-  margin-bottom: 25px;
   justify-content: center;
+  margin-bottom: 25px;
 }
 
 .dashboard-tab {
-  padding: 12px 25px;
-  background: #fff;
-  border: none;
-  border-radius: 8px;
+  padding: 8px 16px;
+  background: var(--yellow);
+  border: 2px solid var(--yellow);
+  border-radius: 4px;
   cursor: pointer;
-  font-size: 1rem;
-  color: #666;
-  transition: all 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  font-size: 0.9rem;
+  font-weight: bold;
+  color: var(--dark);
+  transition: background 0.15s;
 }
 
 .dashboard-tab:hover {
-  color: #333;
-  background: #f5f5f5;
+  background: var(--yellow-hover);
+  border-color: var(--yellow-hover);
 }
 
 .dashboard-tab.active {
-  color: #333;
-  background: #f2d73a;
-  font-weight: bold;
+  border-color: #000;
 }
 
 /* Mobile menu - hidden on desktop */
@@ -108,7 +120,7 @@
 .mobile-active-tab {
   font-size: 1rem;
   font-weight: bold;
-  color: #333;
+  color: var(--gray-333);
 }
 
 .burger-overlay {
@@ -127,12 +139,12 @@
 }
 
 .burger-btn {
-  background: none;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: var(--yellow);
+  border: none;
   border-radius: 6px;
   font-size: 1.4rem;
   cursor: pointer;
-  color: #f2d73a;
+  color: #000;
   padding: 4px 10px;
   line-height: 1;
 }
@@ -153,14 +165,14 @@
   border-radius: 6px;
   cursor: pointer;
   font-size: 0.95rem;
-  color: #ccc;
+  color: var(--gray-ccc);
   text-align: left;
   width: 100%;
 }
 
 .burger-menu button.active {
-  background: #f2d73a;
-  color: #283033;
+  background: var(--yellow);
+  color: var(--dark);
   font-weight: bold;
 }
 
@@ -186,28 +198,31 @@
 }
 
 .calendar-nav .nav-btn {
-  padding: 10px 20px;
-  background: white;
-  border: 1px solid #ccc;
+  padding: 6px 10px;
+  background: var(--yellow);
+  border: none;
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.95rem;
-  color: #333;
+  color: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
 }
 
 .calendar-nav .nav-btn:hover:not(:disabled) {
-  background: #f5f5f5;
+  background: var(--yellow-hover);
 }
 
 .calendar-nav .nav-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.35;
   cursor: not-allowed;
 }
 
 .calendar-nav .nav-title {
   font-size: 1.5rem;
   font-weight: bold;
-  color: #333;
+  color: var(--gray-333);
   margin: 0;
 }
 
@@ -226,7 +241,7 @@
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.15s;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  border:2px solid #999;
+  border:2px solid var(--gray-999);
   border-radius: 5px;
 }
 
@@ -254,52 +269,59 @@
   box-shadow: none;
 }
 
-.challenge-tile.easy {
-  background: #4ade80;
+/* All tiles share the same dark base */
+.challenge-tile.unplayed,
+.challenge-tile.solved,
+.challenge-tile.tried {
+  background: var(--bg-panel);
 }
 
-.challenge-tile.medium {
-  background: #fbbf24;
-}
-
-.challenge-tile.hard {
-  background: #fb923c;
-}
-
-.challenge-tile.very-hard {
-  background: #f87171;
-}
-
-.challenge-tile.unplayed {
-  background: #f2d73a;
-}
-
-.tile-status-icon {
+/* Difficulty strip */
+.difficulty-bar {
   position: absolute;
-  top: 3px;
-  right: 4px;
-  font-size: 2rem;
-  font-weight: bold;
-  line-height: 1;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 5px;
+  border-radius: 0 0 3px 3px;
 }
 
-.tile-status-icon .solved {
-  color: #166534;
-}
-
-.tile-status-icon .failed {
-  color: #991b1b;
-}
+.difficulty-bar.easy    { background: var(--diff-easy); }
+.difficulty-bar.medium  { background: var(--diff-medium); }
+.difficulty-bar.hard    { background: var(--diff-hard); }
+.difficulty-bar.very-hard { background: var(--diff-very-hard); }
 
 .challenge-tile .daily-number {
-  font-size: 2rem;
+  font-size: clamp(1rem, 2.5vw, 2rem);
   font-weight: bold;
-  color: #283033;
+  color: var(--gray-ccc);
 }
+
+/* Status strip */
+.status-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 25px;
+  border-radius: 3px 3px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #fff;
+}
+
+.status-bar.unplayed { background: var(--yellow); color: var(--dark); }
+.status-bar.solved   { background: var(--status-solved); }
+.status-bar.tried    { background: var(--status-failed); }
 
 .challenge-tile.today {
   box-shadow:
-    0 0 0 3px #283033,
+    0 0 0 3px var(--dark),
     0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
@@ -307,11 +329,11 @@
 .calendar-error {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--gray-666);
 }
 
 .calendar-error {
-  color: #c62828;
+  color: var(--red-dark);
 }
 
 /* =============================================================================
@@ -343,6 +365,7 @@
   border-top: 8px solid rgba(30, 34, 37, 0.95);
 }
 
+
 .tooltip-header {
   display: flex;
   justify-content: space-between;
@@ -354,11 +377,11 @@
 
 .tooltip-daily {
   font-weight: bold;
-  color: #f2d73a;
+  color: var(--yellow);
 }
 
 .tooltip-date {
-  color: #aaa;
+  color: var(--gray-aaa);
   font-size: 0.9rem;
 }
 
@@ -370,7 +393,7 @@
 
 .tooltip-tiles {
   font-size: 0.9rem;
-  color: #aaa;
+  color: var(--gray-aaa);
   font-family: monospace;
   margin-bottom: 12px;
 }
@@ -390,12 +413,12 @@
 }
 
 .stat-label {
-  color: #aaa;
+  color: var(--gray-aaa);
 }
 
 .stat-value {
   font-weight: bold;
-  color: #f2d73a;
+  color: var(--yellow);
 }
 
 .tooltip-result {
@@ -409,12 +432,12 @@
 
 .tooltip-result.solved {
   background: rgba(76, 175, 80, 0.15);
-  color: #81c784;
+  color: var(--score-green);
 }
 
 .tooltip-result.attempted {
   background: rgba(255, 183, 77, 0.15);
-  color: #ffb74d;
+  color: var(--score-orange);
 }
 
 .result-icon {
@@ -438,29 +461,29 @@
 }
 
 .tooltip-btn.play {
-  background: #f2d73a;
-  color: #283033;
+  background: var(--yellow);
+  color: var(--dark);
 }
 
 .tooltip-btn.play:hover {
-  background: #e6cb35;
+  background: var(--yellow-hover);
 }
 
 .tooltip-btn.leaderboard {
-  background: transparent;
-  color: #ddd;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: var(--yellow);
+  color: var(--dark);
+  border: 2px solid var(--yellow);
 }
 
 .tooltip-btn.leaderboard:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border-color: #fff;
+  background: var(--yellow-hover);
+  border-color: var(--yellow-hover);
+  color: var(--dark);
 }
 
 .today-note {
   font-size: 0.85rem;
-  color: #aaa;
+  color: var(--gray-aaa);
   text-align: center;
   font-style: italic;
 }
@@ -483,8 +506,8 @@
 
 .leaderboard-type-tabs button {
   padding: 12px 30px;
-  background: #f5f5f5;
-  border: 1px solid #ccc;
+  background: var(--gray-lighter);
+  border: 1px solid var(--gray-ccc);
   border-radius: 4px;
   cursor: pointer;
   font-size: 1rem;
@@ -495,8 +518,8 @@
 }
 
 .leaderboard-type-tabs button.active {
-  background: #f2d73a;
-  border-color: #f2d73a;
+  background: var(--yellow);
+  border-color: var(--yellow);
   font-weight: bold;
 }
 
@@ -517,12 +540,12 @@
 
 .leaderboard-title {
   margin: 0;
-  color: #333;
+  color: var(--gray-333);
 }
 
 .user-rank-badge {
-  background: #e3f2fd;
-  color: #1976d2;
+  background: var(--blue-light);
+  color: var(--blue-dark-text);
   padding: 6px 12px;
   border-radius: 4px;
   font-weight: bold;
@@ -538,19 +561,19 @@
 .leaderboard-filter button {
   padding: 8px 20px;
   background: white;
-  border: 1px solid #ccc;
+  border: 1px solid var(--gray-ccc);
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.95rem;
 }
 
 .leaderboard-filter button:hover {
-  background: #f5f5f5;
+  background: var(--gray-lighter);
 }
 
 .leaderboard-filter button.active {
-  background: hsl(198, 40%, 49%);
-  border-color: hsl(198, 40%, 49%);
+  background: var(--blue);
+  border-color: var(--blue);
   color: white;
 }
 
@@ -559,11 +582,11 @@
 .leaderboard-error {
   text-align: center;
   padding: 40px 20px;
-  color: #666;
+  color: var(--gray-666);
 }
 
 .leaderboard-error {
-  color: #c62828;
+  color: var(--red-dark);
 }
 
 .leaderboard-table {
@@ -581,10 +604,10 @@
 
 .leaderboard-table th {
   font-weight: bold;
-  color: #666;
+  color: var(--gray-666);
   font-size: 0.85rem;
   text-transform: uppercase;
-  background: #fafafa;
+  background: var(--gray-lightest);
 }
 
 .leaderboard-table tbody tr:hover {
@@ -602,7 +625,7 @@
 .rank-cell {
   width: 80px;
   font-weight: bold;
-  color: #666;
+  color: var(--gray-666);
 }
 
 .medal {
@@ -610,16 +633,25 @@
 }
 
 .name-cell {
-  color: #333;
+  color: var(--gray-333);
 }
 
-.time-cell,
 .points-cell {
   width: 120px;
   text-align: right;
-  color: #666;
+  color: var(--gray-666);
   font-weight: 500;
 }
+
+.status-cell {
+  width: 120px;
+  text-align: right;
+  font-weight: 600;
+}
+
+.status-solved  { color: var(--status-solved); }
+.status-overtime { color: var(--blue); }
+.status-away    { color: var(--gray-666); }
 
 /* =============================================================================
    FRIENDS ACTIVITY
@@ -635,17 +667,17 @@
 .activity-error {
   text-align: center;
   padding: 40px 20px;
-  color: #666;
+  color: var(--gray-666);
 }
 
 .activity-error {
-  color: #c62828;
+  color: var(--red-dark);
 }
 
 .activity-empty {
   text-align: center;
   padding: 60px 20px;
-  color: #666;
+  color: var(--gray-666);
 }
 
 .activity-empty .empty-icon {
@@ -655,7 +687,7 @@
 
 .activity-empty h3 {
   margin: 0 0 10px 0;
-  color: #333;
+  color: var(--gray-333);
 }
 
 .activity-empty p {
@@ -665,7 +697,7 @@
 .activity-empty .empty-hint {
   margin-top: 15px;
   font-size: 0.9rem;
-  color: #999;
+  color: var(--gray-999);
 }
 
 .activity-feed {
@@ -685,15 +717,15 @@
 }
 
 .activity-card:hover {
-  background: #f0f0f0;
+  background: var(--gray-lighter);
 }
 
 .activity-avatar {
   width: 45px;
   height: 45px;
   border-radius: 50%;
-  background: hsl(198, 40%, 49%);
-  color: white;
+  background: var(--blue);
+  color: #fff;
   display: flex;
   justify-content: center;
   align-items: center;
@@ -715,12 +747,12 @@
 
 .activity-name {
   font-weight: bold;
-  color: #333;
+  color: var(--gray-333);
 }
 
 .activity-time {
   font-size: 0.85rem;
-  color: #999;
+  color: var(--gray-666);
 }
 
 .activity-body {
@@ -731,7 +763,7 @@
 
 .activity-challenge {
   font-size: 0.9rem;
-  color: #666;
+  color: var(--gray-666);
 }
 
 .activity-result {
@@ -739,7 +771,7 @@
 }
 
 .activity-result.solved {
-  color: #2e7d32;
+  color: var(--green-dark);
 }
 
 .activity-result.failed {
@@ -747,26 +779,32 @@
 }
 
 .activity-view-btn {
-  padding: 8px 16px;
+  padding: 6px 12px;
   background: white;
-  border: 1px solid #ccc;
+  border: 1px solid var(--gray-ccc);
   border-radius: 4px;
   cursor: pointer;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: bold;
   flex-shrink: 0;
 }
 
 .activity-view-btn:hover {
-  background: #f5f5f5;
+  background: var(--gray-lighter);
 }
 
 /* =============================================================================
    RESPONSIVE DESIGN
    ============================================================================= */
 
-@media only screen and (max-width: 768px) {
+@media only screen and (max-width: 600px) {
   .dashboard-page {
     padding: 10px;
+  }
+
+  .challenge-btn {
+    font-size: 0.8rem;
+    padding: 6px 10px;
   }
 
   .desktop-only {
@@ -801,7 +839,7 @@
   }
 
   .challenge-tile {
-    padding: 15px 8px;
+    padding: 35px 4px 15px 4px;
   }
 
   .challenge-tile .daily-number {
@@ -842,7 +880,7 @@
     width: 60px;
   }
 
-  .time-cell,
+  .status-cell,
   .points-cell {
     width: 80px;
   }

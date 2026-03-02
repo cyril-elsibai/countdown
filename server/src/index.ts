@@ -35,6 +35,7 @@ import dashboardRoutes from './routes/dashboard';
 import { prisma } from './db';
 import { ensureYearOfChallenges } from './services/frameGenerator';
 import { runPointsCalculation } from './services/pointsCalculator';
+import { checkNameUtilization } from './services/nameGenerator';
 
 // Create the Express application instance
 const app = express();
@@ -215,6 +216,11 @@ async function main() {
           console.log(`Scheduled points: ${result.usersProcessed} users, ${result.resultsProcessed} results`);
         } catch (err) {
           console.error('Scheduled points calculation failed:', err);
+        }
+        try {
+          await checkNameUtilization();
+        } catch (err) {
+          console.error('Name utilization check failed:', err);
         }
         scheduleDailyCalculation(); // Schedule next run
       }, msUntilMidnight);

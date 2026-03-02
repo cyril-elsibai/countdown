@@ -247,26 +247,32 @@ router.get('/leaderboard', requireAuth, async (req: AuthRequest, res: Response) 
       },
     });
 
-    // Sort results by: 1) solved first, 2) closest to target, 3) fastest time
     const targetNumber = frame.targetNumber;
-    const sortedResults = results.sort((a, b) => {
-      // Tier 1: Solved first
-      if (a.solved !== b.solved) {
-        return a.solved ? -1 : 1;
-      }
+    const OVERTIME_SECONDS = 60;
 
-      // Tier 2: Closest to target (smallest difference)
-      const diffA = a.result !== null ? Math.abs(targetNumber - a.result) : Infinity;
-      const diffB = b.result !== null ? Math.abs(targetNumber - b.result) : Infinity;
-      if (diffA !== diffB) {
-        return diffA - diffB;
-      }
+    // Exclude entries where no result was ever submitted (opened but never calculated)
+    const submitted = results.filter(r => r.result !== null);
 
-      // Tier 3: Fastest time (nulls last)
-      const timeA = a.duration ?? Infinity;
-      const timeB = b.duration ?? Infinity;
-      return timeA - timeB;
+    // Split into three groups
+    const solvedInTime  = submitted.filter(r => r.solved && (r.duration ?? Infinity) <= OVERTIME_SECONDS);
+    const solvedOvertime = submitted.filter(r => r.solved && (r.duration ?? Infinity) > OVERTIME_SECONDS);
+    const unsolved      = submitted.filter(r => !r.solved);
+
+    // Group 1: solved within time → fastest first
+    solvedInTime.sort((a, b) => (a.duration ?? Infinity) - (b.duration ?? Infinity));
+
+    // Group 2: solved overtime → submission time order
+    solvedOvertime.sort((a, b) => a.playedAt.getTime() - b.playedAt.getTime());
+
+    // Group 3: unsolved → closest to target, then submission time for ties
+    unsolved.sort((a, b) => {
+      const diffA = Math.abs(targetNumber - a.result!);
+      const diffB = Math.abs(targetNumber - b.result!);
+      if (diffA !== diffB) return diffA - diffB;
+      return a.playedAt.getTime() - b.playedAt.getTime();
     });
+
+    const sortedResults = [...solvedInTime, ...solvedOvertime, ...unsolved];
 
     // Build leaderboard with ranks
     const leaderboard = sortedResults.map((result, index) => ({
@@ -277,6 +283,7 @@ router.get('/leaderboard', requireAuth, async (req: AuthRequest, res: Response) 
       solved: result.solved,
       result: result.result,
       difference: result.result !== null ? Math.abs(targetNumber - result.result) : null,
+      playedAt: result.playedAt,
     }));
 
     // Find current user's rank

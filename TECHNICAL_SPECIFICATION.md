@@ -780,7 +780,6 @@ App
 ├── TargetDisplay (3-digit target)
 ├── Timer
 ├── Alert (inline error messages)
-├── Already Solved Banner
 ├── Victory Modal
 ├── GameGrid (5 calculation rows)
 │   └── Row (num1, operator, num2, result, delete)
@@ -851,6 +850,97 @@ adminApi: {
   saveChallenge(date, data): Promise<{challenge: Challenge, created: boolean}>
 }
 ```
+
+### 8.4 Design System — Color Variables
+
+All colors are defined as CSS custom properties in the `:root` block at the top of `client/src/App.css`. **Never use hardcoded color values** — always reference a variable.
+
+#### Brand
+
+| Variable | Value | Usage |
+|---|---|---|
+| `--yellow` | `#f2d73a` | Logo, primary buttons, init keys, calc keys, target tile |
+| `--yellow-hover` | `#e6cb35` | Hover state for yellow elements |
+| `--yellow-glow` | `rgba(242, 215, 58, 0.4)` | Text-shadow glow on countdown / victory screen |
+| `--yellow-bg-tint` | `rgba(242, 215, 58, 0.15)` | Subtle yellow background tint |
+| `--dark` | `#283033` | Primary dark text and backgrounds |
+| `--blue` | `hsl(198, 80%, 52%)` | Operator keys, overtime timer, secondary buttons |
+| `--blue-hover` | `hsl(198, 80%, 44%)` | Hover state for blue elements |
+| `--blue-light` | `hsl(198, 80%, 92%)` | Blue badge background |
+| `--blue-dark-text` | `hsl(198, 80%, 30%)` | Blue badge text |
+| `--orange` | `#FFA239` | Initial number keys |
+
+#### Semantic
+
+| Variable | Value | Usage |
+|---|---|---|
+| `--red` | `#f44336` | Errors, delete button |
+| `--red-dark` | `#c62828` | Dark red variant |
+| `--red-darker` | `#d32f2f` | Hover red |
+| `--green` | `#4caf50` | Success states |
+| `--green-hover` | `#43a047` | Green hover |
+| `--green-dark` | `#2e7d32` | Dark green variant |
+
+#### Dark theme
+
+| Variable | Value | Usage |
+|---|---|---|
+| `--bg-dark` | `#1e2225` | Main dark panel background |
+| `--bg-panel` | `#2a2a2a` | Dark tile/card background |
+| `--tile-border` | `hsl(56, 20%, 40%)` | Game tile border color |
+
+#### Dashboard — difficulty bars
+
+| Variable | Value |
+|---|---|
+| `--diff-easy` | `#4ade80` |
+| `--diff-medium` | `#fbbf24` |
+| `--diff-hard` | `#fb923c` |
+| `--diff-very-hard` | `#f87171` |
+
+#### Dashboard — challenge tile status
+
+| Variable | Value | Usage |
+|---|---|---|
+| `--status-solved` | `#16a34a` | Solved tile top strip |
+| `--status-failed` | `#dc2626` | Failed tile top strip |
+
+#### Banners / feedback
+
+| Variable | Value | Usage |
+|---|---|---|
+| `--warning-bg` | `#fff8e1` | Warning banner background |
+| `--warning-border` | `#ffcc02` | Warning banner border |
+| `--warning-text` | `#5d4e00` | Warning banner text |
+| `--error-bg` | `#ffebee` | Error banner background |
+| `--error-bg-dark` | `#ffcdd2` | Error banner border/accent |
+| `--success-bg` | `#e8f5e9` | Success banner background |
+
+#### Score / leaderboard
+
+| Variable | Value | Usage |
+|---|---|---|
+| `--score-orange` | `#ffb74d` | Near-miss score color |
+| `--score-green` | `#81c784` | Good score color |
+| `--score-red` | `#ef9a9a` | Poor score color |
+| `--score-red-bright` | `#ff6b6b` | Fail indicator |
+
+#### Grays
+
+| Variable | Value |
+|---|---|
+| `--gray-lightest` | `#fafafa` |
+| `--gray-lighter` | `#f5f5f5` |
+| `--gray-light` | `#f0f0f0` |
+| `--gray-eee` | `#eee` |
+| `--gray-ddd` | `#ddd` |
+| `--gray-ccc` | `#ccc` |
+| `--gray-aaa` | `#aaa` |
+| `--gray-999` | `#999` |
+| `--gray-888` | `#888` |
+| `--gray-666` | `#666` |
+| `--gray-333` | `#333` |
+| `--gray-222` | `#222` |
 
 ---
 

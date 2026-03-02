@@ -17,27 +17,24 @@ import {
   OverallLeaderboardResponse,
 } from '../../api';
 
+
 interface LeaderboardProps {
   frameId: string | null;
   onSelectFrame: (frameId: string | null) => void;
 }
 
-type LeaderboardType = 'daily' | 'overall';
 type FilterType = 'global' | 'friends';
 
 export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps) {
-  const [type, setType] = useState<LeaderboardType>(frameId ? 'daily' : 'overall');
+  // Mode is derived from whether a frameId is provided:
+  // - frameId present → per-challenge leaderboard (from tooltip)
+  // - no frameId → overall points leaderboard (Main Leaderboard tab)
+  const type = frameId ? 'daily' : 'overall';
   const [filter, setFilter] = useState<FilterType>('global');
   const [dailyData, setDailyData] = useState<LeaderboardResponse | null>(null);
   const [overallData, setOverallData] = useState<OverallLeaderboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (frameId) {
-      setType('daily');
-    }
-  }, [frameId]);
 
   useEffect(() => {
     loadLeaderboard();
@@ -61,11 +58,17 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
     }
   };
 
-  const formatDuration = (seconds: number | null): string => {
-    if (seconds === null) return '-';
-    if (seconds >= 10000) return 'penalty';
-    if (seconds >= 300) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-    return `${seconds.toFixed(2)}s`;
+  const OVERTIME_SECONDS = 60;
+
+  const formatStatus = (entry: LeaderboardEntry): string => {
+    if (entry.solved) {
+      if ((entry.duration ?? Infinity) <= OVERTIME_SECONDS) {
+        return `${entry.duration!.toFixed(2)}s`;
+      }
+      return 'Overtime';
+    }
+    if (entry.difference === 1) return '1 away';
+    return `${entry.difference} away`;
   };
 
   const renderDailyLeaderboard = () => {
@@ -109,14 +112,14 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
               <tr>
                 <th>Rank</th>
                 <th>Player</th>
-                <th>Time</th>
+                <th>Status</th>
               </tr>
             </thead>
             <tbody>
               {dailyData.leaderboard.map((entry: LeaderboardEntry) => (
                 <tr key={entry.userId} className={entry.rank === dailyData.userRank ? 'current-user' : ''}>
                   <td className="rank-cell">
-                    {entry.rank <= 3 ? (
+                    {entry.solved && entry.rank <= 3 ? (
                       <span className={`medal medal-${entry.rank}`}>
                         {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
                       </span>
@@ -125,7 +128,9 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
                     )}
                   </td>
                   <td className="name-cell">{entry.name || 'Anonymous'}</td>
-                  <td className="time-cell">{formatDuration(entry.duration)}</td>
+                  <td className={`status-cell ${entry.solved ? (entry.duration! <= OVERTIME_SECONDS ? 'status-solved' : 'status-overtime') : 'status-away'}`}>
+                    {formatStatus(entry)}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -185,22 +190,6 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
 
   return (
     <div className="leaderboard">
-      <div className="leaderboard-type-tabs">
-        <button
-          className={type === 'daily' ? 'active' : ''}
-          onClick={() => setType('daily')}
-        >
-          Daily Challenge
-        </button>
-        <button
-          className={type === 'overall' ? 'active' : ''}
-          onClick={() => setType('overall')}
-        >
-          Overall Points
-        </button>
-      </div>
-
-
       {loading ? (
         <div className="leaderboard-loading">Loading leaderboard...</div>
       ) : error ? (

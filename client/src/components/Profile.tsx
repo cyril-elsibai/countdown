@@ -1,45 +1,26 @@
-import { useState, useEffect } from 'react';
-import { authApi, friendsApi, User, Friend } from '../api';
+import { useState } from 'react';
+import { authApi, User } from '../api';
 
 interface ProfileProps {
   user: User;
   onUserUpdate: (user: User) => void;
   onClose: () => void;
+  onLogout: () => void;
 }
 
-export default function Profile({ user, onUserUpdate, onClose }: ProfileProps) {
+export default function Profile({ user, onUserUpdate, onClose, onLogout }: ProfileProps) {
   const [name, setName] = useState(user.name || '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [friendEmail, setFriendEmail] = useState('');
-  const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(false);
-  const [friendsLoading, setFriendsLoading] = useState(true);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
-
-  useEffect(() => {
-    loadFriends();
-  }, []);
-
-  const loadFriends = async () => {
-    try {
-      const response = await friendsApi.list();
-      setFriends(response.friends);
-    } catch (err) {
-      console.error('Failed to load friends:', err);
-    } finally {
-      setFriendsLoading(false);
-    }
-  };
 
   const handleUpdateName = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setMessage('');
     setLoading(true);
-
     try {
       const response = await authApi.updateProfile(name);
       onUserUpdate(response.user);
@@ -55,25 +36,16 @@ export default function Profile({ user, onUserUpdate, onClose }: ProfileProps) {
     e.preventDefault();
     setError('');
     setMessage('');
-
-    if (newPassword !== confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
     if (newPassword.length < 6) {
       setError('Password must be at least 6 characters');
       return;
     }
-
     setLoading(true);
-
     try {
       const response = await authApi.changePassword(currentPassword, newPassword);
       setMessage(response.message);
       setCurrentPassword('');
       setNewPassword('');
-      setConfirmPassword('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to change password');
     } finally {
@@ -81,84 +53,41 @@ export default function Profile({ user, onUserUpdate, onClose }: ProfileProps) {
     }
   };
 
-  const handleSendRequest = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setMessage('');
-
-    if (!friendEmail.trim()) return;
-
-    setLoading(true);
-
-    try {
-      const response = await friendsApi.sendRequest(friendEmail.trim());
-      setFriends([...friends, response.friend]);
-      setFriendEmail('');
-      setMessage('Friend request sent');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to send request');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAcceptRequest = async (id: string) => {
-    try {
-      const response = await friendsApi.acceptRequest(id);
-      setFriends(friends.map((f) => (f.id === id ? response.friend : f)));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to accept request');
-    }
-  };
-
-  const handleRemoveFriend = async (id: string) => {
-    try {
-      await friendsApi.remove(id);
-      setFriends(friends.filter((f) => f.id !== id));
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to remove friend');
-    }
-  };
-
-  const getStatusText = (friend: Friend) => {
-    if (friend.status === 'ACCEPTED') return 'Friend';
-    if (friend.direction === 'sent') return 'Request sent';
-    return 'Pending request';
-  };
-
   return (
-    <div className="auth-overlay">
-      <div className="profile-modal">
-        <button className="auth-close" onClick={onClose}>&times;</button>
-
-        <h2>Profile</h2>
+    <div className="auth-overlay" onClick={onClose}>
+      <div className="profile-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="profile-header">
+          <h1 className="profile-title">Profile</h1>
+          <button className="profile-logout" onClick={onLogout}>
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+          </button>
+        </div>
 
         {message && <div className="auth-message">{message}</div>}
         {error && <div className="auth-error">{error}</div>}
 
-        {/* Update Name */}
         <section className="profile-section">
-          <h3>Update Name</h3>
-          <form onSubmit={handleUpdateName}>
-            <div className="form-group">
-              <label htmlFor="name">Name</label>
-              <input
-                type="text"
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Your name"
-              />
-            </div>
-            <button type="submit" className="auth-submit" disabled={loading}>
-              {loading ? 'Saving...' : 'Update Name'}
+          <h3>In game name</h3>
+          <form onSubmit={handleUpdateName} className="inline-form">
+            <input
+              type="text"
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your name"
+            />
+            <button type="submit" className="auth-submit inline-submit" disabled={loading}>
+              {loading ? '...' : 'Update'}
             </button>
           </form>
         </section>
 
-        {/* Change Password */}
         <section className="profile-section">
-          <h3>Change Password</h3>
+          <h3>Password</h3>
           <form onSubmit={handleChangePassword}>
             <div className="form-group">
               <label htmlFor="currentPassword">Current Password</label>
@@ -183,78 +112,10 @@ export default function Profile({ user, onUserUpdate, onClose }: ProfileProps) {
                 minLength={6}
               />
             </div>
-            <div className="form-group">
-              <label htmlFor="confirmPassword">Confirm New Password</label>
-              <input
-                type="password"
-                id="confirmPassword"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                placeholder="Confirm new password"
-                required
-                minLength={6}
-              />
-            </div>
             <button type="submit" className="auth-submit" disabled={loading}>
               {loading ? 'Changing...' : 'Change Password'}
             </button>
           </form>
-        </section>
-
-        {/* Friends */}
-        <section className="profile-section">
-          <h3>Friends</h3>
-
-          {/* Add friend form */}
-          <form onSubmit={handleSendRequest} className="friend-request-form">
-            <input
-              type="email"
-              value={friendEmail}
-              onChange={(e) => setFriendEmail(e.target.value)}
-              placeholder="Enter email to add friend"
-            />
-            <button type="submit" disabled={loading || !friendEmail.trim()}>
-              Add
-            </button>
-          </form>
-
-          {/* Friends list */}
-          {friendsLoading ? (
-            <p className="friends-loading">Loading friends...</p>
-          ) : friends.length === 0 ? (
-            <p className="friends-empty">No friends yet. Add someone above!</p>
-          ) : (
-            <ul className="friends-list">
-              {friends.map((friend) => (
-                <li key={friend.id} className="friend-item">
-                  <div className="friend-info">
-                    <span className="friend-name">
-                      {friend.user.name || friend.user.email}
-                    </span>
-                    <span className={`friend-status status-${friend.status.toLowerCase()}`}>
-                      {getStatusText(friend)}
-                    </span>
-                  </div>
-                  <div className="friend-actions">
-                    {friend.status === 'PENDING' && friend.direction === 'received' && (
-                      <button
-                        className="friend-accept"
-                        onClick={() => handleAcceptRequest(friend.id)}
-                      >
-                        Accept
-                      </button>
-                    )}
-                    <button
-                      className="friend-remove"
-                      onClick={() => handleRemoveFriend(friend.id)}
-                    >
-                      {friend.status === 'ACCEPTED' ? 'Remove' : 'Cancel'}
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
         </section>
       </div>
     </div>

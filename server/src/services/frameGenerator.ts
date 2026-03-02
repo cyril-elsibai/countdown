@@ -17,8 +17,8 @@
  * 6. Intermediate results must be positive integers
  *
  * DEFAULT TILE SELECTION:
- * This implementation uses 2 large + 4 small numbers by default.
- * The TV show allows players to choose their mix, but we use a fixed formula.
+ * Randomly picks 0, 1, or 2 large numbers (equal probability) then fills
+ * the remaining slots with small numbers.
  *
  * UNIQUENESS:
  * The service ensures no two daily challenges have the same tile/target
@@ -50,6 +50,12 @@ const SMALL_NUMBERS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
  */
 const LARGE_NUMBERS = [25, 50, 75, 100];
 
+/**
+ * Full tile pool: 2 of each small number + 1 of each large number.
+ * Matches the actual Countdown TV show deck.
+ */
+const TILE_POOL = [...SMALL_NUMBERS, ...SMALL_NUMBERS, ...LARGE_NUMBERS];
+
 // =============================================================================
 // GENERATION FUNCTIONS
 // =============================================================================
@@ -74,12 +80,10 @@ export function generateTargetNumber(): number {
  * Generate Tiles
  *
  * Creates an array of 6 number tiles following the TV show rules.
- * Default selection: 2 large numbers + 4 small numbers, shuffled.
- *
- * PROCESS:
- * 1. Pick 2 large numbers WITHOUT replacement (no duplicates)
- * 2. Pick 4 small numbers WITH replacement (duplicates allowed)
- * 3. Shuffle the combined array
+ * Draws 6 tiles from the full pool (2× each small number + 1× each large).
+ * Each tile is removed from the pool as it is picked. If a large number is
+ * drawn when 2 large numbers are already selected, it is skipped and a new
+ * pick is made — giving a natural 0–2 large number distribution.
  *
  * @returns An array of 6 numbers in random order
  *
@@ -88,31 +92,21 @@ export function generateTargetNumber(): number {
  */
 export function generateTiles(): number[] {
   const tiles: number[] = [];
+  const pool = [...TILE_POOL];
+  let largeCount = 0;
 
-  // Step 1: Pick 2 large numbers WITHOUT replacement
-  // Create a copy of the pool so we can remove selected numbers
-  const largePool = [...LARGE_NUMBERS];
-  for (let i = 0; i < 2; i++) {
-    // Pick a random index from remaining large numbers
-    const index = Math.floor(Math.random() * largePool.length);
-    // Remove and add to tiles (splice returns an array, take first element)
-    tiles.push(largePool.splice(index, 1)[0]);
-  }
+  while (tiles.length < 6) {
+    const index = Math.floor(Math.random() * pool.length);
+    const picked = pool[index];
 
-  // Step 2: Pick 4 small numbers WITHOUT replacement from the full pool
-  // The TV show deck has exactly 2 of each small number (1-10), so
-  // the same number can appear at most twice
-  const smallPool = [...SMALL_NUMBERS, ...SMALL_NUMBERS]; // Two of each: 1,1,2,2,...,10,10
-  for (let i = 0; i < 4; i++) {
-    const index = Math.floor(Math.random() * smallPool.length);
-    tiles.push(smallPool.splice(index, 1)[0]);
-  }
+    if (picked > 10 && largeCount >= 2) {
+      // Already have 2 large numbers — put it back and try again
+      continue;
+    }
 
-  // Step 3: Shuffle the tiles using Fisher-Yates algorithm
-  // This ensures random presentation order (large numbers aren't always first)
-  for (let i = tiles.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [tiles[i], tiles[j]] = [tiles[j], tiles[i]]; // Swap
+    pool.splice(index, 1);
+    tiles.push(picked);
+    if (picked > 10) largeCount++;
   }
 
   return tiles;
@@ -330,12 +324,14 @@ export async function generateUniqueFrame(maxAttempts = 100): Promise<{ tiles: n
  * const { created, existing } = await ensureYearOfChallenges();
  * console.log(`Created ${created}, ${existing} already existed`);
  */
-export async function ensureYearOfChallenges(): Promise<{ created: number; existing: number }> {
-  // Get today at midnight UTC
+export async function ensureYearOfChallenges(startDate?: Date): Promise<{ created: number; existing: number }> {
+  // Default start date is today at midnight UTC
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  // Calculate one year from today
+  const from = startDate ?? today;
+
+  // Calculate one year from today (always anchor end date to today)
   const oneYearFromNow = new Date(today);
   oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
 
@@ -343,7 +339,7 @@ export async function ensureYearOfChallenges(): Promise<{ created: number; exist
   const existingChallenges = await prisma.frame.findMany({
     where: {
       date: {
-        gte: today,
+        gte: from,
         lte: oneYearFromNow,
       },
     },
@@ -357,7 +353,7 @@ export async function ensureYearOfChallenges(): Promise<{ created: number; exist
   );
 
   let created = 0;
-  const currentDate = new Date(today);
+  const currentDate = new Date(from);
 
   // Iterate through each day in the range
   while (currentDate <= oneYearFromNow) {

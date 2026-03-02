@@ -64,14 +64,6 @@ export default function ChallengeTooltip({
         </span>
       </div>
 
-      <div className="tooltip-target">
-        Target: <strong>{challenge.targetNumber}</strong>
-      </div>
-
-      <div className="tooltip-tiles">
-        Tiles: {challenge.tiles.join(', ')}
-      </div>
-
       <div className="tooltip-stats">
         <div className="stat-row">
           <span className="stat-label">Completion:</span>
@@ -81,11 +73,7 @@ export default function ChallengeTooltip({
           <span className="stat-label">Under 60s:</span>
           <span className="stat-value">{challenge.difficulty.under60sPercent}%</span>
         </div>
-        <div className="stat-row">
-          <span className="stat-label">Under 5min:</span>
-          <span className="stat-value">{challenge.difficulty.under5minPercent}%</span>
-        </div>
-        <div className="stat-row">
+<div className="stat-row">
           <span className="stat-label">Total attempts:</span>
           <span className="stat-value">{challenge.difficulty.totalAttempts}</span>
         </div>

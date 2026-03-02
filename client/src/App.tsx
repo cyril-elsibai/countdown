@@ -1,8 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
-import { gameApi, authApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult } from './api';
+import { gameApi, authApi, friendsApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult } from './api';
 import AuthForm from './components/AuthForm';
 import ResetPasswordForm from './components/ResetPasswordForm';
 import Profile from './components/Profile';
+import FriendsModal from './components/FriendsModal';
 import Admin from './components/Admin';
 import { Dashboard } from './components/Dashboard';
 
@@ -95,6 +96,8 @@ export default function App() {
   const [verificationMessage, setVerificationMessage] = useState('');
   const [resetPasswordToken, setResetPasswordToken] = useState<string | null>(null);
   const [showProfile, setShowProfile] = useState(false);
+  const [showFriends, setShowFriends] = useState(false);
+  const [pendingFriendCount, setPendingFriendCount] = useState(0);
   const [previousResult, setPreviousResult] = useState<PreviousResult | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
   const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
@@ -103,6 +106,7 @@ export default function App() {
 
   const startTimeRef = useRef(Date.now());
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const activeFrameRef = useRef<{ id: string; timer: number; best: number } | null>(null);
 
   // Handle browser back/forward navigation
   useEffect(() => {
@@ -184,6 +188,17 @@ export default function App() {
     }
   }, []);
 
+  // Fetch pending friend request count
+  useEffect(() => {
+    if (!user) { setPendingFriendCount(0); return; }
+    friendsApi.list()
+      .then(response => {
+        const count = response.friends.filter(f => f.status === 'PENDING' && f.direction === 'received').length;
+        setPendingFriendCount(count);
+      })
+      .catch(() => {});
+  }, [user]);
+
   // Check if user is already logged in
   useEffect(() => {
     if (isLoggedIn()) {
@@ -213,7 +228,7 @@ export default function App() {
 
   // Timer effect - only starts when game is in 'playing' phase
   useEffect(() => {
-    if (gamePhase !== 'playing' || previousResult) {
+    if (gamePhase !== 'playing' || previousResult?.solved) {
       return;
     }
 
@@ -229,6 +244,7 @@ export default function App() {
     timerIntervalRef.current = setInterval(() => {
       const elapsed = (Date.now() - startTimeRef.current) / 1000;
       setTimer(elapsed);
+      if (activeFrameRef.current) activeFrameRef.current.timer = elapsed;
 
       if (elapsed >= COUNTDOWN_SECONDS && !timerStopped) {
         setTimerStopped(true);
@@ -253,6 +269,10 @@ export default function App() {
     const timerGo = setTimeout(() => {
       setServerStartTime(new Date());
       setGamePhase('playing');
+      if (frame && isLoggedIn()) {
+        activeFrameRef.current = { id: frame.id, timer: 0, best: 0 };
+        gameApi.startFrame(frame.id).catch(() => {});
+      }
     }, 3000);
 
     return () => {
@@ -260,7 +280,36 @@ export default function App() {
       clearTimeout(timer1);
       clearTimeout(timerGo);
     };
-  }, [gamePhase]);
+  }, [gamePhase, frame]);
+
+  // Sync currentBest to activeFrameRef
+  useEffect(() => {
+    if (activeFrameRef.current) {
+      activeFrameRef.current.best = currentBest;
+    }
+  }, [currentBest]);
+
+  // Save progress on tab/browser close
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      const active = activeFrameRef.current;
+      if (!active) return;
+      const token = localStorage.getItem('token');
+      if (!token) return;
+      const url = `http://${window.location.hostname}:3001/api/game/frame/${active.id}/progress`;
+      fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify({ duration: active.timer, result: active.best }),
+        keepalive: true,
+      }).catch(() => {});
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
 
   const initializeGame = async () => {
     setLoading(true);
@@ -309,9 +358,10 @@ export default function App() {
       // Set game phase based on auth status
       if (prevResult) {
         // Already played (solved or not) — skip countdown, restore previous time
-        if (prevResult.duration != null) {
-          setTimer(prevResult.duration);
-          setTimerStopped(prevResult.duration >= COUNTDOWN_SECONDS);
+        restoreTimerFromResult(prevResult);
+        if (!prevResult.solved && prevResult.duration != null && prevResult.duration > 0) {
+          setServerStartTime(new Date(Date.now() - prevResult.duration * 1000));
+          activeFrameRef.current = { id: fetchedFrame.id, timer: prevResult.duration, best: prevResult.result ?? 0 };
         }
         setGamePhase('playing');
       } else if (isLoggedIn() && startedAt) {
@@ -355,10 +405,21 @@ export default function App() {
     if (currentRoute === 'home' && frame) {
       try {
         const response = await gameApi.getDaily();
-        const { previousResult: prevResult } = response;
+        const { previousResult: prevResult, startedAt } = response;
         setPreviousResult(prevResult);
+        setDailyPlayed(!!prevResult);
 
-        if (prevResult?.solved) {
+        if (prevResult) {
+          // Already played — restore timer, skip countdown
+          restoreTimerFromResult(prevResult);
+          if (!prevResult.solved && prevResult.duration != null && prevResult.duration > 0) {
+            setServerStartTime(new Date(Date.now() - prevResult.duration * 1000));
+            if (frame) activeFrameRef.current = { id: frame.id, timer: prevResult.duration, best: prevResult.result ?? 0 };
+          }
+          setGamePhase('playing');
+        } else if (startedAt) {
+          // Mid-game — restore timer from server start time
+          setServerStartTime(new Date(startedAt));
           setGamePhase('playing');
         } else {
           setGamePhase('countdown');
@@ -385,12 +446,33 @@ export default function App() {
     setUser(updatedUser);
   };
 
+  const restoreTimerFromResult = (prevResult: PreviousResult) => {
+    if (prevResult.duration != null && prevResult.duration > 0) {
+      setTimer(prevResult.duration);
+      setTimerStopped(prevResult.duration >= COUNTDOWN_SECONDS);
+    } else if (prevResult.result != null) {
+      // Has a submitted result but duration missing — show overtime
+      setTimer(COUNTDOWN_SECONDS);
+      setTimerStopped(true);
+    }
+    // If result is null too (just opened, never submitted) — leave timer at 0
+  };
+
+  const saveActiveFrameProgress = () => {
+    const active = activeFrameRef.current;
+    if (!active) return;
+    gameApi.saveProgress(active.id, active.timer, active.best).catch(() => {});
+    activeFrameRef.current = null;
+  };
+
   const navigateToDashboard = () => {
+    saveActiveFrameProgress();
     setCurrentRoute('dashboard');
     window.history.pushState({}, '', '/dashboard');
   };
 
   const navigateToHome = () => {
+    saveActiveFrameProgress();
     setCurrentRoute('home');
     setPlayFrameId(null);
     window.history.pushState({}, '', '/');
@@ -399,6 +481,7 @@ export default function App() {
   };
 
   const handlePlayHistorical = async (frameId: string) => {
+    saveActiveFrameProgress();
     setLoading(true);
     setCurrentRoute('play');
     setPlayFrameId(frameId);
@@ -447,7 +530,13 @@ export default function App() {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       setServerStartTime(null);
 
-      if (prevResult?.solved) {
+      if (prevResult) {
+        // Already started (solved or not) — skip countdown, restore timer if available
+        restoreTimerFromResult(prevResult);
+        if (!prevResult.solved && prevResult.duration != null && prevResult.duration > 0) {
+          setServerStartTime(new Date(Date.now() - prevResult.duration * 1000));
+          activeFrameRef.current = { id: fetchedFrame.id, timer: prevResult.duration, best: prevResult.result ?? 0 };
+        }
         setGamePhase('playing');
       } else {
         setGamePhase('countdown');
@@ -461,6 +550,7 @@ export default function App() {
   };
 
   const handlePlayRandom = async () => {
+    saveActiveFrameProgress();
     setLoading(true);
     try {
       const response = await gameApi.getRandom();
@@ -577,6 +667,8 @@ export default function App() {
         if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
         setRows(newRows);
         setCalculatedKeys(newCalcKeys);
+
+        activeFrameRef.current = null;
 
         if (frame) {
           const expression = buildExpression(newRows, row + 1);
@@ -908,19 +1000,25 @@ export default function App() {
                 {currentRoute !== 'dashboard' && (
                   <button className="bar-btn primary" onClick={navigateToDashboard}>Dashboard</button>
                 )}
+                <button className="bar-btn secondary btn-with-badge" onClick={() => { setShowFriends(true); setPendingFriendCount(0); }}>
+                  <span className="btn-label">Friends</span>
+                  <span className="btn-icon-wrap">
+                    <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    {pendingFriendCount > 0 && (
+                      <span className="notif-badge">{pendingFriendCount}</span>
+                    )}
+                  </span>
+                </button>
                 <button className="bar-btn secondary" onClick={() => setShowProfile(true)}>
                   <span className="btn-label">Profile</span>
                   <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="12" cy="8" r="4"/>
                     <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                  </svg>
-                </button>
-                <button className="bar-btn secondary" onClick={handleLogout}>
-                  <span className="btn-label">Sign Out</span>
-                  <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
-                    <polyline points="16 17 21 12 16 7"/>
-                    <line x1="21" y1="12" x2="9" y2="12"/>
                   </svg>
                 </button>
               </>
@@ -953,7 +1051,13 @@ export default function App() {
             user={user}
             onUserUpdate={handleUserUpdate}
             onClose={() => setShowProfile(false)}
+            onLogout={() => { setShowProfile(false); handleLogout(); }}
           />
+        )}
+
+        {/* Friends modal */}
+        {showFriends && (
+          <FriendsModal onClose={() => setShowFriends(false)} />
         )}
 
         {currentRoute === 'dashboard' ? (
@@ -982,25 +1086,27 @@ export default function App() {
           </div>
         )}
 
-        {/* Daily number */}
-        {frame?.date && (
-          <div className="daily-number">Daily #{getDailyNumber(frame.date)}</div>
-        )}
+        {/* Daily number + timer inline */}
+        <div className="game-header-row">
+          {frame?.date ? (
+            <div className="daily-number">
+              {`Daily #${getDailyNumber(frame.date)}${previousResult?.solved ? ' (solved !)' : previousResult?.result != null ? ` (${Math.abs(target - previousResult.result)} away)` : ''}`}
+            </div>
+          ) : frame?.name ? (
+            <div className="daily-number">{frame.name}</div>
+          ) : null}
+          <div className={`timer ${timerStopped ? 'overtime' : ''}`}>
+            {gamePhase === 'playing'
+              ? (timerStopped ? `${COUNTDOWN_SECONDS}++ seconds` : `${timer.toFixed(1)}s`)
+              : '0.0s'}
+          </div>
+        </div>
 
         {/* Target */}
         <div className={`target-grid ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
           {String(target).split('').map((digit, i) => (
             <div key={i} className="target-tile">{digit}</div>
           ))}
-        </div>
-
-        {/* Timer */}
-        <div className="timer-container">
-          <div className={`timer ${timerStopped ? 'overtime' : ''}`}>
-            {gamePhase === 'playing'
-              ? (timerStopped ? `${COUNTDOWN_SECONDS}++ seconds` : `${timer.toFixed(1)}s`)
-              : '0.0s'}
-          </div>
         </div>
 
         {/* Pre-game overlay */}
@@ -1037,31 +1143,7 @@ export default function App() {
         {/* Alert */}
         {alert && <div className={`alert-inline ${alert.type === 'success' ? 'success' : ''}`}>{alert.message}</div>}
 
-        {/* Already Solved Banner - only shows when puzzle was solved */}
-        {previousResult?.solved && (
-          <div className="already-played-banner">
-            <strong>Already Solved</strong>
-            {previousResult.duration !== null && previousResult.duration <= OVERTIME_THRESHOLD
-              ? ` in ${previousResult.duration}s`
-              : previousResult.duration !== null
-              ? ' (overtime)'
-              : ''
-            }!
-            {user && currentRoute === 'home' ? (
-              <span className="comeback-hint"> Redirecting to dashboard...</span>
-            ) : (
-              <span className="comeback-hint"> Come back tomorrow for a new challenge.</span>
-            )}
-          </div>
-        )}
 
-        {/* Current Best Banner - shows when there's a previous submission but not solved */}
-        {previousResult && !previousResult.solved && previousResult.result !== null && (
-          <div className="current-best-banner">
-            <strong>Current best: {previousResult.result}</strong>
-            <span> ({Math.abs(target - previousResult.result)} away from target)</span>
-          </div>
-        )}
 
         {/* Victory Modal - Signed In User */}
         {gameWon && !previousResult?.solved && wonWhileSignedIn && (
@@ -1118,6 +1200,7 @@ export default function App() {
 
             return (
               <div key={rowIndex} className="grid-row">
+                <div className="row-spacer" />
                 <div className={`tile ${row.num1.active ? 'active' : ''} ${isBest ? 'best' : ''}`}>
                   {row.num1.value}
                 </div>
@@ -1163,7 +1246,7 @@ export default function App() {
               key={`calc-${i}`}
               onClick={() => handleKeyPress(key.value, true, i)}
               disabled={gameWon || (previousResult?.solved) || key.inactive || !key.value || available.operators.length > 0}
-              className={`key calc-key ${key.inactive || !key.value || available.operators.length > 0 ? 'inactive' : ''}`}
+              className={`key calc-key ${key.inactive || !key.value || available.operators.length > 0 ? 'inactive' : ''} ${key.value ? 'has-value' : ''}`}
             >
               {key.value}
             </button>
