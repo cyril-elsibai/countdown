@@ -64,6 +64,10 @@ export default function App() {
 
   // Redirect URL to home if not logged in and on a protected route
   if (!loggedIn && (window.location.pathname === '/dashboard' || initialFrameId)) {
+    if (initialFrameId) {
+      // Preserve the shared frame so we can route there after sign-in
+      sessionStorage.setItem('pendingFrame', initialFrameId);
+    }
     window.history.replaceState({}, '', '/');
   }
 
@@ -85,6 +89,7 @@ export default function App() {
   const [wonWhileSignedIn, setWonWhileSignedIn] = useState(false);
   const [winTime, setWinTime] = useState(0);
   const [winSteps, setWinSteps] = useState(0);
+  const [shareCopied, setShareCopied] = useState(false);
   const [timer, setTimer] = useState(0);
   const [timerStopped, setTimerStopped] = useState(false);
   const [alert, setAlert] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
@@ -218,9 +223,13 @@ export default function App() {
     }
   }, [previousResult, user, currentRoute, gameWon]);
 
-  // Initialize game
+  // Initialize game — load shared frame directly if URL contains /play/:id and user is logged in
   useEffect(() => {
-    initializeGame();
+    if (loggedIn && initialFrameId) {
+      handlePlayHistorical(initialFrameId);
+    } else {
+      initializeGame();
+    }
     return () => {
       if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
     };
@@ -401,6 +410,14 @@ export default function App() {
     setUser(loggedInUser);
     setShowAuthModal(false);
 
+    // If the user arrived via a shared frame link, route there now
+    const pendingFrameId = sessionStorage.getItem('pendingFrame');
+    if (pendingFrameId) {
+      sessionStorage.removeItem('pendingFrame');
+      handlePlayHistorical(pendingFrameId);
+      return;
+    }
+
     // Re-fetch daily data now that we're authenticated
     if (currentRoute === 'home' && frame) {
       try {
@@ -546,6 +563,30 @@ export default function App() {
       showAlert('Failed to load challenge. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleShare = async () => {
+    const name = frame?.name;
+    const dailyNum = frame?.date ? getDailyNumber(frame.date) : null;
+    const timeStr = winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime';
+    const text = name
+      ? `I just solved "${name}" in ${timeStr} on 6-7 Numbers! Can you beat me?`
+      : dailyNum
+        ? `I just solved Daily #${dailyNum} in ${timeStr} on 6-7 Numbers! Can you beat me?`
+        : `I just solved a random challenge in ${timeStr} on 6-7 Numbers!`;
+    const url = `${window.location.origin}/play/${frame?.id}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: '6-7 Numbers', text, url });
+      } catch {
+        // user cancelled — do nothing
+      }
+    } else {
+      await navigator.clipboard.writeText(`${text} ${url}`);
+      setShareCopied(true);
+      setTimeout(() => setShareCopied(false), 2500);
     }
   };
 
@@ -1134,6 +1175,11 @@ export default function App() {
         {gamePhase === 'countdown' && (
           <>
             <div className="countdown-overlay" />
+            {(frame?.date || frame?.name) && (
+              <div className="countdown-frame-label">
+                {frame.date ? `Daily #${getDailyNumber(frame.date)}` : frame.name}
+              </div>
+            )}
             <div className="countdown-number" key={countdownNumber}>
               {countdownNumber}
             </div>
@@ -1152,19 +1198,30 @@ export default function App() {
             <div className="victory-modal-new">
               <div className="victory-icon">&#x2713;</div>
               <h1 className="victory-title">Congratulations!</h1>
-              <p className="victory-stats">
-                {winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'Overtime'} &middot; {winSteps} step{winSteps > 1 ? 's' : ''}
+              <p className="victory-message">
+                {frame?.name ? (
+                  <>You solved <span className="victory-highlight">{frame.name}</span> in <span className="victory-highlight">{winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime'}</span>!</>
+                ) : frame?.date ? (
+                  <>You solved Daily <span className="victory-highlight">#{getDailyNumber(frame.date)}</span> in <span className="victory-highlight">{winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime'}</span>!</>
+                ) : (
+                  <>You solved it in <span className="victory-highlight">{winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime'}</span>!</>
+                )}
               </p>
-              <p className="victory-hint">
-                Come back tomorrow for a new daily challenge.
-              </p>
+              {currentRoute === 'home' && (
+                <p className="victory-hint">Come back tomorrow for a new daily challenge.</p>
+              )}
               <div className="victory-actions">
                 <button className="victory-btn primary" onClick={handlePlayRandom}>
-                  Play Random Challenge
+                  {currentRoute === 'home' ? 'Play Random Challenge' : 'Play another random challenge!'}
                 </button>
                 <button className="victory-btn secondary" onClick={navigateToDashboard}>
                   View Dashboard
                 </button>
+                {currentRoute !== 'home' && (
+                  <button className="victory-btn share" onClick={handleShare}>
+                    {shareCopied ? '✓ Copied to clipboard!' : '🔗 Share your result'}
+                  </button>
+                )}
               </div>
             </div>
           </>

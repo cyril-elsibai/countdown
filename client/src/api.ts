@@ -39,7 +39,7 @@
  * Uses the same hostname as the frontend to support network access.
  * In production, this should be updated to the production server URL.
  */
-const API_URL = `http://${window.location.hostname}:3001/api`;
+const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001/api`;
 
 // =============================================================================
 // USER TOKEN MANAGEMENT

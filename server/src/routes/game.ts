@@ -259,6 +259,7 @@ router.post('/random', requireAuth, async (req: AuthRequest, res: Response) => {
         id: frame.id,
         tiles: frame.tiles,
         targetNumber: frame.targetNumber,
+        date: frame.date ?? null,
         name: frame.name ?? null,
       },
       startedAt: new Date().toISOString(),
