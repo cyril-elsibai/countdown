@@ -498,22 +498,20 @@ router.post('/frame/:id/submit', requireAuth, async (req: AuthRequest, res: Resp
     }
 
     // For logged-in users, check if they already submitted for this frame
-    let existingResult = null;
-    if (req.userId) {
-      existingResult = await prisma.gameResult.findFirst({
-        where: {
-          frameId,
-          userId: req.userId,
-        },
-      });
+    const existingResult = req.userId
+      ? await prisma.gameResult.findFirst({
+          where: { frameId, userId: req.userId },
+        })
+      : null;
 
+    if (existingResult) {
       // If already solved, don't allow more submissions
-      if (existingResult?.solved) {
+      if (existingResult.solved) {
         return res.status(400).json({ error: 'You have already solved this challenge' });
       }
 
       // If not solved, check that the new result is at least as good
-      if (existingResult && existingResult.result !== null) {
+      if (existingResult.result !== null) {
         const previousDiff = Math.abs(frame.targetNumber - existingResult.result);
         const newDiff = Math.abs(frame.targetNumber - result);
         if (newDiff > previousDiff) {
