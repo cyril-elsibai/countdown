@@ -582,6 +582,7 @@ async function adminRequest<T>(endpoint: string, options: RequestInit = {}): Pro
 export interface Challenge {
   id: string;
   date: string;              // ISO date string
+  name: string | null;       // e.g. "Daily #64"
   tiles: number[];           // 6 number tiles
   targetNumber: number;      // Target (101-999)
   isManual: boolean;         // Created by admin

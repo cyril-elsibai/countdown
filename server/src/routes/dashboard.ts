@@ -15,15 +15,13 @@ import { requireAuth, AuthRequest } from '../middleware/auth';
 
 const router = Router();
 
-// Epoch date for calculating daily challenge number (Day 1 = Jan 1, 2026 UTC)
-const DAILY_EPOCH = Date.UTC(2026, 0, 1);
-
 /**
- * Calculate the daily challenge number from a date.
+ * Extract the daily challenge number from a frame's name (e.g. "Daily #64" → 64).
  */
-function getDailyNumber(date: Date): number {
-  const daysSinceEpoch = Math.floor((date.getTime() - DAILY_EPOCH) / (24 * 60 * 60 * 1000));
-  return daysSinceEpoch + 1;
+function getDailyNumber(name: string | null): number | null {
+  if (!name) return null;
+  const match = name.match(/Daily #(\d+)/);
+  return match ? parseInt(match[1]) : null;
 }
 
 // =============================================================================
@@ -119,7 +117,7 @@ router.get('/history', requireAuth, async (req: AuthRequest, res: Response) => {
       return {
         id: frame.id,
         date: frame.date!.toISOString(),
-        dailyNumber: getDailyNumber(frame.date!),
+        dailyNumber: getDailyNumber(frame.name),
         targetNumber: frame.targetNumber,
         tiles: frame.tiles,
         difficulty: {
@@ -293,7 +291,7 @@ router.get('/leaderboard', requireAuth, async (req: AuthRequest, res: Response) 
       leaderboard,
       userRank,
       frameId,
-      dailyNumber: frame.date ? getDailyNumber(frame.date) : null,
+      dailyNumber: getDailyNumber(frame.name ?? null),
     });
   } catch (error) {
     console.error('Leaderboard error:', error);
@@ -459,6 +457,7 @@ router.get('/friends-activity', requireAuth, async (req: AuthRequest, res: Respo
           select: {
             id: true,
             date: true,
+            name: true,
           },
         },
       },
@@ -473,7 +472,7 @@ router.get('/friends-activity', requireAuth, async (req: AuthRequest, res: Respo
       userId: result.userId!,
       name: result.user?.name || result.user?.email?.split('@')[0] || 'Friend',
       frameId: result.frameId,
-      dailyNumber: result.frame.date ? getDailyNumber(result.frame.date) : null,
+      dailyNumber: getDailyNumber(result.frame.name ?? null),
       solved: result.solved,
       duration: result.duration,
       playedAt: result.playedAt.toISOString(),

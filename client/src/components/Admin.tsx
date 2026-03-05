@@ -3,18 +3,6 @@ import { adminApi, Challenge, setAdminToken, clearAdminToken, isAdminLoggedIn } 
 
 type AdminTab = 'challenges';
 
-// Epoch date for calculating daily challenge number (Day 1 = Jan 1, 2026 UTC)
-const DAILY_EPOCH = Date.UTC(2026, 0, 1); // January 1, 2026
-
-/**
- * Calculate the daily challenge number based on the date.
- * Day 1 = January 1, 2026
- */
-function getDailyNumber(dateStr: string): number {
-  const date = dateStr.includes('T') ? new Date(dateStr) : new Date(dateStr + 'T00:00:00Z');
-  const daysSinceEpoch = Math.floor((date.getTime() - DAILY_EPOCH) / (24 * 60 * 60 * 1000));
-  return daysSinceEpoch + 1; // Day 1, not Day 0
-}
 
 export default function Admin() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -311,7 +299,7 @@ function ChallengesTab() {
 
       {/* Edit Form - Full width at top */}
       <section className="admin-edit-section">
-        <h3>{editDate ? `Edit Daily #${getDailyNumber(editDate)} - ${formatDate(editDate)}` : 'Create New Challenge'}</h3>
+        <h3>{editDate ? `Edit ${challenges.find(c => c.date.startsWith(editDate))?.name ?? editDate} - ${formatDate(editDate)}` : 'Create New Challenge'}</h3>
 
         <div className="admin-edit-form">
           <div className="form-group">
@@ -394,7 +382,7 @@ function ChallengesTab() {
                   key={challenge.id}
                   className={`${isToday(challenge.date) ? 'today' : ''} ${isPast(challenge.date) ? 'past' : ''}`}
                 >
-                  <td className="challenge-number">#{getDailyNumber(challenge.date)}</td>
+                  <td className="challenge-number">{challenge.name ?? '-'}</td>
                   <td className="challenge-date">{formatDate(challenge.date)}</td>
                   <td>{challenge.targetNumber}</td>
                   <td className="challenge-tiles">[{challenge.tiles.join(', ')}]</td>

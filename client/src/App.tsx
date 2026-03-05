@@ -32,19 +32,6 @@ const OVERTIME_THRESHOLD = 300; // 5 minutes in seconds
 
 type GamePhase = 'loading' | 'pre-game' | 'countdown' | 'playing';
 
-// Epoch date for calculating daily challenge number (Day 1 = Jan 1, 2026 UTC)
-const DAILY_EPOCH = Date.UTC(2026, 0, 1); // January 1, 2026
-
-/**
- * Calculate the daily challenge number based on the frame's date.
- * Day 1 = January 1, 2026
- */
-function getDailyNumber(frameDate: string | undefined): number | null {
-  if (!frameDate) return null;
-  const date = new Date(frameDate);
-  const daysSinceEpoch = Math.floor((date.getTime() - DAILY_EPOCH) / (24 * 60 * 60 * 1000));
-  return daysSinceEpoch + 1; // Day 1, not Day 0
-}
 
 export default function App() {
   // Check if we're on the admin page
@@ -568,13 +555,10 @@ export default function App() {
 
   const handleShare = async () => {
     const name = frame?.name;
-    const dailyNum = frame?.date ? getDailyNumber(frame.date) : null;
     const timeStr = winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime';
     const text = name
-      ? `I just solved "${name}" in ${timeStr} on 6-7 Numbers! Can you beat me?`
-      : dailyNum
-        ? `I just solved Daily #${dailyNum} in ${timeStr} on 6-7 Numbers! Can you beat me?`
-        : `I just solved a random challenge in ${timeStr} on 6-7 Numbers!`;
+      ? `I just solved ${name} in ${timeStr} on 6-7 Numbers! Can you beat me?`
+      : `I just solved a challenge in ${timeStr} on 6-7 Numbers!`;
     const url = `${window.location.origin}/play/${frame?.id}`;
 
     if (navigator.share) {
@@ -1129,12 +1113,10 @@ export default function App() {
 
         {/* Daily number + timer inline */}
         <div className="game-header-row">
-          {frame?.date ? (
+          {frame?.name ? (
             <div className="daily-number">
-              {`Daily #${getDailyNumber(frame.date)}${previousResult?.solved ? ' (solved !)' : previousResult?.result != null ? ` (${Math.abs(target - previousResult.result)} away)` : ''}`}
+              {`${frame.name}${previousResult?.solved ? ' (solved !)' : previousResult?.result != null ? ` (${Math.abs(target - previousResult.result)} away)` : ''}`}
             </div>
-          ) : frame?.name ? (
-            <div className="daily-number">{frame.name}</div>
           ) : null}
           <div className={`timer ${timerStopped ? 'overtime' : ''}`}>
             {gamePhase === 'playing'
@@ -1175,9 +1157,9 @@ export default function App() {
         {gamePhase === 'countdown' && (
           <>
             <div className="countdown-overlay" />
-            {(frame?.date || frame?.name) && (
+            {frame?.name && (
               <div className="countdown-frame-label">
-                {frame.date ? `Daily #${getDailyNumber(frame.date)}` : frame.name}
+                {frame.name}
               </div>
             )}
             <div className="countdown-number" key={countdownNumber}>
@@ -1201,8 +1183,6 @@ export default function App() {
               <p className="victory-message">
                 {frame?.name ? (
                   <>You solved <span className="victory-highlight">{frame.name}</span> in <span className="victory-highlight">{winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime'}</span>!</>
-                ) : frame?.date ? (
-                  <>You solved Daily <span className="victory-highlight">#{getDailyNumber(frame.date)}</span> in <span className="victory-highlight">{winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime'}</span>!</>
                 ) : (
                   <>You solved it in <span className="victory-highlight">{winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime'}</span>!</>
                 )}

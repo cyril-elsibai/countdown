@@ -324,6 +324,27 @@ export async function generateUniqueFrame(maxAttempts = 100): Promise<{ tiles: n
  * const { created, existing } = await ensureYearOfChallenges();
  * console.log(`Created ${created}, ${existing} already existed`);
  */
+/**
+ * Get the next daily challenge number by finding the latest named daily frame
+ * before the given date and incrementing, or counting all daily frames before it.
+ */
+async function getNextDailyNumber(beforeDate: Date): Promise<number> {
+  const latest = await prisma.frame.findFirst({
+    where: { date: { not: null, lt: beforeDate }, name: { not: null } },
+    orderBy: { date: 'desc' },
+    select: { name: true },
+  });
+
+  if (latest?.name) {
+    const match = latest.name.match(/Daily #(\d+)/);
+    if (match) return parseInt(match[1]) + 1;
+  }
+
+  // No named daily before this date — count existing daily frames before it
+  const count = await prisma.frame.count({ where: { date: { not: null, lt: beforeDate } } });
+  return count + 1;
+}
+
 export async function ensureYearOfChallenges(startDate?: Date): Promise<{ created: number; existing: number }> {
   // Default start date is today at midnight UTC
   const today = new Date();
@@ -355,6 +376,9 @@ export async function ensureYearOfChallenges(startDate?: Date): Promise<{ create
   let created = 0;
   const currentDate = new Date(from);
 
+  // Get the starting daily number (based on what exists before our start date)
+  let nextDailyNumber = await getNextDailyNumber(from);
+
   // Iterate through each day in the range
   while (currentDate <= oneYearFromNow) {
     const dateKey = currentDate.toISOString().split('T')[0]; // YYYY-MM-DD
@@ -371,13 +395,17 @@ export async function ensureYearOfChallenges(startDate?: Date): Promise<{ create
             date: new Date(dateKey + 'T00:00:00.000Z'),
             tiles: frame.tiles,
             targetNumber: frame.targetNumber,
-            // isManual defaults to false (auto-generated)
+            name: `Daily #${nextDailyNumber}`,
           },
         });
         created++;
+        nextDailyNumber++;
       }
       // If generateUniqueFrame returns null, skip this date
       // (extremely rare, will be filled on next server restart)
+    } else {
+      // Existing frame for this date — still advance the counter
+      nextDailyNumber++;
     }
 
     // Move to the next day

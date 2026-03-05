@@ -237,6 +237,7 @@ router.get('/challenges', requireAdmin, async (req: AdminRequest, res: Response)
         return {
           id: c.id,
           date: c.date,
+          name: c.name ?? null,
           tiles: c.tiles,
           targetNumber: c.targetNumber,
           isManual: c.isManual,
