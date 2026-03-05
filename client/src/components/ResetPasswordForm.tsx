@@ -50,7 +50,7 @@ export default function ResetPasswordForm({ token, onSuccess, onCancel }: ResetP
       <div className="auth-modal">
         <button className="auth-close" onClick={onCancel}>&times;</button>
 
-        <h1 className="auth-title">6-7 Numbers</h1>
+        <h1 className="auth-title">6/7 Numbers</h1>
         <h2>Set New Password</h2>
 
         {message && <div className="auth-message">{message}</div>}

@@ -557,13 +557,13 @@ export default function App() {
     const name = frame?.name;
     const timeStr = winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime';
     const text = name
-      ? `I just solved ${name} in ${timeStr} on 6-7 Numbers! Can you beat me?`
-      : `I just solved a challenge in ${timeStr} on 6-7 Numbers!`;
+      ? `I just solved ${name} in ${timeStr} on 6/7 Numbers! Can you beat me?`
+      : `I just solved a challenge in ${timeStr} on 6/7 Numbers!`;
     const url = `${window.location.origin}/play/${frame?.id}`;
 
     if (navigator.share) {
       try {
-        await navigator.share({ title: '6-7 Numbers', text, url });
+        await navigator.share({ title: '6/7 Numbers', text, url });
       } catch {
         // user cancelled — do nothing
       }
@@ -972,7 +972,7 @@ export default function App() {
       <div className="app-container">
         <div className="content-wrapper">
           <div className="header">
-            <h1>6-7 Numbers</h1>
+            <h1>6/7 Numbers</h1>
           </div>
           <div className="verify-container">
             <h2>Verifying your email...</h2>
@@ -987,7 +987,7 @@ export default function App() {
       <div className="app-container">
         <div className="content-wrapper">
           <div className="header">
-            <h1>6-7 Numbers</h1>
+            <h1>6/7 Numbers</h1>
           </div>
           {verificationStatus === 'success' && (
             <div className="verify-container verify-success">
@@ -1017,7 +1017,7 @@ export default function App() {
         {/* Shared header */}
         <div className="user-bar">
           <div className="user-bar-left">
-            <h1 className="site-title" onClick={navigateToHome}>6-7 Numbers</h1>
+            <h1 className="site-title" onClick={navigateToHome}>6/7 Numbers</h1>
           </div>
           <div className="user-bar-right">
             {user ? (
@@ -1137,7 +1137,7 @@ export default function App() {
           <>
             <div className="pregame-overlay" />
             <div className="pregame-modal">
-              <h1 className="pregame-title">6-7 Numbers</h1>
+              <h1 className="pregame-title">6/7 Numbers</h1>
               <p className="pregame-description">
                 Play as guest or sign in to compete with your friends!
               </p>

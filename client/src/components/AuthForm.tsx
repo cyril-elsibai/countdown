@@ -75,7 +75,7 @@ export default function AuthForm({ onSuccess, onCancel }: AuthFormProps) {
       <div className="auth-modal">
         <button className="auth-close" onClick={onCancel}>&times;</button>
 
-        <h1 className="auth-title">6-7 Numbers</h1>
+        <h1 className="auth-title">6/7 Numbers</h1>
 
         {message && <div className="auth-message">{message}</div>}
 
