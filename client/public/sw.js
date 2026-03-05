@@ -1,10 +1,9 @@
-const CACHE_NAME = '67numbers-v1';
+const CACHE_NAME = '67numbers-v2';
 const STATIC_ASSETS = [
-  '/',
-  '/manifest.json',
   '/icon-192.png',
   '/icon-512.png',
   '/apple-touch-icon.png',
+  '/manifest.json',
 ];
 
 self.addEventListener('install', (event) => {
@@ -24,11 +23,14 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests for same-origin static assets, skip API calls
   const url = new URL(event.request.url);
+
+  // Never intercept API calls or HTML — always fetch fresh
   if (event.request.method !== 'GET') return;
   if (url.pathname.startsWith('/api/')) return;
+  if (event.request.headers.get('accept')?.includes('text/html')) return;
 
+  // Cache-first for static assets (icons, manifest)
   event.respondWith(
     caches.match(event.request).then((cached) => cached || fetch(event.request))
   );
