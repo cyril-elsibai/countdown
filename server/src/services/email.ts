@@ -1,6 +1,6 @@
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = new Resend(process.env.RESEND_API_KEY ?? 'dev-no-key');
 const FROM = 'noreply@67numbers.com';
 
 export async function sendVerificationEmail(to: string, verificationLink: string): Promise<void> {
