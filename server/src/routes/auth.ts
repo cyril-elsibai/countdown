@@ -41,6 +41,7 @@ import bcrypt from 'bcrypt';
 import crypto from 'crypto';
 import { prisma } from '../db';
 import { generateToken, requireAuth, AuthRequest } from '../middleware/auth';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../services/email';
 
 // Create Express router instance
 const router = Router();
@@ -162,13 +163,8 @@ router.post('/register', async (req: Request, res: Response) => {
       },
     });
 
-    // Log the verification link to console
-    // TODO: In production, send this via email service (e.g., SendGrid, SES)
     const verificationLink = `${getFrontendUrl(req)}/verify?token=${token}`;
-    console.log('\n========================================');
-    console.log('EMAIL VERIFICATION LINK (dev mode):');
-    console.log(verificationLink);
-    console.log('========================================\n');
+    await sendVerificationEmail(user.email, verificationLink);
 
     // Return success - user must verify email before logging in
     res.status(201).json({
@@ -331,12 +327,8 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
       },
     });
 
-    // Log the verification link
     const verificationLink = `${getFrontendUrl(req)}/verify?token=${token}`;
-    console.log('\n========================================');
-    console.log('EMAIL VERIFICATION LINK (dev mode):');
-    console.log(verificationLink);
-    console.log('========================================\n');
+    await sendVerificationEmail(existingUser.email, verificationLink);
 
     res.json({ message: 'If an account exists, a verification email has been sent.' });
   } catch (error) {
@@ -484,12 +476,8 @@ router.post('/forgot-password', async (req: Request, res: Response) => {
       },
     });
 
-    // Log reset link to console (would email in production)
     const resetLink = `${getFrontendUrl(req)}/reset-password?token=${token}`;
-    console.log('\n========================================');
-    console.log('PASSWORD RESET LINK (dev mode):');
-    console.log(resetLink);
-    console.log('========================================\n');
+    await sendPasswordResetEmail(user.email, resetLink);
 
     res.json({ message: successMessage });
   } catch (error) {
