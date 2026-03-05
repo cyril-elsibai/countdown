@@ -328,7 +328,7 @@ router.post('/resend-verification', async (req: Request, res: Response) => {
     });
 
     const verificationLink = `${getFrontendUrl(req)}/verify?token=${token}`;
-    await sendVerificationEmail(existingUser.email, verificationLink);
+    await sendVerificationEmail(user.email, verificationLink);
 
     res.json({ message: 'If an account exists, a verification email has been sent.' });
   } catch (error) {
