@@ -67,8 +67,10 @@ export default function Profile({ user, onUserUpdate, onClose, onLogout }: Profi
           </button>
         </div>
 
-        {message && <div className="auth-message">{message}</div>}
-        {error && <div className="auth-error">{error}</div>}
+        <div style={{ minHeight: '1.5rem' }}>
+          {message && <div className="auth-message">{message}</div>}
+          {error && <div className="auth-error">{error}</div>}
+        </div>
 
         <section className="profile-section">
           <h3>In game name</h3>
