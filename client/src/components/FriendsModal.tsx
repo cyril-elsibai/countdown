@@ -15,6 +15,8 @@ export default function FriendsModal({ onClose }: FriendsModalProps) {
 
   useEffect(() => {
     loadFriends();
+    const interval = setInterval(loadFriends, 30000);
+    return () => clearInterval(interval);
   }, []);
 
   const loadFriends = async () => {
