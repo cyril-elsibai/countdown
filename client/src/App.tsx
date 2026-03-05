@@ -180,15 +180,20 @@ export default function App() {
     }
   }, []);
 
-  // Fetch pending friend request count
+  // Fetch pending friend request count, poll every 30s
   useEffect(() => {
     if (!user) { setPendingFriendCount(0); return; }
-    friendsApi.list()
-      .then(response => {
-        const count = response.friends.filter(f => f.status === 'PENDING' && f.direction === 'received').length;
-        setPendingFriendCount(count);
-      })
-      .catch(() => {});
+    const fetchCount = () => {
+      friendsApi.list()
+        .then(response => {
+          const count = response.friends.filter(f => f.status === 'PENDING' && f.direction === 'received').length;
+          setPendingFriendCount(count);
+        })
+        .catch(() => {});
+    };
+    fetchCount();
+    const interval = setInterval(fetchCount, 30000);
+    return () => clearInterval(interval);
   }, [user]);
 
   // Check if user is already logged in
