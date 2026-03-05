@@ -794,6 +794,134 @@
 }
 
 /* =============================================================================
+   STATS TAB
+   ============================================================================= */
+
+.stats-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.stats-loading,
+.stats-error {
+  text-align: center;
+  padding: 40px 20px;
+  color: var(--gray-666);
+}
+
+.stats-error {
+  color: var(--red-dark);
+}
+
+.stats-header {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.stats-compare-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.9rem;
+  color: var(--gray-666);
+}
+
+.stats-friend-select {
+  padding: 6px 10px;
+  border: 1px solid var(--gray-ccc);
+  border-radius: 4px;
+  background: white;
+  font-size: 0.9rem;
+  cursor: pointer;
+  color: var(--gray-333);
+}
+
+.stats-no-friends {
+  font-size: 0.9rem;
+  color: var(--gray-666);
+  margin: 0;
+  font-style: italic;
+}
+
+.stats-table-wrap {
+  background: white;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.stats-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.stats-table thead tr {
+  background: var(--gray-lightest);
+}
+
+.stats-table th {
+  padding: 12px 16px;
+  font-size: 0.85rem;
+  font-weight: bold;
+  text-transform: uppercase;
+  color: var(--gray-666);
+  text-align: left;
+}
+
+.stats-col-label {
+  width: 50%;
+}
+
+.stats-col-player {
+  width: 25%;
+  text-align: center !important;
+}
+
+.stats-table tbody tr {
+  border-bottom: 1px solid #eee;
+}
+
+.stats-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.stats-table tbody tr:hover {
+  background: #fafafa;
+}
+
+.stats-row-label {
+  padding: 14px 16px;
+  color: var(--gray-666);
+  font-size: 0.9rem;
+}
+
+.stats-row-value {
+  padding: 14px 16px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--gray-333);
+  position: relative;
+}
+
+.stats-winner {
+  color: var(--green-dark);
+  background: rgba(76, 175, 80, 0.06);
+}
+
+.stats-win-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  background: var(--green-dark);
+  border-radius: 50%;
+  margin-left: 6px;
+  vertical-align: middle;
+}
+
+/* =============================================================================
    RESPONSIVE DESIGN
    ============================================================================= */
 

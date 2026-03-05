@@ -712,6 +712,29 @@ export interface FriendsActivityResponse {
 }
 
 /**
+ * Aggregate stats for a single user.
+ */
+export interface UserStats {
+  totalGamesPlayed: number;
+  successRate: number;        // 0–100
+  averageDistance: number | null;
+  bestTime: number | null;    // seconds
+  perfectSolves: number;
+  currentStreak: number;
+  longestStreak: number;
+}
+
+/**
+ * Response from GET /api/dashboard/stats endpoint.
+ */
+export interface StatsResponse {
+  myStats: UserStats;
+  friendStats: UserStats | null;
+  friendName: string | null;
+  friends: { id: string; name: string | null }[];
+}
+
+/**
  * Response from GET /api/game/frame/:id/play endpoint.
  */
 export interface PlayFrameResponse {
@@ -784,6 +807,13 @@ export const dashboardApi = {
     if (limit) params.append('limit', limit.toString());
     const query = params.toString() ? `?${params.toString()}` : '';
     return request<FriendsActivityResponse>(`/dashboard/friends-activity${query}`);
+  },
+
+  getStats: (compareWith?: string) => {
+    const params = new URLSearchParams();
+    if (compareWith) params.append('compareWith', compareWith);
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return request<StatsResponse>(`/dashboard/stats${query}`);
   },
 };
 

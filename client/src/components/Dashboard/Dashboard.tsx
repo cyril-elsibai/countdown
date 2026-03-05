@@ -13,6 +13,7 @@ import { useState, useEffect } from 'react';
 import ChallengeCalendar from './ChallengeCalendar';
 import Leaderboard from './Leaderboard';
 import FriendsActivity from './FriendsActivity';
+import Stats from './Stats';
 import { gameApi, PreviousResult } from '../../api';
 import './Dashboard.css';
 
@@ -22,7 +23,7 @@ interface DashboardProps {
   onPlayRandom: () => void;
 }
 
-type TabType = 'history' | 'leaderboard' | 'friends';
+type TabType = 'history' | 'leaderboard' | 'friends' | 'stats';
 
 /**
  * Calculate hours until next daily challenge (midnight UTC).
@@ -107,12 +108,18 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
           >
             Friends Activity
           </button>
+          <button
+            className={`dashboard-tab ${activeTab === 'stats' ? 'active' : ''}`}
+            onClick={() => setActiveTab('stats')}
+          >
+            My Stats
+          </button>
         </nav>
 
         {/* Mobile menu */}
         <div className="mobile-menu-bar mobile-only">
           <span className="mobile-active-tab">
-            {activeTab === 'history' ? 'Challenge History' : activeTab === 'leaderboard' ? 'Main Leaderboard' : 'Friends Activity'}
+            {activeTab === 'history' ? 'Challenge History' : activeTab === 'leaderboard' ? 'Main Leaderboard' : activeTab === 'friends' ? 'Friends Activity' : 'My Stats'}
           </span>
           <button className="burger-btn" onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? '\u2715' : '\u2630'}
@@ -140,6 +147,12 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
               onClick={() => { setActiveTab('friends'); setMenuOpen(false); }}
             >
               Friends Activity
+            </button>
+            <button
+              className={activeTab === 'stats' ? 'active' : ''}
+              onClick={() => { setActiveTab('stats'); setMenuOpen(false); }}
+            >
+              My Stats
             </button>
           </div>
         )}
@@ -170,6 +183,9 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
           )}
           {activeTab === 'friends' && (
             <FriendsActivity onSelectFrame={handleSelectFrame} />
+          )}
+          {activeTab === 'stats' && (
+            <Stats />
           )}
         </main>
 

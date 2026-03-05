@@ -485,4 +485,158 @@ router.get('/friends-activity', requireAuth, async (req: AuthRequest, res: Respo
   }
 });
 
+// =============================================================================
+// STATS ENDPOINT
+// =============================================================================
+
+/**
+ * Compute aggregate stats for a given user.
+ */
+async function computeStats(userId: string) {
+  // Fetch all game results with frame data for streak/distance calculations
+  const results = await prisma.gameResult.findMany({
+    where: { userId },
+    include: {
+      frame: { select: { targetNumber: true, date: true } },
+    },
+  });
+
+  const totalGamesPlayed = results.length;
+  const solvedResults = results.filter(r => r.solved);
+  const successRate = totalGamesPlayed > 0
+    ? Math.round((solvedResults.length / totalGamesPlayed) * 100)
+    : 0;
+
+  const resultsWithValue = results.filter(r => r.result !== null);
+  const averageDistance = resultsWithValue.length > 0
+    ? Math.round(
+        resultsWithValue.reduce((sum, r) => sum + Math.abs(r.frame.targetNumber - r.result!), 0)
+        / resultsWithValue.length
+      )
+    : null;
+
+  // Best time: minimum duration among solved games (exclude penalty time >= 10000s)
+  const solvedWithTime = solvedResults.filter(r => r.duration !== null && r.duration < 10000);
+  const bestTime = solvedWithTime.length > 0
+    ? Math.min(...solvedWithTime.map(r => r.duration!))
+    : null;
+
+  const perfectSolves = solvedResults.length;
+
+  // Streak calculation: only daily challenges (frame.date != null), solved
+  const solvedDailyDates = results
+    .filter(r => r.solved && r.frame.date !== null)
+    .map(r => r.frame.date!.toISOString().split('T')[0])
+    .sort();
+
+  let currentStreak = 0;
+  let longestStreak = 0;
+
+  if (solvedDailyDates.length > 0) {
+    // Longest streak
+    let tempStreak = 1;
+    for (let i = 1; i < solvedDailyDates.length; i++) {
+      const prev = new Date(solvedDailyDates[i - 1]);
+      const curr = new Date(solvedDailyDates[i]);
+      const diffDays = Math.round((curr.getTime() - prev.getTime()) / 86400000);
+      if (diffDays === 1) {
+        tempStreak++;
+      } else {
+        longestStreak = Math.max(longestStreak, tempStreak);
+        tempStreak = 1;
+      }
+    }
+    longestStreak = Math.max(longestStreak, tempStreak);
+
+    // Current streak: walk backwards from today
+    const todayUTC = new Date();
+    todayUTC.setUTCHours(0, 0, 0, 0);
+    const todayStr = todayUTC.toISOString().split('T')[0];
+    const yesterdayStr = new Date(todayUTC.getTime() - 86400000).toISOString().split('T')[0];
+
+    const lastDate = solvedDailyDates[solvedDailyDates.length - 1];
+    if (lastDate === todayStr || lastDate === yesterdayStr) {
+      currentStreak = 1;
+      for (let i = solvedDailyDates.length - 2; i >= 0; i--) {
+        const expected = new Date(new Date(solvedDailyDates[i + 1]).getTime() - 86400000)
+          .toISOString().split('T')[0];
+        if (solvedDailyDates[i] === expected) {
+          currentStreak++;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  return { totalGamesPlayed, successRate, averageDistance, bestTime, perfectSolves, currentStreak, longestStreak };
+}
+
+/**
+ * GET /api/dashboard/stats
+ *
+ * Returns aggregate stats for the current user and optionally a friend.
+ * Also returns the list of accepted friends for the comparison dropdown.
+ *
+ * Query params:
+ * - compareWith: userId of a friend to compare against (optional)
+ */
+router.get('/stats', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.userId!;
+    const compareWithId = req.query.compareWith as string | undefined;
+
+    // Validate friendship if compareWith is provided
+    if (compareWithId) {
+      const friendship = await prisma.friendship.findFirst({
+        where: {
+          status: 'ACCEPTED',
+          OR: [
+            { userId, friendId: compareWithId },
+            { userId: compareWithId, friendId: userId },
+          ],
+        },
+      });
+      if (!friendship) {
+        return res.status(403).json({ error: 'Not friends with this user' });
+      }
+    }
+
+    // Get accepted friends for the dropdown
+    const friendships = await prisma.friendship.findMany({
+      where: {
+        status: 'ACCEPTED',
+        OR: [{ userId }, { friendId: userId }],
+      },
+      include: {
+        user: { select: { id: true, name: true } },
+        friend: { select: { id: true, name: true } },
+      },
+    });
+
+    const friends = friendships.map(f =>
+      f.userId === userId
+        ? { id: f.friendId, name: f.friend.name }
+        : { id: f.userId, name: f.user.name }
+    );
+
+    const myStats = await computeStats(userId);
+    const friendStats = compareWithId ? await computeStats(compareWithId) : null;
+
+    let friendName: string | null = null;
+    if (compareWithId) {
+      const friend = await prisma.user.findUnique({
+        where: { id: compareWithId },
+        select: { name: true },
+      });
+      friendName = friend?.name ?? 'Friend';
+    }
+
+    res.json({ myStats, friendStats, friendName, friends });
+  } catch (error) {
+    console.error('Stats error:', error);
+    res.status(500).json({ error: 'Failed to get stats' });
+  }
+});
+
 export default router;
