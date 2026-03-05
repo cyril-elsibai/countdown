@@ -200,7 +200,8 @@ body {
   transform: translateX(-50%);
   text-align: center;
   z-index: 1051;
-  white-space: nowrap;
+  width: 90vw;
+  max-width: 400px;
 }
 
 .pregame-title {
