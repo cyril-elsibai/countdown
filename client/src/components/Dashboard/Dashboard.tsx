@@ -100,7 +100,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
             className={`dashboard-tab ${activeTab === 'leaderboard' ? 'active' : ''}`}
             onClick={() => setActiveTab('leaderboard')}
           >
-            Main Leaderboard
+            Leaderboard
           </button>
           <button
             className={`dashboard-tab ${activeTab === 'friends' ? 'active' : ''}`}
@@ -112,14 +112,14 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
             className={`dashboard-tab ${activeTab === 'stats' ? 'active' : ''}`}
             onClick={() => setActiveTab('stats')}
           >
-            My Stats
+            Stats
           </button>
         </nav>
 
         {/* Mobile menu */}
         <div className="mobile-menu-bar mobile-only">
           <span className="mobile-active-tab">
-            {activeTab === 'history' ? 'Challenge History' : activeTab === 'leaderboard' ? 'Main Leaderboard' : activeTab === 'friends' ? 'Friends Activity' : 'My Stats'}
+            {activeTab === 'history' ? 'Challenge History' : activeTab === 'leaderboard' ? 'Leaderboard' : activeTab === 'friends' ? 'Friends Activity' : 'Stats'}
           </span>
           <button className="burger-btn" onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? '\u2715' : '\u2630'}
@@ -140,7 +140,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
               className={activeTab === 'leaderboard' ? 'active' : ''}
               onClick={() => { setActiveTab('leaderboard'); setMenuOpen(false); }}
             >
-              Main Leaderboard
+              Leaderboard
             </button>
             <button
               className={activeTab === 'friends' ? 'active' : ''}
@@ -152,7 +152,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
               className={activeTab === 'stats' ? 'active' : ''}
               onClick={() => { setActiveTab('stats'); setMenuOpen(false); }}
             >
-              My Stats
+              Stats
             </button>
           </div>
         )}
