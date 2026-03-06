@@ -814,6 +814,33 @@
   color: var(--red-dark);
 }
 
+.stats-timeframe {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.stats-timeframe-btn {
+  padding: 7px 16px;
+  background: white;
+  border: 1px solid var(--gray-ccc);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  color: var(--gray-666);
+}
+
+.stats-timeframe-btn:hover {
+  background: var(--gray-lighter);
+}
+
+.stats-timeframe-btn.active {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: var(--dark);
+  font-weight: bold;
+}
+
 .stats-header {
   display: flex;
   align-items: center;

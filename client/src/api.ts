@@ -809,9 +809,10 @@ export const dashboardApi = {
     return request<FriendsActivityResponse>(`/dashboard/friends-activity${query}`);
   },
 
-  getStats: (compareWith?: string) => {
+  getStats: (compareWith?: string, timeframe?: 'forever' | 'month' | 'week') => {
     const params = new URLSearchParams();
     if (compareWith) params.append('compareWith', compareWith);
+    if (timeframe) params.append('timeframe', timeframe);
     const query = params.toString() ? `?${params.toString()}` : '';
     return request<StatsResponse>(`/dashboard/stats${query}`);
   },

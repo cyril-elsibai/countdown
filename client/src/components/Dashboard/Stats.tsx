@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react';
-import { dashboardApi, UserStats, StatsResponse } from '../../api';
+import { dashboardApi, StatsResponse } from '../../api';
+
+type Timeframe = 'forever' | 'month' | 'week';
+
+const TIMEFRAME_LABELS: Record<Timeframe, string> = {
+  forever: 'Forever',
+  month: 'Last 30 Days',
+  week: 'Last 7 Days',
+};
 
 export default function Stats() {
   const [data, setData] = useState<StatsResponse | null>(null);
@@ -7,16 +15,21 @@ export default function Stats() {
   const [error, setError] = useState<string | null>(null);
   const [selectedFriend, setSelectedFriend] = useState<string>('');
   const [comparing, setComparing] = useState(false);
+  const [timeframe, setTimeframe] = useState<Timeframe>('forever');
 
   useEffect(() => {
-    load();
+    load(undefined, 'forever');
   }, []);
 
-  const load = async (compareWith?: string) => {
+  useEffect(() => {
+    load(selectedFriend || undefined, timeframe);
+  }, [timeframe]);
+
+  const load = async (compareWith?: string, tf: Timeframe = 'forever') => {
     setLoading(true);
     setError(null);
     try {
-      const response = await dashboardApi.getStats(compareWith);
+      const response = await dashboardApi.getStats(compareWith, tf);
       setData(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load stats');
@@ -28,7 +41,11 @@ export default function Stats() {
   const handleFriendChange = (friendId: string) => {
     setSelectedFriend(friendId);
     setComparing(!!friendId);
-    load(friendId || undefined);
+    load(friendId || undefined, timeframe);
+  };
+
+  const handleTimeframeChange = (tf: Timeframe) => {
+    setTimeframe(tf);
   };
 
   const formatTime = (seconds: number | null): string => {
@@ -131,6 +148,19 @@ export default function Stats() {
 
   return (
     <div className="stats-page">
+      {/* Timeframe filter */}
+      <div className="stats-timeframe">
+        {(['forever', 'month', 'week'] as Timeframe[]).map(tf => (
+          <button
+            key={tf}
+            className={`stats-timeframe-btn ${timeframe === tf ? 'active' : ''}`}
+            onClick={() => handleTimeframeChange(tf)}
+          >
+            {TIMEFRAME_LABELS[tf]}
+          </button>
+        ))}
+      </div>
+
       {/* Friend picker */}
       <div className="stats-header">
         {friends.length > 0 ? (

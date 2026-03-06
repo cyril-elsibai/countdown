@@ -492,10 +492,21 @@ router.get('/friends-activity', requireAuth, async (req: AuthRequest, res: Respo
 /**
  * Compute aggregate stats for a given user.
  */
-async function computeStats(userId: string) {
+async function computeStats(userId: string, timeframe: 'forever' | 'month' | 'week' = 'forever') {
+  const now = new Date();
+  let since: Date | undefined;
+  if (timeframe === 'week') {
+    since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  } else if (timeframe === 'month') {
+    since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  }
+
   // Fetch all game results with frame data for streak/distance calculations
   const results = await prisma.gameResult.findMany({
-    where: { userId },
+    where: {
+      userId,
+      ...(since ? { playedAt: { gte: since } } : {}),
+    },
     include: {
       frame: { select: { targetNumber: true, date: true } },
     },
@@ -585,6 +596,9 @@ router.get('/stats', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
     const compareWithId = req.query.compareWith as string | undefined;
+    const timeframe = (['forever', 'month', 'week'].includes(req.query.timeframe as string)
+      ? req.query.timeframe
+      : 'forever') as 'forever' | 'month' | 'week';
 
     // Validate friendship if compareWith is provided
     if (compareWithId) {
@@ -620,8 +634,8 @@ router.get('/stats', requireAuth, async (req: AuthRequest, res: Response) => {
         : { id: f.userId, name: f.user.name }
     );
 
-    const myStats = await computeStats(userId);
-    const friendStats = compareWithId ? await computeStats(compareWithId) : null;
+    const myStats = await computeStats(userId, timeframe);
+    const friendStats = compareWithId ? await computeStats(compareWithId, timeframe) : null;
 
     let friendName: string | null = null;
     if (compareWithId) {
