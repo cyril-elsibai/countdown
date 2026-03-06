@@ -3,7 +3,7 @@ import { dashboardApi, PlayHistoryEntry, FriendActivity } from '../../api';
 
 interface PlayHistoryProps {
   onPlayFrame: (frameId: string) => void;
-  onSelectFrame: (frameId: string) => void;
+  onSelectFrame: (frameId: string) => void; // used by friends activity view
 }
 
 type HistoryView = 'me' | 'friends';
@@ -108,28 +108,20 @@ export default function PlayHistory({ onPlayFrame, onSelectFrame }: PlayHistoryP
             <div className="history-list">
               {myHistory.map(item => (
                 <div key={item.frameId} className="history-item">
-                  <div className="history-item-info">
-                    <span className="history-item-name">{item.name || 'Unnamed'}</span>
-                    <span className="history-item-meta">
-                      {item.solved
-                        ? <span className="history-status solved">Solved in {formatDuration(item.duration)}</span>
-                        : item.result !== null
-                          ? <span className="history-status tried">{Math.abs(item.targetNumber - item.result)} away</span>
-                          : <span className="history-status tried">Not solved</span>
-                      }
-                      <span className="history-item-date">{formatTimeAgo(item.playedAt)}</span>
-                    </span>
-                  </div>
-                  <div className="history-item-actions">
-                    {!item.solved && (
-                      <button className="history-action-btn play" onClick={() => onPlayFrame(item.frameId)}>
-                        Play
-                      </button>
-                    )}
-                    <button className="history-action-btn view" onClick={() => onSelectFrame(item.frameId)}>
-                      View
-                    </button>
-                  </div>
+                  <span className="history-item-name">{item.name || 'Unnamed'}</span>
+                  {item.solved
+                    ? <span className="history-status solved">Solved in {formatDuration(item.duration)}</span>
+                    : item.result !== null
+                      ? <span className="history-status tried">{Math.abs(item.targetNumber - item.result)} away</span>
+                      : <span className="history-status tried">Not solved</span>
+                  }
+                  <span className="history-item-date">{formatTimeAgo(item.playedAt)}</span>
+                  <button
+                    className={`history-action-btn ${item.solved ? 'view' : 'play'}`}
+                    onClick={() => onPlayFrame(item.frameId)}
+                  >
+                    {item.solved ? 'View' : 'Play'}
+                  </button>
                 </div>
               ))}
             </div>

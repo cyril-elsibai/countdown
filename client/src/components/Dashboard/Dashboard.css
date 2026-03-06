@@ -852,50 +852,40 @@
 .history-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 12px 16px;
+  gap: 10px;
+  padding: 8px 12px;
   background: #f9f9f9;
-  border-radius: 8px;
-}
-
-.history-item-info {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
+  border-radius: 6px;
+  font-size: 0.875rem;
 }
 
 .history-item-name {
   font-weight: bold;
   color: var(--gray-333);
-  font-size: 0.95rem;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.history-item-meta {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.85rem;
+.history-status {
+  white-space: nowrap;
+  font-weight: 600;
+  flex-shrink: 0;
 }
 
 .history-status.solved {
   color: var(--green-dark);
-  font-weight: 600;
 }
 
 .history-status.tried {
   color: #f57f17;
-  font-weight: 600;
 }
 
 .history-item-date {
   color: var(--gray-999);
-}
-
-.history-item-actions {
-  display: flex;
-  gap: 6px;
+  white-space: nowrap;
   flex-shrink: 0;
 }
 
