@@ -127,7 +127,7 @@ export default function PlayHistory({ onPlayFrame, onSelectFrame }: PlayHistoryP
                       </button>
                     )}
                     <button className="history-action-btn view" onClick={() => onSelectFrame(item.frameId)}>
-                      Scores
+                      View
                     </button>
                   </div>
                 </div>
