@@ -492,26 +492,11 @@ router.get('/friends-activity', requireAuth, async (req: AuthRequest, res: Respo
 /**
  * Compute aggregate stats for a given user.
  */
-async function computeStats(userId: string, timeframe: 'forever' | 'month' | 'week' = 'forever') {
-  const now = new Date();
-  let since: Date | undefined;
-  if (timeframe === 'week') {
-    since = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  } else if (timeframe === 'month') {
-    since = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-  }
+function sliceResults(results: { solved: boolean; result: number | null; duration: number | null; playedAt: Date; frame: { targetNumber: number; date: Date | null } }[], since: Date | undefined) {
+  return since ? results.filter(r => r.playedAt >= since) : results;
+}
 
-  // Fetch all game results with frame data for streak/distance calculations
-  const results = await prisma.gameResult.findMany({
-    where: {
-      userId,
-      ...(since ? { playedAt: { gte: since } } : {}),
-    },
-    include: {
-      frame: { select: { targetNumber: true, date: true } },
-    },
-  });
-
+function computeStatsFromResults(results: { solved: boolean; result: number | null; duration: number | null; frame: { targetNumber: number; date: Date | null } }[]) {
   const totalGamesPlayed = results.length;
   const solvedResults = results.filter(r => r.solved);
   const successRate = totalGamesPlayed > 0
@@ -526,7 +511,6 @@ async function computeStats(userId: string, timeframe: 'forever' | 'month' | 'we
       )
     : null;
 
-  // Best time: minimum duration among solved games (exclude penalty time >= 10000s)
   const solvedWithTime = solvedResults.filter(r => r.duration !== null && r.duration < 10000);
   const bestTime = solvedWithTime.length > 0
     ? Math.min(...solvedWithTime.map(r => r.duration!))
@@ -534,7 +518,6 @@ async function computeStats(userId: string, timeframe: 'forever' | 'month' | 'we
 
   const perfectSolves = solvedResults.length;
 
-  // Streak calculation: only daily challenges (frame.date != null), solved
   const solvedDailyDates = results
     .filter(r => r.solved && r.frame.date !== null)
     .map(r => r.frame.date!.toISOString().split('T')[0])
@@ -544,7 +527,6 @@ async function computeStats(userId: string, timeframe: 'forever' | 'month' | 'we
   let longestStreak = 0;
 
   if (solvedDailyDates.length > 0) {
-    // Longest streak
     let tempStreak = 1;
     for (let i = 1; i < solvedDailyDates.length; i++) {
       const prev = new Date(solvedDailyDates[i - 1]);
@@ -559,7 +541,6 @@ async function computeStats(userId: string, timeframe: 'forever' | 'month' | 'we
     }
     longestStreak = Math.max(longestStreak, tempStreak);
 
-    // Current streak: walk backwards from today
     const todayUTC = new Date();
     todayUTC.setUTCHours(0, 0, 0, 0);
     const todayStr = todayUTC.toISOString().split('T')[0];
@@ -583,6 +564,26 @@ async function computeStats(userId: string, timeframe: 'forever' | 'month' | 'we
   return { totalGamesPlayed, successRate, averageDistance, bestTime, perfectSolves, currentStreak, longestStreak };
 }
 
+async function computeStats(userId: string) {
+  const now = new Date();
+  const sincMonth = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sinceWeek = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Fetch all game results once
+  const results = await prisma.gameResult.findMany({
+    where: { userId },
+    include: {
+      frame: { select: { targetNumber: true, date: true } },
+    },
+  });
+
+  return {
+    forever: computeStatsFromResults(results),
+    month: computeStatsFromResults(sliceResults(results, sincMonth)),
+    week: computeStatsFromResults(sliceResults(results, sinceWeek)),
+  };
+}
+
 /**
  * GET /api/dashboard/stats
  *
@@ -596,9 +597,6 @@ router.get('/stats', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.userId!;
     const compareWithId = req.query.compareWith as string | undefined;
-    const timeframe = (['forever', 'month', 'week'].includes(req.query.timeframe as string)
-      ? req.query.timeframe
-      : 'forever') as 'forever' | 'month' | 'week';
 
     // Validate friendship if compareWith is provided
     if (compareWithId) {
@@ -634,8 +632,8 @@ router.get('/stats', requireAuth, async (req: AuthRequest, res: Response) => {
         : { id: f.userId, name: f.user.name }
     );
 
-    const myStats = await computeStats(userId, timeframe);
-    const friendStats = compareWithId ? await computeStats(compareWithId, timeframe) : null;
+    const myStats = await computeStats(userId);
+    const friendStats = compareWithId ? await computeStats(compareWithId) : null;
 
     let friendName: string | null = null;
     if (compareWithId) {

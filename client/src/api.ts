@@ -724,12 +724,18 @@ export interface UserStats {
   longestStreak: number;
 }
 
+export interface AllTimeframeStats {
+  forever: UserStats;
+  month: UserStats;
+  week: UserStats;
+}
+
 /**
  * Response from GET /api/dashboard/stats endpoint.
  */
 export interface StatsResponse {
-  myStats: UserStats;
-  friendStats: UserStats | null;
+  myStats: AllTimeframeStats;
+  friendStats: AllTimeframeStats | null;
   friendName: string | null;
   friends: { id: string; name: string | null }[];
 }
@@ -809,10 +815,9 @@ export const dashboardApi = {
     return request<FriendsActivityResponse>(`/dashboard/friends-activity${query}`);
   },
 
-  getStats: (compareWith?: string, timeframe?: 'forever' | 'month' | 'week') => {
+  getStats: (compareWith?: string) => {
     const params = new URLSearchParams();
     if (compareWith) params.append('compareWith', compareWith);
-    if (timeframe) params.append('timeframe', timeframe);
     const query = params.toString() ? `?${params.toString()}` : '';
     return request<StatsResponse>(`/dashboard/stats${query}`);
   },

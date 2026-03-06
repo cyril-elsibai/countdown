@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { dashboardApi, StatsResponse } from '../../api';
+import { dashboardApi, UserStats, StatsResponse } from '../../api';
 
 type Timeframe = 'forever' | 'month' | 'week';
 
@@ -18,18 +18,14 @@ export default function Stats() {
   const [timeframe, setTimeframe] = useState<Timeframe>('forever');
 
   useEffect(() => {
-    load(undefined, 'forever');
+    load();
   }, []);
 
-  useEffect(() => {
-    load(selectedFriend || undefined, timeframe);
-  }, [timeframe]);
-
-  const load = async (compareWith?: string, tf: Timeframe = 'forever') => {
+  const load = async (compareWith?: string) => {
     setLoading(true);
     setError(null);
     try {
-      const response = await dashboardApi.getStats(compareWith, tf);
+      const response = await dashboardApi.getStats(compareWith);
       setData(response);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load stats');
@@ -41,11 +37,7 @@ export default function Stats() {
   const handleFriendChange = (friendId: string) => {
     setSelectedFriend(friendId);
     setComparing(!!friendId);
-    load(friendId || undefined, timeframe);
-  };
-
-  const handleTimeframeChange = (tf: Timeframe) => {
-    setTimeframe(tf);
+    load(friendId || undefined);
   };
 
   const formatTime = (seconds: number | null): string => {
@@ -59,11 +51,11 @@ export default function Stats() {
   if (!data) return null;
 
   const { myStats, friendStats, friendName, friends } = data;
-  const myName = 'You';
+  const myStatsSlice: UserStats = myStats[timeframe];
+  const friendStatsSlice: UserStats | null = friendStats ? friendStats[timeframe] : null;
 
-  // Determine winner for each stat (lower = better for distance/time, higher = better for others)
   const winner = (myVal: number | null, friendVal: number | null, lowerIsBetter: boolean): 'me' | 'friend' | 'tie' | null => {
-    if (!comparing || friendStats === null) return null;
+    if (!comparing || friendStatsSlice === null) return null;
     if (myVal === null && friendVal === null) return 'tie';
     if (myVal === null) return 'friend';
     if (friendVal === null) return 'me';
@@ -84,64 +76,64 @@ export default function Stats() {
   const rows: StatRow[] = [
     {
       label: 'Games Played',
-      myValue: String(myStats.totalGamesPlayed),
-      friendValue: friendStats ? String(friendStats.totalGamesPlayed) : '—',
-      rawMy: myStats.totalGamesPlayed,
-      rawFriend: friendStats?.totalGamesPlayed ?? null,
+      myValue: String(myStatsSlice.totalGamesPlayed),
+      friendValue: friendStatsSlice ? String(friendStatsSlice.totalGamesPlayed) : '—',
+      rawMy: myStatsSlice.totalGamesPlayed,
+      rawFriend: friendStatsSlice?.totalGamesPlayed ?? null,
       lowerIsBetter: false,
     },
     {
       label: 'Success Rate',
-      myValue: `${myStats.successRate}%`,
-      friendValue: friendStats ? `${friendStats.successRate}%` : '—',
-      rawMy: myStats.successRate,
-      rawFriend: friendStats?.successRate ?? null,
+      myValue: `${myStatsSlice.successRate}%`,
+      friendValue: friendStatsSlice ? `${friendStatsSlice.successRate}%` : '—',
+      rawMy: myStatsSlice.successRate,
+      rawFriend: friendStatsSlice?.successRate ?? null,
       lowerIsBetter: false,
     },
     {
       label: 'Exact Solves',
-      myValue: String(myStats.perfectSolves),
-      friendValue: friendStats ? String(friendStats.perfectSolves) : '—',
-      rawMy: myStats.perfectSolves,
-      rawFriend: friendStats?.perfectSolves ?? null,
+      myValue: String(myStatsSlice.perfectSolves),
+      friendValue: friendStatsSlice ? String(friendStatsSlice.perfectSolves) : '—',
+      rawMy: myStatsSlice.perfectSolves,
+      rawFriend: friendStatsSlice?.perfectSolves ?? null,
       lowerIsBetter: false,
     },
     {
       label: 'Avg. Distance from Target',
-      myValue: myStats.averageDistance !== null ? String(myStats.averageDistance) : '—',
-      friendValue: friendStats
-        ? (friendStats.averageDistance !== null ? String(friendStats.averageDistance) : '—')
+      myValue: myStatsSlice.averageDistance !== null ? String(myStatsSlice.averageDistance) : '—',
+      friendValue: friendStatsSlice
+        ? (friendStatsSlice.averageDistance !== null ? String(friendStatsSlice.averageDistance) : '—')
         : '—',
-      rawMy: myStats.averageDistance,
-      rawFriend: friendStats?.averageDistance ?? null,
+      rawMy: myStatsSlice.averageDistance,
+      rawFriend: friendStatsSlice?.averageDistance ?? null,
       lowerIsBetter: true,
     },
     {
       label: 'Best Time',
-      myValue: formatTime(myStats.bestTime),
-      friendValue: friendStats ? formatTime(friendStats.bestTime) : '—',
-      rawMy: myStats.bestTime,
-      rawFriend: friendStats?.bestTime ?? null,
+      myValue: formatTime(myStatsSlice.bestTime),
+      friendValue: friendStatsSlice ? formatTime(friendStatsSlice.bestTime) : '—',
+      rawMy: myStatsSlice.bestTime,
+      rawFriend: friendStatsSlice?.bestTime ?? null,
       lowerIsBetter: true,
     },
     {
       label: 'Current Streak',
-      myValue: `${myStats.currentStreak} day${myStats.currentStreak !== 1 ? 's' : ''}`,
-      friendValue: friendStats
-        ? `${friendStats.currentStreak} day${friendStats.currentStreak !== 1 ? 's' : ''}`
+      myValue: `${myStatsSlice.currentStreak} day${myStatsSlice.currentStreak !== 1 ? 's' : ''}`,
+      friendValue: friendStatsSlice
+        ? `${friendStatsSlice.currentStreak} day${friendStatsSlice.currentStreak !== 1 ? 's' : ''}`
         : '—',
-      rawMy: myStats.currentStreak,
-      rawFriend: friendStats?.currentStreak ?? null,
+      rawMy: myStatsSlice.currentStreak,
+      rawFriend: friendStatsSlice?.currentStreak ?? null,
       lowerIsBetter: false,
     },
     {
       label: 'Longest Streak',
-      myValue: `${myStats.longestStreak} day${myStats.longestStreak !== 1 ? 's' : ''}`,
-      friendValue: friendStats
-        ? `${friendStats.longestStreak} day${friendStats.longestStreak !== 1 ? 's' : ''}`
+      myValue: `${myStatsSlice.longestStreak} day${myStatsSlice.longestStreak !== 1 ? 's' : ''}`,
+      friendValue: friendStatsSlice
+        ? `${friendStatsSlice.longestStreak} day${friendStatsSlice.longestStreak !== 1 ? 's' : ''}`
         : '—',
-      rawMy: myStats.longestStreak,
-      rawFriend: friendStats?.longestStreak ?? null,
+      rawMy: myStatsSlice.longestStreak,
+      rawFriend: friendStatsSlice?.longestStreak ?? null,
       lowerIsBetter: false,
     },
   ];
@@ -154,7 +146,7 @@ export default function Stats() {
           <button
             key={tf}
             className={`stats-timeframe-btn ${timeframe === tf ? 'active' : ''}`}
-            onClick={() => handleTimeframeChange(tf)}
+            onClick={() => setTimeframe(tf)}
           >
             {TIMEFRAME_LABELS[tf]}
           </button>
@@ -189,7 +181,7 @@ export default function Stats() {
           <thead>
             <tr>
               <th className="stats-col-label"></th>
-              <th className="stats-col-player">{myName}</th>
+              <th className="stats-col-player">You</th>
               {comparing && <th className="stats-col-player">{friendName || 'Friend'}</th>}
             </tr>
           </thead>
