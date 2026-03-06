@@ -353,29 +353,36 @@ async function findUnplayedGeneralFrame(userId: string) {
   });
   const playedFrameIds = playedFrames.map(r => r.frameId);
 
-  // Find any frame (random or past daily) that has at least one result from any
-  // user but hasn't been played by this user. Excludes today's daily challenge.
-  const candidates = await prisma.frame.findMany({
+  const notPlayed = playedFrameIds.length > 0 ? { notIn: playedFrameIds } : undefined;
+
+  // Priority 1: past daily challenges the user hasn't played (no requirement that
+  // anyone else has played them — they are curated challenges, always valid)
+  const unplayedDailies = await prisma.frame.findMany({
     where: {
-      OR: [
-        { date: null },          // random frames
-        { date: { lt: today } }, // past daily challenges
-      ],
-      id: playedFrameIds.length > 0 ? { notIn: playedFrameIds } : undefined,
-      gameResults: {
-        some: {},
-      },
+      date: { lt: today },
+      id: notPlayed,
     },
-    orderBy: {
-      createdAt: 'desc',
-    },
+    orderBy: { date: 'desc' },
     take: 100,
   });
 
-  if (candidates.length === 0) return null;
+  if (unplayedDailies.length > 0) {
+    return unplayedDailies[Math.floor(Math.random() * unplayedDailies.length)];
+  }
 
-  const randomIndex = Math.floor(Math.random() * candidates.length);
-  return candidates[randomIndex];
+  // Priority 2: random frames that at least one other user has played
+  const playedRandomFrames = await prisma.frame.findMany({
+    where: {
+      date: null,
+      id: notPlayed,
+      gameResults: { some: {} },
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 100,
+  });
+
+  if (playedRandomFrames.length === 0) return null;
+  return playedRandomFrames[Math.floor(Math.random() * playedRandomFrames.length)];
 }
 
 // =============================================================================
