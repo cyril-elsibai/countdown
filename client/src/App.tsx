@@ -1210,7 +1210,7 @@ export default function App() {
               )}
               <div className="victory-actions">
                 <button className="victory-btn primary" onClick={handlePlayRandom}>
-                  {currentRoute === 'home' ? 'Play Random Challenge' : 'Play another random challenge!'}
+                  Play Random Challenge
                 </button>
                 <button className="victory-btn secondary" onClick={navigateToDashboard}>
                   View Dashboard
