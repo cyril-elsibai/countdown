@@ -1022,7 +1022,10 @@ export default function App() {
         {/* Shared header */}
         <div className="user-bar">
           <div className="user-bar-left">
-            <h1 className="site-title" onClick={navigateToHome}>6/7 Numbers</h1>
+            <h1 className="site-title" onClick={() => {
+              if (user) navigateToDashboard();
+              else setShowAuthModal(true);
+            }}>6/7 Numbers</h1>
           </div>
           <div className="user-bar-right">
             {user ? (
