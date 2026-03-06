@@ -12,7 +12,7 @@
 import { useState, useEffect } from 'react';
 import ChallengeCalendar from './ChallengeCalendar';
 import Leaderboard from './Leaderboard';
-import FriendsActivity from './FriendsActivity';
+import PlayHistory from './PlayHistory';
 import Stats from './Stats';
 import { gameApi, PreviousResult } from '../../api';
 import './Dashboard.css';
@@ -23,7 +23,7 @@ interface DashboardProps {
   onPlayRandom: () => void;
 }
 
-type TabType = 'history' | 'leaderboard' | 'friends' | 'stats';
+type TabType = 'daily' | 'leaderboard' | 'stats' | 'history';
 
 /**
  * Calculate hours until next daily challenge (midnight UTC).
@@ -40,7 +40,7 @@ function getHoursUntilTomorrow(): number {
 }
 
 export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('history');
+  const [activeTab, setActiveTab] = useState<TabType>('daily');
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
   const [dailyStatus, setDailyStatus] = useState<PreviousResult | null | undefined>(undefined);
@@ -91,10 +91,10 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
         {/* Desktop tabs */}
         <nav className="dashboard-tabs desktop-only">
           <button
-            className={`dashboard-tab ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('history'); setSelectedFrameId(null); }}
+            className={`dashboard-tab ${activeTab === 'daily' ? 'active' : ''}`}
+            onClick={() => { setActiveTab('daily'); setSelectedFrameId(null); }}
           >
-            Challenge History
+            Daily
           </button>
           <button
             className={`dashboard-tab ${activeTab === 'leaderboard' ? 'active' : ''}`}
@@ -103,23 +103,23 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
             Leaderboard
           </button>
           <button
-            className={`dashboard-tab ${activeTab === 'friends' ? 'active' : ''}`}
-            onClick={() => setActiveTab('friends')}
-          >
-            Friends Activity
-          </button>
-          <button
             className={`dashboard-tab ${activeTab === 'stats' ? 'active' : ''}`}
             onClick={() => setActiveTab('stats')}
           >
             Stats
+          </button>
+          <button
+            className={`dashboard-tab ${activeTab === 'history' ? 'active' : ''}`}
+            onClick={() => setActiveTab('history')}
+          >
+            History
           </button>
         </nav>
 
         {/* Mobile menu */}
         <div className="mobile-menu-bar mobile-only">
           <span className="mobile-active-tab">
-            {activeTab === 'history' ? 'Challenge History' : activeTab === 'leaderboard' ? 'Leaderboard' : activeTab === 'friends' ? 'Friends Activity' : 'Stats'}
+            {activeTab === 'daily' ? 'Daily' : activeTab === 'leaderboard' ? 'Leaderboard' : activeTab === 'stats' ? 'Stats' : 'History'}
           </span>
           <button className="burger-btn" onClick={() => setMenuOpen(!menuOpen)}>
             {menuOpen ? '\u2715' : '\u2630'}
@@ -131,10 +131,10 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
         {menuOpen && (
           <div className="burger-menu mobile-only">
             <button
-              className={activeTab === 'history' ? 'active' : ''}
-              onClick={() => { setActiveTab('history'); setSelectedFrameId(null); setMenuOpen(false); }}
+              className={activeTab === 'daily' ? 'active' : ''}
+              onClick={() => { setActiveTab('daily'); setSelectedFrameId(null); setMenuOpen(false); }}
             >
-              Challenge History
+              Daily
             </button>
             <button
               className={activeTab === 'leaderboard' ? 'active' : ''}
@@ -143,28 +143,28 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
               Leaderboard
             </button>
             <button
-              className={activeTab === 'friends' ? 'active' : ''}
-              onClick={() => { setActiveTab('friends'); setMenuOpen(false); }}
-            >
-              Friends Activity
-            </button>
-            <button
               className={activeTab === 'stats' ? 'active' : ''}
               onClick={() => { setActiveTab('stats'); setMenuOpen(false); }}
             >
               Stats
             </button>
+            <button
+              className={activeTab === 'history' ? 'active' : ''}
+              onClick={() => { setActiveTab('history'); setMenuOpen(false); }}
+            >
+              History
+            </button>
           </div>
         )}
 
         <main className="dashboard-content">
-          {activeTab === 'history' && !selectedFrameId && (
+          {activeTab === 'daily' && !selectedFrameId && (
             <ChallengeCalendar
               onSelectFrame={handleSelectFrame}
               onPlayFrame={onPlayFrame}
             />
           )}
-          {activeTab === 'history' && selectedFrameId && (
+          {activeTab === 'daily' && selectedFrameId && (
             <div>
               <button className="back-btn" onClick={handleBackToHistory}>
                 ← Back to challenges
@@ -181,11 +181,11 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
               onSelectFrame={setSelectedFrameId}
             />
           )}
-          {activeTab === 'friends' && (
-            <FriendsActivity onSelectFrame={handleSelectFrame} />
-          )}
           {activeTab === 'stats' && (
             <Stats />
+          )}
+          {activeTab === 'history' && (
+            <PlayHistory onPlayFrame={onPlayFrame} onSelectFrame={handleSelectFrame} />
           )}
         </main>
 

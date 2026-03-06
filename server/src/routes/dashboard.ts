@@ -486,6 +486,45 @@ router.get('/friends-activity', requireAuth, async (req: AuthRequest, res: Respo
 });
 
 // =============================================================================
+// PLAY HISTORY ENDPOINT
+// =============================================================================
+
+/**
+ * GET /api/dashboard/play-history
+ *
+ * Returns all frames played by the current user, most recent first.
+ */
+router.get('/play-history', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const results = await prisma.gameResult.findMany({
+      where: { userId: req.userId! },
+      include: {
+        frame: {
+          select: { id: true, name: true, date: true, targetNumber: true },
+        },
+      },
+      orderBy: { playedAt: 'desc' },
+    });
+
+    const history = results.map(r => ({
+      frameId: r.frameId,
+      name: r.frame.name,
+      date: r.frame.date ? r.frame.date.toISOString() : null,
+      targetNumber: r.frame.targetNumber,
+      solved: r.solved,
+      result: r.result,
+      duration: r.duration,
+      playedAt: r.playedAt.toISOString(),
+    }));
+
+    res.json({ history });
+  } catch (error) {
+    console.error('Play history error:', error);
+    res.status(500).json({ error: 'Failed to get play history' });
+  }
+});
+
+// =============================================================================
 // STATS ENDPOINT
 // =============================================================================
 

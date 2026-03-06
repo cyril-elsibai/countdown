@@ -712,6 +712,24 @@ export interface FriendsActivityResponse {
 }
 
 /**
+ * Represents one entry in the user's personal play history.
+ */
+export interface PlayHistoryEntry {
+  frameId: string;
+  name: string | null;
+  date: string | null;       // ISO string if daily, null if random
+  targetNumber: number;
+  solved: boolean;
+  result: number | null;
+  duration: number | null;
+  playedAt: string;
+}
+
+export interface PlayHistoryResponse {
+  history: PlayHistoryEntry[];
+}
+
+/**
  * Aggregate stats for a single user.
  */
 export interface UserStats {
@@ -814,6 +832,9 @@ export const dashboardApi = {
     const query = params.toString() ? `?${params.toString()}` : '';
     return request<FriendsActivityResponse>(`/dashboard/friends-activity${query}`);
   },
+
+  getPlayHistory: () =>
+    request<PlayHistoryResponse>('/dashboard/play-history'),
 
   getStats: (compareWith?: string) => {
     const params = new URLSearchParams();
