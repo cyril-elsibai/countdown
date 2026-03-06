@@ -102,6 +102,16 @@ export default function App() {
 
   // Handle browser back/forward navigation
   useEffect(() => {
+    window.scrollTo(0, 0);
+    const setRealVh = () => {
+      document.documentElement.style.setProperty('--real-vh', `${window.innerHeight}px`);
+    };
+    setRealVh();
+    window.addEventListener('resize', setRealVh);
+    return () => window.removeEventListener('resize', setRealVh);
+  }, []);
+
+  useEffect(() => {
     const handlePopState = () => {
       const path = window.location.pathname;
       const playMatch = path.match(/^\/play\/(.+)$/);
@@ -1017,7 +1027,7 @@ export default function App() {
   }
 
   return (
-    <div className="app-container">
+    <div className={`app-container${currentRoute !== 'dashboard' ? ' game-view' : ''}`}>
       <div className="content-wrapper">
         {/* Shared header */}
         <div className="user-bar">
