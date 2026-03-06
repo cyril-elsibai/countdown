@@ -40,8 +40,8 @@ export default function Stats() {
     load(friendId || undefined);
   };
 
-  const formatTime = (seconds: number | null): string => {
-    if (seconds === null) return '—';
+  const formatTime = (seconds: number | null | undefined): string => {
+    if (seconds == null) return '—';
     if (seconds >= 300) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
     return `${seconds.toFixed(2)}s`;
   };
@@ -51,8 +51,10 @@ export default function Stats() {
   if (!data) return null;
 
   const { myStats, friendStats, friendName, friends } = data;
-  const myStatsSlice: UserStats = myStats[timeframe];
-  const friendStatsSlice: UserStats | null = friendStats ? friendStats[timeframe] : null;
+  const myStatsSlice: UserStats | undefined = myStats[timeframe];
+  const friendStatsSlice: UserStats | null = friendStats ? (friendStats[timeframe] ?? null) : null;
+
+  if (!myStatsSlice) return <div className="stats-error">Stats unavailable — please refresh.</div>;
 
   const winner = (myVal: number | null, friendVal: number | null, lowerIsBetter: boolean): 'me' | 'friend' | 'tie' | null => {
     if (!comparing || friendStatsSlice === null) return null;
