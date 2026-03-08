@@ -13,7 +13,7 @@ import { HistoryChallenge } from '../../api';
 
 interface ChallengeTooltipProps {
   challenge: HistoryChallenge;
-  position: { x: number; y: number };
+  position: { x: number; y: number; placement?: 'above' | 'below' };
   onPlay: () => void;
   onViewLeaderboard: () => void;
   onMouseEnter?: () => void;
@@ -43,9 +43,11 @@ export default function ChallengeTooltip({
 
   const canPlay = !challenge.userResult && !isToday();
 
+  const placement = position.placement ?? 'above';
+
   return (
     <div
-      className="challenge-tooltip"
+      className={`challenge-tooltip ${placement}`}
       style={{
         left: position.x,
         top: position.y,

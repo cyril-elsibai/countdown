@@ -25,7 +25,7 @@ export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: Challe
   const [year, setYear] = useState(() => new Date().getUTCFullYear());
   const [month, setMonth] = useState(() => new Date().getUTCMonth() + 1);
   const [hoveredChallenge, setHoveredChallenge] = useState<HistoryChallenge | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0, placement: 'above' as 'above' | 'below' });
 
   useEffect(() => {
     loadHistory();
@@ -81,9 +81,11 @@ export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: Challe
     }
 
     const rect = event.currentTarget.getBoundingClientRect();
+    const placement = rect.top > 380 ? 'above' : 'below';
     setTooltipPosition({
       x: rect.left + rect.width / 2,
-      y: rect.top,
+      y: placement === 'above' ? rect.top : rect.bottom,
+      placement,
     });
     setHoveredChallenge(challenge);
   };

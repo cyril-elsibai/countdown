@@ -299,9 +299,10 @@
 .difficulty-bar.very-hard { background: var(--diff-very-hard); }
 
 .challenge-tile .daily-number {
-  font-size: clamp(0.9rem, 2.5vw, 1.8rem);
+  font-size: clamp(0.75rem, 2vw, 1.6rem);
   font-weight: 900;
   color: var(--text);
+  white-space: nowrap;
 }
 
 /* Status strip */
@@ -350,8 +351,6 @@
 
 .challenge-tooltip {
   position: fixed;
-  transform: translate(-50%, -100%);
-  margin-top: -15px;
   background: var(--black);
   border: 2px solid var(--white);
   padding: 16px;
@@ -361,15 +360,34 @@
   color: var(--white);
 }
 
+.challenge-tooltip.above {
+  transform: translate(-50%, -100%);
+  margin-top: -12px;
+}
+
+.challenge-tooltip.below {
+  transform: translate(-50%, 12px);
+}
+
 .challenge-tooltip::after {
   content: '';
   position: absolute;
-  bottom: -10px;
   left: 50%;
   transform: translateX(-50%);
+}
+
+.challenge-tooltip.above::after {
+  bottom: -10px;
   border-left: 8px solid transparent;
   border-right: 8px solid transparent;
   border-top: 8px solid var(--black);
+}
+
+.challenge-tooltip.below::after {
+  top: -10px;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid var(--black);
 }
 
 .tooltip-header {
