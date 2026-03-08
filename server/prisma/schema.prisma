@@ -78,6 +78,8 @@ model User {
   verificationTokens VerificationToken[]   // Email verification tokens
   passwordResetTokens PasswordResetToken[]  // Password reset tokens
   stats          UserStats?             // Aggregate stats for leaderboard
+  wordleResults  WordleResult[]         // 67words game results
+  wordleAttempts WordleAttempt[]        // 67words daily attempt timing
 }
 
 // =============================================================================
@@ -363,4 +365,65 @@ enum PointsCalculationStatus {
 enum FriendshipStatus {
   PENDING   // Request sent, awaiting acceptance
   ACCEPTED  // Request accepted, users are friends
+}
+
+// =============================================================================
+// 67WORDS — WORDLE MODELS
+// =============================================================================
+
+// WordleWord: A puzzle word for 67words (mirrors Frame in 6/7 Numbers)
+//
+// DAILY VS RANDOM:
+// - Daily words have a date set (unique per day)
+// - Random words have date = null, name = friendly identifier
+//
+// WORD LENGTH:
+// - 6 or 7 letters, alternating daily
+model WordleWord {
+  id         String   @id @default(cuid())
+  word       String                          // The answer word (uppercase, server-side only)
+  wordLength Int                             // 6 or 7
+  date       DateTime? @unique               // null for random, set for daily
+  name       String?   @unique               // Friendly name for random words
+  isManual   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  results    WordleResult[]
+  attempts   WordleAttempt[]
+}
+
+// WordleResult: A player's completed attempt at a WordleWord
+//
+// GUESSES:
+// - Array of words submitted (up to 6), each the correct length
+// - solved = true if any guess matches the answer exactly
+model WordleResult {
+  id       String   @id @default(cuid())
+  guesses  String[]                          // Ordered list of guesses submitted
+  solved   Boolean  @default(false)
+  duration Float?                            // Seconds from start to submission (daily only)
+  playedAt DateTime @default(now())
+
+  userId   String?
+  user     User?        @relation(fields: [userId], references: [id])
+
+  wordId   String
+  word     WordleWord   @relation(fields: [wordId], references: [id])
+
+  @@unique([userId, wordId])
+  @@index([wordId, solved])
+}
+
+// WordleAttempt: Tracks when a user started a daily word (for accurate timing)
+model WordleAttempt {
+  id        String   @id @default(cuid())
+  startedAt DateTime @default(now())
+
+  userId    String
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  wordId    String
+  word      WordleWord @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wordId])
 }

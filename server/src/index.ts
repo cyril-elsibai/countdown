@@ -32,6 +32,7 @@ import gameRoutes from './routes/game';
 import friendsRoutes from './routes/friends';
 import adminRoutes from './routes/admin';
 import dashboardRoutes from './routes/dashboard';
+import wordleRoutes from './routes/wordle';
 import { prisma } from './db';
 import { ensureYearOfChallenges } from './services/frameGenerator';
 import { runPointsCalculation } from './services/pointsCalculator';
@@ -139,6 +140,7 @@ app.use('/api/admin', adminRoutes);
  * - GET /friends-activity - Get recent activity from friends
  */
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/wordle', wordleRoutes);
 
 // =============================================================================
 // HEALTH CHECK ENDPOINT
