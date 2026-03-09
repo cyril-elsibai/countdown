@@ -35,6 +35,7 @@ import dashboardRoutes from './routes/dashboard';
 import wordleRoutes from './routes/wordle';
 import { prisma } from './db';
 import { ensureYearOfChallenges } from './services/frameGenerator';
+import { ensureYearOfWords } from './services/wordleService';
 import { runPointsCalculation } from './services/pointsCalculator';
 import { checkNameUtilization } from './services/nameGenerator';
 
@@ -196,6 +197,15 @@ async function main() {
       console.log(`Created ${created} new daily challenges (${existing} already existed)`);
     } else {
       console.log(`All ${existing} daily challenges already exist`);
+    }
+
+    // Step 2b: Ensure a full year of daily words (67words) exists
+    console.log('Checking daily words (67words)...');
+    const { created: wordsCreated, existing: wordsExisting } = await ensureYearOfWords();
+    if (wordsCreated > 0) {
+      console.log(`Created ${wordsCreated} new daily words (${wordsExisting} already existed)`);
+    } else {
+      console.log(`All ${wordsExisting} daily words already exist`);
     }
 
     // Step 3: Run initial points calculation
