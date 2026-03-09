@@ -161,7 +161,7 @@ model Frame {
   tiles        Int[]                               // Array of 6 number tiles
   targetNumber Int                                 // Target number (101-999)
   date         DateTime?    @unique                // null for random, set for daily
-  name         String?      @unique                // Friendly name for random frames (e.g. "Golden Fox")
+  name         String       @unique                // Friendly name for random frames (e.g. "Golden Fox")
   isManual     Boolean      @default(false)        // true if admin-created
   createdAt    DateTime     @default(now())        // Frame creation timestamp
 

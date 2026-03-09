@@ -161,7 +161,7 @@ export async function generateUniqueName(maxAttempts = 20): Promise<string | nul
  */
 export async function checkNameUtilization(): Promise<void> {
   const usedCount = await prisma.frame.count({
-    where: { name: { not: null } },
+    where: {},
   });
 
   const utilization = usedCount / TOTAL_NAME_COMBINATIONS;

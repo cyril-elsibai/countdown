@@ -29,7 +29,7 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma } from '../db';
-import { validateFrame, isFrameUnique, generateUniqueFrame } from '../services/frameGenerator';
+import { validateFrame, isFrameUnique, generateUniqueFrame, getNextDailyNumber } from '../services/frameGenerator';
 import { runPointsCalculation, getCalculationHistory, isCalculationRunning } from '../services/pointsCalculator';
 
 // Create Express router instance
@@ -448,12 +448,14 @@ router.put('/challenges/:date', requireAdmin, async (req: AdminRequest, res: Res
       });
     } else {
       // CREATE new challenge
+      const dailyNumber = await getNextDailyNumber(date);
       challenge = await prisma.frame.create({
         data: {
           date,
           tiles: finalTiles,
           targetNumber: finalTarget,
           isManual,
+          name: `Daily #${dailyNumber}`,
         },
       });
     }

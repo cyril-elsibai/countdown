@@ -28,7 +28,7 @@
 import { Router, Response } from 'express';
 import { prisma } from '../db';
 import { requireAuth, optionalAuth, AuthRequest } from '../middleware/auth';
-import { generateFrame, generateUniqueFrame, getDailyDateKey } from '../services/frameGenerator';
+import { generateFrame, generateUniqueFrame, getDailyDateKey, getNextDailyNumber } from '../services/frameGenerator';
 import { generateUniqueName } from '../services/nameGenerator';
 
 // Create Express router instance
@@ -93,11 +93,13 @@ router.get('/daily', optionalAuth, async (req: AuthRequest, res: Response) => {
       }
 
       // Create the frame in the database
+      const dailyNumber = await getNextDailyNumber(today);
       frame = await prisma.frame.create({
         data: {
           tiles: generated.tiles,
           targetNumber: generated.targetNumber,
           date: today,
+          name: `Daily #${dailyNumber}`,
         },
       });
     }
@@ -234,12 +236,13 @@ router.post('/random', requireAuth, async (req: AuthRequest, res: Response) => {
 
         // Save the frame to the database with a unique friendly name
         const name = await generateUniqueName();
+        if (!name) throw new Error('Failed to generate unique frame name');
         frame = await prisma.frame.create({
           data: {
             tiles,
             targetNumber,
             date: null,
-            ...(name && { name }),
+            name,
           },
         });
       }

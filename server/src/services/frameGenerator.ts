@@ -328,9 +328,9 @@ export async function generateUniqueFrame(maxAttempts = 100): Promise<{ tiles: n
  * Get the next daily challenge number by finding the latest named daily frame
  * before the given date and incrementing, or counting all daily frames before it.
  */
-async function getNextDailyNumber(beforeDate: Date): Promise<number> {
+export async function getNextDailyNumber(beforeDate: Date): Promise<number> {
   const latest = await prisma.frame.findFirst({
-    where: { date: { not: null, lt: beforeDate }, name: { not: null } },
+    where: { date: { not: null, lt: beforeDate } },
     orderBy: { date: 'desc' },
     select: { name: true },
   });
@@ -404,7 +404,17 @@ export async function ensureYearOfChallenges(startDate?: Date): Promise<{ create
       // If generateUniqueFrame returns null, skip this date
       // (extremely rare, will be filled on next server restart)
     } else {
-      // Existing frame for this date — still advance the counter
+      // Existing frame — assign a name if it doesn't have one yet
+      const existingFrame = await prisma.frame.findFirst({
+        where: { date: new Date(dateKey + 'T00:00:00.000Z') },
+        select: { id: true, name: true },
+      });
+      if (existingFrame && !existingFrame.name) {
+        await prisma.frame.update({
+          where: { id: existingFrame.id },
+          data: { name: `Daily #${nextDailyNumber}` },
+        });
+      }
       nextDailyNumber++;
     }
 
@@ -417,3 +427,4 @@ export async function ensureYearOfChallenges(startDate?: Date): Promise<{ create
     existing: existingDates.size,
   };
 }
+
