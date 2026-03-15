@@ -1,0 +1,212 @@
+/* ============================================================
+   67words — App Layout
+   ============================================================ */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.app.dashboard-view {
+  height: auto;
+  min-height: 100dvh;
+  max-width: 100%;
+}
+
+/* --- Header ------------------------------------------------ */
+
+.app-header {
+  width: 100%;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.app-header-inner {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 0 16px;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+}
+
+.logo-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  line-height: 1;
+}
+
+.logo-67 {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--red);
+  letter-spacing: -0.02em;
+}
+
+.logo-words {
+  font-size: 1.1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.header-user {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bar-btn {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 6px 12px;
+  border: 2px solid var(--border);
+}
+
+.bar-btn.primary {
+  background: var(--yellow);
+  color: var(--black);
+}
+.bar-btn.primary:hover { background: #d4b800; }
+
+.bar-btn.secondary {
+  background: var(--surface);
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 10px;
+}
+.bar-btn.secondary:hover { background: var(--surface-alt); }
+
+.btn-icon {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+}
+
+/* --- Main -------------------------------------------------- */
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  padding: 8px;
+}
+
+/* --- Loading ----------------------------------------------- */
+
+.loading-state {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+}
+
+/* --- Pregame ----------------------------------------------- */
+
+.pregame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  text-align: center;
+}
+
+.pregame-info {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: center;
+}
+
+.pregame-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+
+.pregame-name {
+  font-size: 1.6rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+.pregame-length {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 700;
+}
+
+.pregame-done {
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+}
+
+.pregame-btn {
+  width: 240px;
+  padding: 14px;
+  font-size: 0.9rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 2px solid var(--border);
+}
+
+.pregame-btn.primary {
+  background: var(--yellow);
+  color: var(--black);
+}
+.pregame-btn.primary:hover { background: #d4b800; }
+
+.pregame-btn.secondary {
+  background: var(--surface);
+  color: var(--text);
+}
+.pregame-btn.secondary:hover { background: var(--surface-alt); }
+
+.load-error {
+  color: var(--red);
+  font-size: 0.85rem;
+  margin: 0;
+}

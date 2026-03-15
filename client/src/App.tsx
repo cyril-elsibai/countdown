@@ -375,8 +375,8 @@ export default function App() {
           activeFrameRef.current = { id: fetchedFrame.id, timer: prevResult.duration, best: prevResult.result ?? 0 };
         }
         setGamePhase('playing');
-      } else if (isLoggedIn() && startedAt) {
-        // Mid-game reload — skip countdown, restore timer from server start time
+      } else if (isLoggedIn() && startedAt && (Date.now() - new Date(startedAt).getTime()) > 30000) {
+        // Mid-game reload — startedAt is old enough to be a real in-progress session
         setServerStartTime(new Date(startedAt));
         setGamePhase('playing');
       } else if (isLoggedIn()) {
@@ -436,11 +436,12 @@ export default function App() {
             if (frame) activeFrameRef.current = { id: frame.id, timer: prevResult.duration, best: prevResult.result ?? 0 };
           }
           setGamePhase('playing');
-        } else if (startedAt) {
-          // Mid-game — restore timer from server start time
+        } else if (startedAt && (Date.now() - new Date(startedAt).getTime()) > 30000) {
+          // Mid-game resume — startedAt is old enough to be a real in-progress session
           setServerStartTime(new Date(startedAt));
           setGamePhase('playing');
         } else {
+          // Fresh game (startedAt was just created by getDaily) — show countdown
           setGamePhase('countdown');
         }
       } catch (err) {

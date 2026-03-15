@@ -37,6 +37,7 @@ import { prisma } from './db';
 import { ensureYearOfChallenges } from './services/frameGenerator';
 import { ensureYearOfWords } from './services/wordleService';
 import { runPointsCalculation } from './services/pointsCalculator';
+import { runWordlePointsCalculation } from './services/wordlePointsCalculator';
 import { checkNameUtilization } from './services/nameGenerator';
 
 // Create the Express application instance
@@ -212,6 +213,8 @@ async function main() {
     console.log('Running points calculation...');
     const pointsResult = await runPointsCalculation('startup');
     console.log(`Points calculated: ${pointsResult.usersProcessed} users, ${pointsResult.resultsProcessed} results`);
+    const wordlePointsResult = await runWordlePointsCalculation();
+    console.log(`Wordle points calculated: ${wordlePointsResult.usersProcessed} users, ${wordlePointsResult.resultsProcessed} results`);
 
     // Step 4: Schedule daily points calculation at midnight UTC
     const scheduleDailyCalculation = () => {
@@ -226,6 +229,8 @@ async function main() {
           console.log('Running scheduled points calculation...');
           const result = await runPointsCalculation('scheduled');
           console.log(`Scheduled points: ${result.usersProcessed} users, ${result.resultsProcessed} results`);
+          const wordleResult = await runWordlePointsCalculation();
+          console.log(`Scheduled wordle points: ${wordleResult.usersProcessed} users, ${wordleResult.resultsProcessed} results`);
         } catch (err) {
           console.error('Scheduled points calculation failed:', err);
         }

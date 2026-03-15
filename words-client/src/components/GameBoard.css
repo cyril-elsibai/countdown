@@ -1,0 +1,102 @@
+.game-board {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.board-row {
+  display: flex;
+  gap: 6px;
+}
+
+.board-cell {
+  width: 58px;
+  height: 58px;
+  border: 2px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.4rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: var(--text);
+  background: var(--surface);
+  transition: border-color 0.1s;
+  user-select: none;
+}
+
+.board-cell.filled {
+  border-color: var(--border);
+}
+
+/* Row background transitions */
+.board-row {
+  transition: background 0.8s ease;
+}
+
+/* Active row: warm sand tint appears after reveal */
+.board-row.active-row {
+  background: color-mix(in srgb, var(--border-light) 20%, var(--surface));
+}
+
+/* Settled row: slightly darker warm beige */
+.board-row.row-settled {
+  background: var(--surface-alt);
+}
+
+/* Active cell: blue border to mark cursor position */
+.board-cell.active-cell {
+  border-color: var(--blue);
+  border-width: 2px;
+}
+
+/* Row full and ready to submit: warm yellow tint */
+.board-row.row-ready .board-cell {
+  background: color-mix(in srgb, var(--yellow) 10%, var(--surface));
+  border-color: var(--yellow);
+}
+
+.board-cell.correct {
+  background: var(--correct);
+  border-color: var(--correct);
+  color: white;
+}
+
+.board-cell.present {
+  background: var(--present);
+  border-color: var(--present);
+  color: var(--black);
+}
+
+.board-cell.absent {
+  background: var(--absent);
+  border-color: var(--absent);
+  color: white;
+}
+
+
+/* Flip reveal — single animation, color class applied at the invisible midpoint */
+@keyframes flip {
+  0%   { transform: scaleY(1); }
+  50%  { transform: scaleY(0); }
+  100% { transform: scaleY(1); }
+}
+
+.board-cell.flipping {
+  animation: flip 0.5s ease-in-out;
+  animation-delay: var(--reveal-delay);
+  animation-fill-mode: backwards;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-6px); }
+  40%       { transform: translateX(6px); }
+  60%       { transform: translateX(-4px); }
+  80%       { transform: translateX(4px); }
+}
+
+.board-row.shake {
+  animation: shake 0.4s ease;
+}
+

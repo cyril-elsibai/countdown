@@ -24,6 +24,7 @@
  */
 
 import { Router, Response } from 'express';
+import wordleDashboardRoutes from './wordleDashboard';
 import { prisma } from '../db';
 import { requireAuth, optionalAuth, AuthRequest } from '../middleware/auth';
 import {
@@ -53,7 +54,7 @@ function getTodayUTC(): Date {
 
 /** Build the public game state payload (no answer unless game over) */
 function buildGameState(
-  wordleWord: { id: string; wordLength: number; date: Date | null; name: string | null },
+  wordleWord: { id: string; wordLength: number; date: Date | null; name: string | null; randomNumber: number | null },
   result: { guesses: string[]; solved: boolean; duration: number | null } | null,
   startedAt: Date | null,
   answer: string,
@@ -62,12 +63,14 @@ function buildGameState(
   const gameOver = result?.solved || guesses.length >= MAX_GUESSES;
   const guessResults: GuessResult[] = guesses.map(g => evaluateGuess(g, answer));
 
+  const displayName = wordleWord.name ?? (wordleWord.randomNumber != null ? `Random #${wordleWord.randomNumber}` : null);
+
   return {
     word: {
       id: wordleWord.id,
       wordLength: wordleWord.wordLength,
       date: wordleWord.date,
-      name: wordleWord.name,
+      name: displayName,
     },
     guesses: guessResults,
     guessCount: guesses.length,
@@ -378,7 +381,6 @@ router.post('/random', requireAuth, async (req: AuthRequest, res: Response) => {
       }
 
       const word = available[Math.floor(Math.random() * available.length)];
-
       wordleWord = await prisma.wordleWord.create({
         data: { word, wordLength, date: null, name: null },
       });
@@ -409,11 +411,46 @@ router.post('/random', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 // =============================================================================
+// GET /api/wordle/word/:id/stats — aggregated stats for the result modal
+// =============================================================================
+
+router.get('/word/:id/stats', async (req, res) => {
+  try {
+    const id = req.params.id as string;
+    const results = await prisma.wordleResult.findMany({
+      where: { wordId: id },
+      select: { solved: true, guesses: true },
+    });
+
+    const totalPlays = results.length;
+    const solved = results.filter(r => r.solved);
+    const winRate = totalPlays > 0 ? Math.round((solved.length / totalPlays) * 100) : 0;
+
+    const guessDist = [0, 0, 0, 0, 0, 0];
+    for (const r of solved) {
+      const idx = Math.min(r.guesses.length - 1, 5);
+      guessDist[idx]++;
+    }
+
+    res.json({ totalPlays, winRate, guessDist });
+  } catch (err) {
+    console.error('GET /wordle/word/:id/stats error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// =============================================================================
 // GET /api/wordle/health
 // =============================================================================
 
 router.get('/health', (_req, res) => {
   res.json({ ok: true, game: '67words' });
 });
+
+// =============================================================================
+// DASHBOARD ROUTES
+// =============================================================================
+
+router.use('/dashboard', wordleDashboardRoutes);
 
 export default router;

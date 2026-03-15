@@ -1251,7 +1251,7 @@
     right: 10px;
     top: auto !important;
     bottom: 10px;
-    transform: none;
+    transform: none !important;
     width: auto;
     min-width: auto;
   }

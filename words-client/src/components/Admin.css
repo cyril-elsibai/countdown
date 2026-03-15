@@ -1,0 +1,277 @@
+.admin-page {
+  min-height: 100vh;
+  background: #111;
+  padding: 20px;
+  color: #fff;
+}
+
+.admin-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.admin-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 3px solid #ECA800;
+}
+
+.admin-header h1 {
+  margin: 0;
+  color: #ECA800;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.admin-login {
+  max-width: 400px;
+  margin: 100px auto;
+  padding: 30px;
+  background: rgba(255,255,255,0.04);
+  border: 2px solid rgba(255,255,255,0.1);
+}
+
+.admin-login h1 {
+  margin: 0 0 25px;
+  text-align: center;
+  color: #ECA800;
+  font-weight: 900;
+}
+
+.admin-tabs {
+  display: flex;
+  margin-bottom: 20px;
+  border-bottom: 2px solid rgba(255,255,255,0.1);
+}
+
+.admin-tab {
+  padding: 10px 22px;
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.admin-tab:hover { color: rgba(255,255,255,0.8); }
+.admin-tab.active { color: #ECA800; border-bottom-color: #ECA800; }
+
+.admin-tab-content {
+  background: rgba(255,255,255,0.02);
+  padding: 20px;
+}
+
+.admin-edit-section {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.admin-edit-section h3 {
+  margin: 0 0 14px;
+  color: #ECA800;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.admin-edit-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px 25px;
+  align-items: flex-end;
+}
+
+.admin-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.admin-form-group label {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.5);
+}
+
+.admin-form-group input {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #fff;
+  padding: 8px 12px;
+  font-size: 0.95rem;
+  font-family: inherit;
+  width: 180px;
+}
+
+.admin-form-group input[type="date"] { color-scheme: dark; width: auto; }
+
+.admin-word-input {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  font-weight: 700;
+  width: 120px !important;
+}
+
+.admin-edit-actions {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  margin-left: auto;
+}
+
+.admin-btn {
+  padding: 10px 16px;
+  border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: inherit;
+  white-space: nowrap;
+}
+
+.admin-btn:hover:not(:disabled) { background: rgba(255,255,255,0.12); }
+.admin-btn.primary { background: #ECA800; border-color: #ECA800; color: #001219; }
+.admin-btn.primary:hover:not(:disabled) { background: #d4a000; }
+.admin-btn.secondary { border-style: dashed; color: rgba(255,255,255,0.4); }
+.admin-btn.small { padding: 5px 10px; font-size: 0.78rem; }
+.admin-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.admin-logout-btn {
+  padding: 8px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: #fff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-family: inherit;
+}
+
+.admin-logout-btn:hover { background: rgba(255,255,255,0.12); }
+
+.admin-list-section {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.admin-list-section h3 {
+  margin: 0 0 14px;
+  color: #ECA800;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.admin-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.35);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.admin-table td {
+  padding: 9px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.75);
+}
+
+.admin-table tr.today td { color: #ECA800; }
+.admin-table tr.past td { color: rgba(255,255,255,0.35); }
+.admin-table tr:hover td { background: rgba(255,255,255,0.03); }
+
+.admin-cell-word {
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #fff !important;
+}
+
+.admin-cell-muted { color: rgba(255,255,255,0.3) !important; }
+
+.admin-source { font-weight: 700; text-transform: uppercase; font-size: 0.8rem; }
+.admin-source.manual { color: #ECA800 !important; }
+.admin-source.random { color: rgba(255,255,255,0.3) !important; }
+
+.admin-error {
+  background: rgba(187,62,3,0.2);
+  border: 1px solid rgba(187,62,3,0.4);
+  color: #ff8a65;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.admin-message {
+  background: rgba(74,124,63,0.2);
+  border: 1px solid rgba(74,124,63,0.4);
+  color: #a5d6a7;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.admin-hint {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.4);
+}
+
+.jobs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+.jobs-table th {
+  text-align: left;
+  padding: 8px 10px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(255,255,255,0.35);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.jobs-table td {
+  padding: 10px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  color: rgba(255,255,255,0.75);
+  vertical-align: middle;
+}
+.jobs-table .job-schedule {
+  color: rgba(255,255,255,0.4);
+  font-size: 0.82rem;
+}
+.jobs-table .job-result {
+  font-size: 0.82rem;
+  color: rgba(255,255,255,0.5);
+}
+.jobs-table .job-result.success { color: #a5d6a7; }
+.jobs-table .job-result.error { color: #ff8a65; }

@@ -1,0 +1,108 @@
+.auth-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 18, 25, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.auth-modal {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  padding: 36px 32px 28px;
+  width: 90vw;
+  max-width: 380px;
+  position: relative;
+}
+
+.auth-modal h2 {
+  margin: 0 0 24px;
+  font-size: 1.4rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text);
+}
+
+.auth-close {
+  position: absolute;
+  top: 12px;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+.auth-close:hover { color: var(--text); }
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.auth-field label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 6px;
+  color: var(--text-muted);
+}
+
+.auth-field input {
+  background: var(--surface-alt);
+  border: 2px solid var(--border);
+  padding: 10px 12px;
+  font-size: 1rem;
+  color: var(--text);
+  outline: none;
+}
+.auth-field input:focus {
+  border-color: var(--blue);
+}
+
+.auth-error-wrap { margin-bottom: 8px; }
+.auth-error { color: var(--red); font-size: 0.85rem; margin: 0; }
+.auth-message { color: var(--blue); font-size: 0.85rem; margin: 0; }
+.auth-info { color: var(--text-muted); line-height: 1.5; margin-bottom: 20px; }
+
+.auth-btn {
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border: 2px solid var(--border);
+  margin-bottom: 8px;
+}
+.auth-btn.primary {
+  background: var(--yellow);
+  color: var(--black);
+}
+.auth-btn.primary:hover { background: #d4b800; }
+.auth-btn.secondary {
+  background: transparent;
+  color: var(--text);
+}
+.auth-btn.secondary:hover { background: var(--surface-alt); }
+
+.auth-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-top: 12px;
+}
+.auth-links button {
+  background: none;
+  border: none;
+  color: var(--blue);
+  font-size: 0.85rem;
+  padding: 0;
+  text-decoration: underline;
+}
+.auth-links button:hover { color: var(--text); }

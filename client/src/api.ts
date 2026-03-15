@@ -904,4 +904,28 @@ export const adminApi = {
       method: 'PUT',
       body: JSON.stringify(data),
     }),
+
+  seedChallenges: () =>
+    adminRequest<{ success: boolean; created: number; existing: number }>('/admin/jobs/seed-challenges', { method: 'POST' }),
+
+  seedWords: () =>
+    adminRequest<{ success: boolean; created: number; existing: number }>('/admin/jobs/seed-words', { method: 'POST' }),
+
+  checkNames: () =>
+    adminRequest<{ success: boolean }>('/admin/jobs/check-names', { method: 'POST' }),
+
+  calculatePoints: () =>
+    adminRequest<{ success: boolean; usersProcessed: number; resultsProcessed: number }>('/admin/points/calculate', { method: 'POST' }),
+
+  calculateWordlePoints: () =>
+    adminRequest<{ success: boolean; usersProcessed: number; resultsProcessed: number }>('/admin/wordle/points/calculate', { method: 'POST' }),
+
+  generateDummyNumbers: () =>
+    adminRequest<{ success: boolean; usersCreated: number; resultsCreated: number }>('/admin/jobs/generate-dummy-numbers', { method: 'POST' }),
+
+  generateDummyWords: () =>
+    adminRequest<{ success: boolean; usersCreated: number; resultsCreated: number }>('/admin/jobs/generate-dummy-words', { method: 'POST' }),
+
+  deleteDummyData: () =>
+    adminRequest<{ success: boolean; usersDeleted: number }>('/admin/jobs/delete-dummy-data', { method: 'POST' }),
 };

@@ -28,9 +28,13 @@
 
 import { Router, Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import bcrypt from 'bcrypt';
 import { prisma } from '../db';
-import { validateFrame, isFrameUnique, generateUniqueFrame, getNextDailyNumber } from '../services/frameGenerator';
+import { validateFrame, isFrameUnique, generateUniqueFrame, getNextDailyNumber, ensureYearOfChallenges } from '../services/frameGenerator';
 import { runPointsCalculation, getCalculationHistory, isCalculationRunning } from '../services/pointsCalculator';
+import { runWordlePointsCalculation } from '../services/wordlePointsCalculator';
+import { getAnswers6, getAnswers7, getNextDailyWordNumber, wordLengthForDailyNumber, ensureYearOfWords } from '../services/wordleService';
+import { checkNameUtilization } from '../services/nameGenerator';
 
 // Create Express router instance
 const router = Router();
@@ -610,6 +614,450 @@ router.get('/points/history', requireAdmin, async (req: AdminRequest, res: Respo
   } catch (error) {
     console.error('Get points history error:', error);
     res.status(500).json({ error: 'Failed to get points history' });
+  }
+});
+
+// =============================================================================
+// WORDLE ADMIN HELPER
+// =============================================================================
+
+function getWordleDailyNumber(name: string | null): number | null {
+  if (!name) return null;
+  const m = name.match(/Daily Word #(\d+)/);
+  return m ? parseInt(m[1]) : null;
+}
+
+// =============================================================================
+// WORDLE: LIST DAILY WORDS ENDPOINT
+// =============================================================================
+
+/**
+ * GET /api/admin/wordle/words
+ *
+ * Lists daily words for a 30-day window (15 days past to 15 days future).
+ * Includes play statistics for each word.
+ *
+ * AUTHENTICATION: Required (admin)
+ */
+router.get('/wordle/words', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
+
+    const pastDate = new Date(today);
+    pastDate.setDate(pastDate.getDate() - 15);
+
+    const futureDate = new Date(today);
+    futureDate.setDate(futureDate.getDate() + 15);
+
+    const words = await prisma.wordleWord.findMany({
+      where: {
+        date: {
+          gte: pastDate,
+          lte: futureDate,
+        },
+      },
+      orderBy: { date: 'desc' },
+      include: {
+        results: {
+          select: { solved: true },
+        },
+      },
+    });
+
+    res.json({
+      words: words.map((w) => {
+        const playCount = w.results.length;
+        const solvedCount = w.results.filter((r) => r.solved).length;
+        const successRate = playCount > 0 ? Math.round((solvedCount / playCount) * 100) : null;
+
+        return {
+          id: w.id,
+          date: w.date,
+          name: w.name ?? null,
+          word: w.word,
+          wordLength: w.wordLength,
+          isManual: w.isManual,
+          playCount,
+          successRate,
+        };
+      }),
+    });
+  } catch (error) {
+    console.error('List wordle words error:', error);
+    res.status(500).json({ error: 'Failed to list words' });
+  }
+});
+
+// =============================================================================
+// WORDLE: CREATE/UPDATE DAILY WORD ENDPOINT
+// =============================================================================
+
+/**
+ * PUT /api/admin/wordle/words/:date
+ *
+ * Creates or updates a daily word for a specific date.
+ * Can either specify a manual word or generate a random one.
+ *
+ * AUTHENTICATION: Required (admin)
+ *
+ * URL PARAMETERS:
+ * - date: The date in YYYY-MM-DD format
+ *
+ * REQUEST BODY (Option 1 - Manual):
+ * { word: string }
+ *
+ * REQUEST BODY (Option 2 - Random):
+ * { generateRandom: true }
+ */
+router.put('/wordle/words/:date', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const dateParam = req.params.date as string;
+    const date = new Date(dateParam + 'T00:00:00.000Z');
+
+    if (isNaN(date.getTime())) {
+      return res.status(400).json({ error: 'Invalid date format. Use YYYY-MM-DD' });
+    }
+
+    const { word, generateRandom } = req.body;
+
+    // Check for existing word on this date
+    const existing = await prisma.wordleWord.findUnique({ where: { date } });
+
+    // Determine daily number
+    let dailyNumber: number;
+    if (existing) {
+      const parsed = getWordleDailyNumber(existing.name);
+      if (parsed === null) {
+        return res.status(500).json({ error: 'Could not parse daily number from existing word name' });
+      }
+      dailyNumber = parsed;
+    } else {
+      dailyNumber = await getNextDailyWordNumber(date);
+    }
+
+    // Determine expected word length for this daily number
+    const expectedLength = wordLengthForDailyNumber(dailyNumber);
+
+    let finalWord: string;
+    let isManual: boolean;
+
+    if (generateRandom) {
+      // Pick a random word of the correct length not already used
+      const pool = expectedLength === 6 ? getAnswers6() : getAnswers7();
+
+      // Get all used words (excluding current word if updating)
+      const usedWords = await prisma.wordleWord.findMany({
+        where: existing ? { id: { not: existing.id } } : {},
+        select: { word: true },
+      });
+      const usedSet = new Set(usedWords.map((w) => w.word.toUpperCase()));
+
+      const available = pool.filter((w) => !usedSet.has(w.toUpperCase()));
+      if (available.length === 0) {
+        return res.status(500).json({ error: 'No available random words of the required length' });
+      }
+
+      finalWord = available[Math.floor(Math.random() * available.length)].toUpperCase();
+      isManual = false;
+    } else {
+      // Manual word
+      if (!word || typeof word !== 'string') {
+        return res.status(400).json({ error: 'word is required (or set generateRandom: true)' });
+      }
+
+      finalWord = word.trim().toUpperCase();
+
+      // Validate all letters
+      if (!/^[A-Z]+$/.test(finalWord)) {
+        return res.status(400).json({ error: 'Word must contain only letters' });
+      }
+
+      // Validate length matches expected
+      if (finalWord.length !== expectedLength) {
+        return res.status(400).json({ error: `Expected a ${expectedLength}-letter word for Daily Word #${dailyNumber}` });
+      }
+
+      // Check not already used in another WordleWord
+      const duplicate = await prisma.wordleWord.findFirst({
+        where: {
+          word: { equals: finalWord, mode: 'insensitive' },
+          ...(existing ? { id: { not: existing.id } } : {}),
+        },
+      });
+      if (duplicate) {
+        return res.status(400).json({ error: 'This word has already been used on another date' });
+      }
+
+      isManual = true;
+    }
+
+    let savedWord;
+    if (existing) {
+      savedWord = await prisma.wordleWord.update({
+        where: { date },
+        data: { word: finalWord, isManual },
+      });
+    } else {
+      savedWord = await prisma.wordleWord.create({
+        data: {
+          date,
+          word: finalWord,
+          wordLength: expectedLength,
+          isManual,
+          name: `Daily Word #${dailyNumber}`,
+        },
+      });
+    }
+
+    res.json({
+      word: {
+        id: savedWord.id,
+        date: savedWord.date,
+        name: savedWord.name ?? null,
+        word: savedWord.word,
+        wordLength: savedWord.wordLength,
+        isManual: savedWord.isManual,
+        playCount: 0,
+        successRate: null,
+      },
+      created: !existing,
+    });
+  } catch (error) {
+    console.error('Create/update wordle word error:', error);
+    res.status(500).json({ error: 'Failed to save word' });
+  }
+});
+
+// =============================================================================
+// WORDLE: TRIGGER POINTS CALCULATION ENDPOINT
+// =============================================================================
+
+/**
+ * POST /api/admin/wordle/points/calculate
+ *
+ * Triggers a manual wordle points recalculation.
+ *
+ * AUTHENTICATION: Required (admin)
+ */
+router.post('/wordle/points/calculate', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const result = await runWordlePointsCalculation();
+    res.json({ success: true, ...result });
+  } catch (error) {
+    console.error('Trigger wordle points calculation error:', error);
+    res.status(500).json({ error: 'Failed to trigger wordle points calculation' });
+  }
+});
+
+// =============================================================================
+// JOBS ENDPOINTS
+// =============================================================================
+
+/**
+ * POST /api/admin/jobs/seed-challenges
+ *
+ * Ensures a full year of daily challenges is seeded.
+ *
+ * AUTHENTICATION: Required (admin)
+ */
+router.post('/jobs/seed-challenges', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const result = await ensureYearOfChallenges();
+    res.json({ success: true, created: result.created, existing: result.existing });
+  } catch (error) {
+    console.error('Seed challenges error:', error);
+    res.status(500).json({ error: 'Failed to seed challenges' });
+  }
+});
+
+/**
+ * POST /api/admin/jobs/seed-words
+ *
+ * Ensures a full year of daily words is seeded.
+ *
+ * AUTHENTICATION: Required (admin)
+ */
+router.post('/jobs/seed-words', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const result = await ensureYearOfWords();
+    res.json({ success: true, created: result.created, existing: result.existing });
+  } catch (error) {
+    console.error('Seed words error:', error);
+    res.status(500).json({ error: 'Failed to seed words' });
+  }
+});
+
+/**
+ * POST /api/admin/jobs/check-names
+ *
+ * Checks and logs name utilization stats.
+ *
+ * AUTHENTICATION: Required (admin)
+ */
+router.post('/jobs/check-names', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    await checkNameUtilization();
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Check names error:', error);
+    res.status(500).json({ error: 'Failed to check name utilization' });
+  }
+});
+
+// =============================================================================
+// DUMMY DATA JOBS
+// =============================================================================
+
+const DUMMY_EMAIL_DOMAIN = '@dummy.test';
+const DUMMY_USER_COUNT = 20;
+const DUMMY_RESULTS_PER_USER = 15;
+const DUMMY_NAMES = [
+  'Alex', 'Jordan', 'Sam', 'Morgan', 'Casey', 'Riley', 'Taylor', 'Quinn',
+  'Drew', 'Avery', 'Blake', 'Cameron', 'Dakota', 'Emery', 'Finley', 'Gray',
+  'Harper', 'Indigo', 'Jamie', 'Kendall',
+];
+const FAKE_WORDS_6 = ['STREAM', 'PLANET', 'BRIGHT', 'CALMLY', 'FROZEN', 'GUITAR', 'MARBLE', 'PILLOW'];
+const FAKE_WORDS_7 = ['CAPTAIN', 'FREEDOM', 'MYSTERY', 'BALANCE', 'WHISPER', 'CURTAIN', 'BLANKET', 'SPEAKER'];
+
+/**
+ * POST /api/admin/jobs/generate-dummy-numbers
+ * Creates dummy users with GameResults for 67numbers.
+ */
+router.post('/jobs/generate-dummy-numbers', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const frames = await prisma.frame.findMany({
+      where: { date: { not: null, lt: new Date() } },
+      orderBy: { date: 'desc' },
+      take: 60,
+    });
+    if (frames.length === 0) {
+      return res.status(400).json({ error: 'No past daily frames found — seed challenges first' });
+    }
+
+    const dummyHash = await bcrypt.hash('dummy-password', 10);
+    let usersCreated = 0;
+    let resultsCreated = 0;
+
+    for (let i = 0; i < DUMMY_USER_COUNT; i++) {
+      const uid = `${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`;
+      const user = await prisma.user.create({
+        data: {
+          email: `dummy_${uid}${DUMMY_EMAIL_DOMAIN}`,
+          hashedPassword: dummyHash,
+          name: DUMMY_NAMES[i % DUMMY_NAMES.length],
+          emailVerified: true,
+        },
+      });
+      usersCreated++;
+
+      const shuffled = [...frames].sort(() => Math.random() - 0.5);
+      const userFrames = shuffled.slice(0, Math.min(DUMMY_RESULTS_PER_USER, frames.length));
+
+      for (const frame of userFrames) {
+        const solved = Math.random() < 0.65;
+        const duration = Math.random() * 450 + 30;
+        await prisma.gameResult.create({
+          data: {
+            userId: user.id,
+            frameId: frame.id,
+            solved,
+            expression: solved ? `${frame.tiles[0]} + ${frame.targetNumber - frame.tiles[0]}` : null,
+            result: solved ? frame.targetNumber : null,
+            duration: frame.date ? duration : null,
+            playedAt: frame.date ?? new Date(),
+          },
+        });
+        resultsCreated++;
+      }
+    }
+
+    res.json({ success: true, usersCreated, resultsCreated });
+  } catch (error) {
+    console.error('Generate dummy numbers error:', error);
+    res.status(500).json({ error: 'Failed to generate dummy data' });
+  }
+});
+
+/**
+ * POST /api/admin/jobs/generate-dummy-words
+ * Creates dummy users with WordleResults for 67words.
+ */
+router.post('/jobs/generate-dummy-words', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const words = await prisma.wordleWord.findMany({
+      where: { date: { not: null, lt: new Date() } },
+      orderBy: { date: 'desc' },
+      take: 60,
+    });
+    if (words.length === 0) {
+      return res.status(400).json({ error: 'No past daily words found — seed words first' });
+    }
+
+    const dummyHash = await bcrypt.hash('dummy-password', 10);
+    let usersCreated = 0;
+    let resultsCreated = 0;
+
+    for (let i = 0; i < DUMMY_USER_COUNT; i++) {
+      const uid = `${Date.now()}_${i}_${Math.random().toString(36).slice(2, 7)}`;
+      const user = await prisma.user.create({
+        data: {
+          email: `dummy_${uid}${DUMMY_EMAIL_DOMAIN}`,
+          hashedPassword: dummyHash,
+          name: DUMMY_NAMES[i % DUMMY_NAMES.length],
+          emailVerified: true,
+        },
+      });
+      usersCreated++;
+
+      const shuffled = [...words].sort(() => Math.random() - 0.5);
+      const userWords = shuffled.slice(0, Math.min(DUMMY_RESULTS_PER_USER, words.length));
+
+      for (const wordleWord of userWords) {
+        const solved = Math.random() < 0.65;
+        const duration = Math.random() * 300 + 30;
+        const fakePool = wordleWord.wordLength === 7 ? FAKE_WORDS_7 : FAKE_WORDS_6;
+        const numGuesses = solved ? Math.floor(Math.random() * 5) + 1 : 6;
+        const guesses: string[] = [];
+        for (let g = 0; g < numGuesses - (solved ? 1 : 0); g++) {
+          guesses.push(fakePool[g % fakePool.length]);
+        }
+        if (solved) guesses.push(wordleWord.word);
+
+        await prisma.wordleResult.create({
+          data: {
+            userId: user.id,
+            wordId: wordleWord.id,
+            guesses,
+            solved,
+            duration: wordleWord.date ? duration : null,
+            playedAt: wordleWord.date ?? new Date(),
+          },
+        });
+        resultsCreated++;
+      }
+    }
+
+    res.json({ success: true, usersCreated, resultsCreated });
+  } catch (error) {
+    console.error('Generate dummy words error:', error);
+    res.status(500).json({ error: 'Failed to generate dummy data' });
+  }
+});
+
+/**
+ * POST /api/admin/jobs/delete-dummy-data
+ * Deletes all users with @dummy.test emails and their cascaded data.
+ */
+router.post('/jobs/delete-dummy-data', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const deleted = await prisma.user.deleteMany({
+      where: { email: { endsWith: DUMMY_EMAIL_DOMAIN } },
+    });
+    res.json({ success: true, usersDeleted: deleted.count });
+  } catch (error) {
+    console.error('Delete dummy data error:', error);
+    res.status(500).json({ error: 'Failed to delete dummy data' });
   }
 });
 

@@ -78,8 +78,9 @@ model User {
   verificationTokens VerificationToken[]   // Email verification tokens
   passwordResetTokens PasswordResetToken[]  // Password reset tokens
   stats          UserStats?             // Aggregate stats for leaderboard
-  wordleResults  WordleResult[]         // 67words game results
-  wordleAttempts WordleAttempt[]        // 67words daily attempt timing
+  wordleResults    WordleResult[]       // 67words game results
+  wordleAttempts   WordleAttempt[]      // 67words daily attempt timing
+  wordleUserStats  WordleUserStats?     // 67words leaderboard points
 }
 
 // =============================================================================
@@ -371,6 +372,22 @@ enum FriendshipStatus {
 // 67WORDS — WORDLE MODELS
 // =============================================================================
 
+// WordleUserStats: Stores aggregate points for the 67words leaderboard
+//
+// Recalculated daily at UTC midnight (same job as 67numbers UserStats).
+// Points formula:
+//   base  = floor(50 * (1 + (100 - completionPercent) / 100))  [50–100]
+//   speed = max(0, 30 - floor(max(0, duration - 30) / 3))      [0–30]
+//   total = base + speed                                         [50–130]
+model WordleUserStats {
+  id             String   @id @default(cuid())
+  totalPoints    Int      @default(0)
+  lastCalculated DateTime @default(now())
+
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 // WordleWord: A puzzle word for 67words (mirrors Frame in 6/7 Numbers)
 //
 // DAILY VS RANDOM:
@@ -380,13 +397,14 @@ enum FriendshipStatus {
 // WORD LENGTH:
 // - 6 or 7 letters, alternating daily
 model WordleWord {
-  id         String   @id @default(cuid())
-  word       String                          // The answer word (uppercase, server-side only)
-  wordLength Int                             // 6 or 7
-  date       DateTime? @unique               // null for random, set for daily
-  name       String?   @unique               // Friendly name for random words
-  isManual   Boolean  @default(false)
-  createdAt  DateTime @default(now())
+  id           String    @id @default(cuid())
+  word         String                          // The answer word (uppercase, server-side only)
+  wordLength   Int                             // 6 or 7
+  date         DateTime? @unique               // null for random, set for daily
+  name         String?   @unique               // "Daily Word #N" for daily words; null for random
+  randomNumber Int?      @unique               // Sequential number for random words (1, 2, 3…)
+  isManual     Boolean   @default(false)
+  createdAt    DateTime  @default(now())
 
   results    WordleResult[]
   attempts   WordleAttempt[]

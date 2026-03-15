@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { adminApi, Challenge, setAdminToken, clearAdminToken, isAdminLoggedIn } from '../api';
 
-type AdminTab = 'challenges';
+type AdminTab = 'challenges' | 'jobs';
 
 
 export default function Admin() {
@@ -118,14 +118,171 @@ export default function Admin() {
           >
             Daily Challenges
           </button>
-          {/* Future tabs will go here */}
+          <button
+            className={`admin-tab ${activeTab === 'jobs' ? 'active' : ''}`}
+            onClick={() => setActiveTab('jobs')}
+          >
+            Jobs
+          </button>
         </div>
 
         <div className="admin-tab-content">
           {activeTab === 'challenges' && <ChallengesTab />}
+          {activeTab === 'jobs' && <JobsTab />}
         </div>
       </div>
     </div>
+  );
+}
+
+// =============================================================================
+// JOBS TAB
+// =============================================================================
+
+type JobResult = { text: string; isError: boolean } | null;
+
+interface Job {
+  id: string;
+  name: string;
+  schedule: string;
+  run: () => Promise<string>;
+}
+
+function JobsTab() {
+  const [results, setResults] = useState<Record<string, JobResult>>({});
+  const [running, setRunning] = useState<Record<string, boolean>>({});
+
+  const jobs: Job[] = [
+    {
+      id: 'seed-challenges',
+      name: 'Seed Daily Challenges (67numbers)',
+      schedule: 'On server startup',
+      run: async () => {
+        const r = await adminApi.seedChallenges();
+        return `Created ${r.created}, existing ${r.existing}`;
+      },
+    },
+    {
+      id: 'seed-words',
+      name: 'Seed Daily Words (67words)',
+      schedule: 'On server startup',
+      run: async () => {
+        const r = await adminApi.seedWords();
+        return `Created ${r.created}, existing ${r.existing}`;
+      },
+    },
+    {
+      id: 'calculate-points',
+      name: 'Calculate Points (67numbers)',
+      schedule: 'Startup + daily 00:00:30 UTC',
+      run: async () => {
+        const r = await adminApi.calculatePoints();
+        return `${r.usersProcessed} users, ${r.resultsProcessed} results processed`;
+      },
+    },
+    {
+      id: 'calculate-wordle-points',
+      name: 'Calculate Points (67words)',
+      schedule: 'Startup + daily 00:00:30 UTC',
+      run: async () => {
+        const r = await adminApi.calculateWordlePoints();
+        return `${r.usersProcessed} users, ${r.resultsProcessed} results processed`;
+      },
+    },
+    {
+      id: 'check-names',
+      name: 'Check Name Utilization',
+      schedule: 'Daily 00:00:30 UTC',
+      run: async () => {
+        await adminApi.checkNames();
+        return 'Done';
+      },
+    },
+    {
+      id: 'generate-dummy-numbers',
+      name: 'Generate Dummy Data (67numbers)',
+      schedule: 'Manual only',
+      run: async () => {
+        const r = await adminApi.generateDummyNumbers();
+        return `${r.usersCreated} users, ${r.resultsCreated} results created`;
+      },
+    },
+    {
+      id: 'generate-dummy-words',
+      name: 'Generate Dummy Data (67words)',
+      schedule: 'Manual only',
+      run: async () => {
+        const r = await adminApi.generateDummyWords();
+        return `${r.usersCreated} users, ${r.resultsCreated} results created`;
+      },
+    },
+    {
+      id: 'delete-dummy-data',
+      name: 'Delete Dummy Data',
+      schedule: 'Manual only',
+      run: async () => {
+        const r = await adminApi.deleteDummyData();
+        return `${r.usersDeleted} dummy users deleted`;
+      },
+    },
+  ];
+
+  const handleTrigger = async (job: Job) => {
+    setRunning(prev => ({ ...prev, [job.id]: true }));
+    setResults(prev => ({ ...prev, [job.id]: null }));
+    try {
+      const text = await job.run();
+      setResults(prev => ({ ...prev, [job.id]: { text, isError: false } }));
+    } catch (err) {
+      const text = err instanceof Error ? err.message : 'Failed';
+      setResults(prev => ({ ...prev, [job.id]: { text, isError: true } }));
+    } finally {
+      setRunning(prev => ({ ...prev, [job.id]: false }));
+    }
+  };
+
+  return (
+    <section className="admin-list-section">
+      <h3>Scheduled Jobs</h3>
+      <table className="jobs-table">
+        <thead>
+          <tr>
+            <th>Job</th>
+            <th>Schedule</th>
+            <th>Last Run Result</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {jobs.map(job => {
+            const result = results[job.id];
+            const isRunning = running[job.id] ?? false;
+            return (
+              <tr key={job.id}>
+                <td>{job.name}</td>
+                <td className="job-schedule">{job.schedule}</td>
+                <td>
+                  {result && (
+                    <span className={`job-result ${result.isError ? 'error' : 'success'}`}>
+                      {result.text}
+                    </span>
+                  )}
+                </td>
+                <td>
+                  <button
+                    onClick={() => handleTrigger(job)}
+                    disabled={isRunning}
+                    className="secondary"
+                  >
+                    {isRunning ? 'Running...' : 'Trigger'}
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </section>
   );
 }
 
