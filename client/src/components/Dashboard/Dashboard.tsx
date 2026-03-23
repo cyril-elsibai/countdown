@@ -19,7 +19,7 @@ import './Dashboard.css';
 
 interface DashboardProps {
   onNavigateHome: () => void;
-  onPlayFrame: (frameId: string) => void;
+  onPlayFrame: (frameId: string, frameName?: string) => void;
   onPlayRandom: () => void;
 }
 

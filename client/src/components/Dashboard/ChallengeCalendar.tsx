@@ -15,7 +15,7 @@ import ChallengeTooltip from './ChallengeTooltip';
 
 interface ChallengeCalendarProps {
   onSelectFrame: (frameId: string) => void;
-  onPlayFrame: (frameId: string) => void;
+  onPlayFrame: (frameId: string, frameName?: string) => void;
 }
 
 export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: ChallengeCalendarProps) {
@@ -188,7 +188,7 @@ export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: Challe
               className={`challenge-tile ${statusClass} ${isTodayChallenge ? 'today' : ''} ${challenge.userResult?.solved ? 'no-click' : ''}`}
               onMouseEnter={(e) => handleMouseEnter(challenge, e)}
               onMouseLeave={handleMouseLeave}
-              onClick={() => !challenge.userResult?.solved && onPlayFrame(challenge.id)}
+              onClick={() => !challenge.userResult?.solved && onPlayFrame(challenge.id, `Daily #${challenge.dailyNumber}`)}
             >
               <div className={`status-bar ${statusClass}`}>
                 {statusClass === 'solved' ? 'Solved' : statusClass === 'tried' ? 'Failed' : 'New'}
@@ -206,7 +206,7 @@ export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: Challe
           position={tooltipPosition}
           onPlay={() => {
             setHoveredChallenge(null);
-            onPlayFrame(hoveredChallenge.id);
+            onPlayFrame(hoveredChallenge.id, `Daily #${hoveredChallenge.dailyNumber}`);
           }}
           onViewLeaderboard={() => {
             setHoveredChallenge(null);

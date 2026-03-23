@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { dashboardApi, PlayHistoryEntry, FriendActivity } from '../../api';
 
 interface PlayHistoryProps {
-  onPlayFrame: (frameId: string) => void;
+  onPlayFrame: (frameId: string, frameName?: string) => void;
   onSelectFrame: (frameId: string) => void; // used by friends activity view
 }
 
@@ -118,7 +118,7 @@ export default function PlayHistory({ onPlayFrame, onSelectFrame }: PlayHistoryP
                   <span className="history-item-date">{formatTimeAgo(item.playedAt)}</span>
                   <button
                     className={`history-action-btn ${item.solved ? 'view' : 'play'}`}
-                    onClick={() => onPlayFrame(item.frameId)}
+                    onClick={() => onPlayFrame(item.frameId, item.name ?? undefined)}
                   >
                     {item.solved ? 'View' : 'Play'}
                   </button>

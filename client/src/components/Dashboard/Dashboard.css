@@ -92,7 +92,7 @@
 
 .dashboard-tab {
   padding: 10px 20px;
-  background: var(--surface);
+  background: transparent;
   border: none;
   border-right: 2px solid var(--border);
   cursor: pointer;

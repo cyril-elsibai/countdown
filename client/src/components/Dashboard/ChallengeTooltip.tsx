@@ -42,6 +42,7 @@ export default function ChallengeTooltip({
   };
 
   const canPlay = !challenge.userResult && !isToday();
+  const canRetry = challenge.userResult && !challenge.userResult.solved;
 
   const placement = position.placement ?? 'above';
 
@@ -104,6 +105,11 @@ export default function ChallengeTooltip({
         {canPlay && (
           <button className="tooltip-btn play" onClick={onPlay}>
             Play Challenge
+          </button>
+        )}
+        {canRetry && (
+          <button className="tooltip-btn play" onClick={onPlay}>
+            Try Again
           </button>
         )}
         {isToday() && !challenge.userResult && (

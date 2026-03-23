@@ -81,6 +81,7 @@ export default function App() {
   const [timerStopped, setTimerStopped] = useState(false);
   const [alert, setAlert] = useState<{ message: string; type: 'error' | 'success' } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingMessage, setLoadingMessage] = useState("Loading today's challenge...");
   const [frame, setFrame] = useState<Frame | null>(null);
   const [user, setUser] = useState<{ id: string; email: string; name?: string } | null>(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -307,7 +308,7 @@ export default function App() {
       if (!active) return;
       const token = localStorage.getItem('token');
       if (!token) return;
-      const url = `http://${window.location.hostname}:3001/api/game/frame/${active.id}/progress`;
+      const url = (import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001/api`) + `/game/frame/${active.id}/progress`;
       fetch(url, {
         method: 'POST',
         headers: {
@@ -500,8 +501,9 @@ export default function App() {
     initializeGame();
   };
 
-  const handlePlayHistorical = async (frameId: string) => {
+  const handlePlayHistorical = async (frameId: string, frameName?: string) => {
     saveActiveFrameProgress();
+    setLoadingMessage(frameName ? `Loading ${frameName}...` : 'Loading challenge...');
     setLoading(true);
     setCurrentRoute('play');
     setPlayFrameId(frameId);
@@ -553,9 +555,11 @@ export default function App() {
       if (prevResult) {
         // Already started (solved or not) — skip countdown, restore timer if available
         restoreTimerFromResult(prevResult);
-        if (!prevResult.solved && prevResult.duration != null && prevResult.duration > 0) {
-          setServerStartTime(new Date(Date.now() - prevResult.duration * 1000));
-          activeFrameRef.current = { id: fetchedFrame.id, timer: prevResult.duration, best: prevResult.result ?? 0 };
+        if (!prevResult.solved) {
+          activeFrameRef.current = { id: fetchedFrame.id, timer: prevResult.duration ?? 0, best: prevResult.result ?? 0 };
+          if (prevResult.duration != null && prevResult.duration > 0) {
+            setServerStartTime(new Date(Date.now() - prevResult.duration * 1000));
+          }
         }
         setGamePhase('playing');
       } else {
@@ -1015,7 +1019,7 @@ export default function App() {
               <h2>{verificationMessage}</h2>
             </div>
           )}
-          <div className="loading">Loading today's challenge...</div>
+          <div className="loading">{loadingMessage}</div>
         </div>
       </div>
     );
