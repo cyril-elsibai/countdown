@@ -92,7 +92,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [pendingFriendCount, setPendingFriendCount] = useState(0);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen'));
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen') && !isLoggedIn());
   const [previousResult, setPreviousResult] = useState<PreviousResult | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
   const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
