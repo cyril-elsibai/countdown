@@ -1843,4 +1843,238 @@ body {
   color: rgba(255,255,255,0.5);
 }
 .jobs-table .job-result.success { color: #a5d6a7; }
+
+/* =============================================================================
+   TUTORIAL MODAL
+   ============================================================================= */
+
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 18, 25, 0.85);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.tutorial-modal {
+  background: var(--white);
+  border: 2px solid var(--black);
+  width: 100%;
+  max-width: 380px;
+  display: flex;
+  flex-direction: column;
+}
+
+.tutorial-header {
+  background: var(--black);
+  color: var(--yellow);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+}
+
+.tutorial-title {
+  font-weight: 900;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.tutorial-close {
+  background: none;
+  border: none;
+  color: var(--yellow);
+  font-size: 1.4rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  font-weight: 300;
+}
+
+.tutorial-dots {
+  display: flex;
+  gap: 6px;
+  justify-content: center;
+  padding: 14px 14px 0;
+}
+
+.tutorial-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--black);
+  opacity: 0.2;
+  cursor: pointer;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.tutorial-dot.active {
+  opacity: 1;
+  background: var(--yellow);
+}
+
+.tutorial-step-title {
+  font-weight: 900;
+  font-size: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--black);
+  text-align: center;
+  padding: 10px 14px 0;
+}
+
+/* Step body */
+.tutorial-step-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 14px;
+  min-height: 180px;
+  justify-content: center;
+}
+
+.tutorial-step-label {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+
+.tutorial-step-desc {
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.5;
+  text-align: center;
+  max-width: 300px;
+}
+
+/* Target tiles */
+.tutorial-target-tiles {
+  display: flex;
+  gap: 4px;
+}
+
+.tutorial-target-tile {
+  width: 28px;
+  height: 44px;
+  background: var(--yellow);
+  color: var(--black);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 1.1rem;
+}
+
+/* Game tiles */
+.tutorial-tiles-row {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.tutorial-tile {
+  width: 34px;
+  height: 26px;
+  border: 2px solid var(--black);
+  background: var(--white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 900;
+  font-size: 0.8rem;
+  color: var(--black);
+}
+
+.tutorial-tile.red {
+  background: var(--red);
+  border-color: var(--red);
+  color: var(--white);
+}
+
+.tutorial-tile.blue {
+  background: var(--blue);
+  border-color: var(--blue);
+  color: var(--white);
+}
+
+.tutorial-tile.yellow {
+  background: var(--yellow);
+  border-color: var(--yellow);
+  color: var(--black);
+}
+
+.tutorial-calc-row {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.tutorial-equals {
+  font-weight: 900;
+  font-size: 0.9rem;
+  color: var(--black);
+}
+
+.tutorial-chain-arrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--yellow);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+/* Nav buttons */
+.tutorial-nav {
+  display: flex;
+  gap: 8px;
+  padding: 0 14px 14px;
+}
+
+.tutorial-btn {
+  flex: 1;
+  padding: 10px;
+  border: 2px solid var(--black);
+  font-weight: 900;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  cursor: pointer;
+}
+
+.tutorial-btn.primary {
+  background: var(--yellow);
+  color: var(--black);
+  border-color: var(--black);
+}
+
+.tutorial-btn.primary:hover {
+  background: var(--yellow-hover);
+}
+
+.tutorial-btn.secondary {
+  background: transparent;
+  color: var(--black);
+  border-color: var(--black);
+}
+
+.tutorial-btn.secondary:hover {
+  background: var(--black);
+  color: var(--white);
+}
+
+/* "?" button in user bar */
+.bar-btn.tutorial-trigger {
+  padding: 5px 9px;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
 .jobs-table .job-result.error { color: #ff8a65; }

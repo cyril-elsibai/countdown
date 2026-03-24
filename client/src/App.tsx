@@ -6,6 +6,7 @@ import Profile from './components/Profile';
 import FriendsModal from './components/FriendsModal';
 import Admin from './components/Admin';
 import { Dashboard } from './components/Dashboard';
+import TutorialModal from './components/TutorialModal';
 
 // Types
 type TileState = {
@@ -91,6 +92,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [pendingFriendCount, setPendingFriendCount] = useState(0);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen'));
   const [previousResult, setPreviousResult] = useState<PreviousResult | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
   const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
@@ -1073,6 +1075,7 @@ export default function App() {
             ) : (
               <button className="bar-btn primary" onClick={() => setShowAuthModal(true)}>Sign In</button>
             )}
+            <button className="bar-btn secondary tutorial-trigger" onClick={() => setShowTutorial(true)} title="How to play">?</button>
           </div>
         </div>
 
@@ -1106,6 +1109,11 @@ export default function App() {
         {/* Friends modal */}
         {showFriends && (
           <FriendsModal onClose={() => setShowFriends(false)} />
+        )}
+
+        {/* Tutorial modal */}
+        {showTutorial && (
+          <TutorialModal onClose={() => setShowTutorial(false)} />
         )}
 
         {currentRoute === 'dashboard' ? (
