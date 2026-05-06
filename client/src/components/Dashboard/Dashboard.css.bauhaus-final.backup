@@ -120,8 +120,8 @@
 
 @media (prefers-color-scheme: dark) {
   .dashboard-tab.active {
-    background: var(--red);
-    color: var(--white);
+    background: var(--yellow);
+    color: var(--black);
   }
 }
 
@@ -562,8 +562,8 @@
 
 @media (prefers-color-scheme: dark) {
   .leaderboard-type-tabs button.active {
-    background: var(--red);
-    color: var(--white);
+    background: var(--yellow);
+    color: var(--black);
   }
 }
 
@@ -913,8 +913,8 @@
 
 @media (prefers-color-scheme: dark) {
   .history-toggle-btn.active {
-    background: var(--red);
-    color: var(--white);
+    background: var(--yellow);
+    color: var(--black);
   }
 }
 
@@ -1078,8 +1078,8 @@
 
 @media (prefers-color-scheme: dark) {
   .stats-timeframe-btn.active {
-    background: var(--red);
-    color: var(--white);
+    background: var(--yellow);
+    color: var(--black);
   }
 }
 

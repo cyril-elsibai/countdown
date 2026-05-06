@@ -4,10 +4,11 @@ import { authApi, setToken } from '../api';
 interface AuthFormProps {
   onSuccess: (user: { id: string; email: string; name?: string }) => void;
   onCancel: () => void;
+  initialMode?: 'login' | 'register';
 }
 
-export default function AuthForm({ onSuccess, onCancel }: AuthFormProps) {
-  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>('login');
+export default function AuthForm({ onSuccess, onCancel, initialMode = 'login' }: AuthFormProps) {
+  const [mode, setMode] = useState<'login' | 'register' | 'forgot'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');

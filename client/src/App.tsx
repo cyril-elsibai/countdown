@@ -93,6 +93,7 @@ export default function App() {
   const [showFriends, setShowFriends] = useState(false);
   const [pendingFriendCount, setPendingFriendCount] = useState(0);
   const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen') && !isLoggedIn());
+  const [initialAuthMode, setInitialAuthMode] = useState<'login' | 'register'>('login');
   const [previousResult, setPreviousResult] = useState<PreviousResult | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
   const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
@@ -1039,10 +1040,15 @@ export default function App() {
         {/* Shared header */}
         <div className="user-bar">
           <div className="user-bar-left">
-            <h1 className="site-title" onClick={() => {
-              if (user) navigateToDashboard();
-              else setShowAuthModal(true);
-            }}>6/7 Numbers</h1>
+            <img
+              className="site-logo"
+              src="/logo.png"
+              alt="6/7 Numbers"
+              onClick={() => {
+                if (user) navigateToDashboard();
+                else setShowAuthModal(true);
+              }}
+            />
           </div>
           <div className="user-bar-right">
             {user ? (
@@ -1090,6 +1096,7 @@ export default function App() {
         {/* Auth modal */}
         {showAuthModal && (
           <AuthForm
+            initialMode={initialAuthMode}
             onSuccess={handleAuthSuccess}
             onCancel={() => setShowAuthModal(false)}
           />
@@ -1171,21 +1178,27 @@ export default function App() {
           ))}
         </div>
 
-        {/* Pre-game overlay */}
+        {/* Landing screen for non signed-in users */}
         {gamePhase === 'pre-game' && !showAuthModal && (
           <>
-            <div className="pregame-overlay" />
-            <div className="pregame-modal">
-              <h1 className="pregame-title">6/7 Numbers</h1>
-              <p className="pregame-description">
-                Play as guest or sign in to compete with your friends!
+            <div className="landing-overlay" />
+            <div className="landing-modal">
+              <img src="/logo.png" className="landing-logo" alt="6/7 Numbers" />
+              <p className="landing-headline">It's a countdown, baby!</p>
+              <p className="landing-desc">
+                Use the red numbers and the four operations to reach the target,
+                or get as close as you can. Each number can only be used once.
+                Register to compete with your friends!
               </p>
-              <div className="pregame-actions">
-                <button className="pregame-btn primary" onClick={() => setShowAuthModal(true)}>
-                  Sign In
+              <div className="landing-actions">
+                <button className="landing-btn login" onClick={() => { setInitialAuthMode('login'); setShowAuthModal(true); }}>
+                  Login
                 </button>
-                <button className="pregame-btn secondary" onClick={() => setGamePhase('countdown')}>
-                  Play as Guest
+                <button className="landing-btn register" onClick={() => { setInitialAuthMode('register'); setShowAuthModal(true); }}>
+                  Register
+                </button>
+                <button className="landing-btn guest" onClick={() => setGamePhase('countdown')}>
+                  Continue as guest
                 </button>
               </div>
             </div>
@@ -1302,7 +1315,7 @@ export default function App() {
           })}
         </div>
 
-        {/* Keyboard */}
+        {/* Keyboard — number tiles */}
         <div className={`keyboard ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
           {initCards.map((card, i) => (
             <button
@@ -1327,9 +1340,11 @@ export default function App() {
               {key.value}
             </button>
           ))}
+        </div>
 
+        {/* Action bar — reset / operators / submit */}
+        <div className={`keyboard-action-bar ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
           <button className="key reset-key" onClick={resetGame} disabled={gameWon || (previousResult?.solved)}>Reset</button>
-
           {['+', '-', '×', '/'].map(op => (
             <button
               key={op}
@@ -1340,7 +1355,6 @@ export default function App() {
               {op}
             </button>
           ))}
-
           <button
             className="key submit-key"
             onClick={handleSubmit}
