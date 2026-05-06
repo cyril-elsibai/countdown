@@ -19,7 +19,7 @@
   --success-color:#2E7D32;
 
   /* Layout tokens */
-  --bg:           #E8E8E8;
+  --bg:           #ECEDEC;
   --surface:      #FFFFFF;
   --surface-alt:  #F2F2F2;
   --text:         #1C1C1C;
@@ -455,7 +455,7 @@ body {
 .landing-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(232, 232, 232, 0.95);
+  background: rgba(236, 237, 236, 0.96);
   z-index: 1050;
 }
 
@@ -466,31 +466,54 @@ body {
   transform: translate(-50%, -50%);
   text-align: center;
   z-index: 1051;
-  width: 90vw;
-  max-width: 420px;
+  width: 92vw;
+  max-width: 560px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
 }
 
 .landing-logo {
-  width: clamp(120px, 40vw, 180px);
+  width: clamp(110px, 30vw, 160px);
   height: auto;
+  border: 1px solid #2E3335;
+}
+
+.landing-content {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  width: 100%;
+}
+
+.landing-demo {
+  width: clamp(130px, 32vw, 190px);
+  height: auto;
+  flex-shrink: 0;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+}
+
+.landing-copy {
+  flex: 1;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
 .landing-headline {
-  font-size: clamp(1.3rem, 4vw, 1.8rem);
+  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
   font-weight: 900;
   color: var(--black);
   letter-spacing: -0.02em;
 }
 
 .landing-desc {
-  font-size: clamp(0.85rem, 2.2vw, 1rem);
+  font-size: clamp(0.8rem, 2vw, 0.95rem);
   color: var(--text-sub);
   line-height: 1.6;
-  max-width: 340px;
 }
 
 .landing-actions {
@@ -500,7 +523,6 @@ body {
   align-items: stretch;
   width: 100%;
   max-width: 280px;
-  margin-top: 8px;
 }
 
 .landing-btn {
@@ -508,7 +530,7 @@ body {
   font-size: 1rem;
   font-weight: 700;
   border: none;
-  border-radius: 8px;
+  border-radius: 9999px;
   cursor: pointer;
   letter-spacing: 0.03em;
 }
