@@ -71,12 +71,18 @@ export default function AuthForm({ onSuccess, onCancel, initialMode = 'login' }:
     return 'Send Reset Link';
   };
 
+  const getModeTitle = () => {
+    if (mode === 'login') return 'Sign in';
+    if (mode === 'register') return 'Create account';
+    return 'Reset password';
+  };
+
   return (
     <div className="auth-overlay">
+      <button className="auth-close" onClick={onCancel}>&times;</button>
       <div className="auth-modal">
-        <button className="auth-close" onClick={onCancel}>&times;</button>
-
-        <h1 className="auth-title">6/7 Numbers</h1>
+        <img src="/logo.png" className="auth-logo" alt="6/7 Numbers" />
+        <p className="auth-mode-title">{getModeTitle()}</p>
 
         {message && <div className="auth-message">{message}</div>}
 
