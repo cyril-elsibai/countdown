@@ -1141,6 +1141,10 @@ body {
   display: none;
 }
 
+.auth-modal form {
+  width: 100%;
+}
+
 .form-group {
   margin-bottom: 14px;
   text-align: left;
