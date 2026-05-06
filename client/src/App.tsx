@@ -1184,17 +1184,13 @@ export default function App() {
             <div className="landing-overlay" />
             <div className="landing-modal">
               <img src="/logo.png" className="landing-logo" alt="6/7 Numbers" />
-              <div className="landing-content">
-                <img src="/demo.png" className="landing-demo" alt="Game preview" />
-                <div className="landing-copy">
-                  <p className="landing-headline">It's a countdown, baby!</p>
-                  <p className="landing-desc">
-                    Use the red numbers and the four operations to reach the target,
-                    or get as close as you can. You can use each number only once.
-                    Register to compete with your friends!
-                  </p>
-                </div>
-              </div>
+              <p className="landing-headline">It's a countdown, baby!</p>
+              <img src="/demo.png" className="landing-demo" alt="Game preview" />
+              <p className="landing-desc">
+                Use the red numbers and the four operations to reach the target,
+                or get as close as you can. You can use each number only once.
+                Register to compete with your friends!
+              </p>
               <div className="landing-actions">
                 <button className="landing-btn login" onClick={() => { setInitialAuthMode('login'); setShowAuthModal(true); }}>
                   Login

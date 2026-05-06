@@ -467,72 +467,56 @@ body {
   text-align: center;
   z-index: 1051;
   width: 92vw;
-  max-width: 560px;
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
 }
 
 .landing-logo {
-  width: clamp(110px, 30vw, 160px);
+  width: clamp(110px, 30vw, 150px);
   height: auto;
   border: 1px solid #2E3335;
 }
 
-.landing-content {
-  display: flex;
-  gap: 20px;
-  align-items: center;
-  width: 100%;
-}
-
-.landing-demo {
-  width: clamp(130px, 32vw, 190px);
-  height: auto;
-  flex-shrink: 0;
-  border-radius: 8px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
-}
-
-.landing-copy {
-  flex: 1;
-  text-align: left;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
 .landing-headline {
-  font-size: clamp(1.1rem, 3.5vw, 1.5rem);
+  font-size: clamp(1.1rem, 3.5vw, 1.4rem);
   font-weight: 900;
   color: var(--black);
   letter-spacing: -0.02em;
 }
 
+.landing-demo {
+  width: clamp(160px, 55vw, 240px);
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.12);
+}
+
 .landing-desc {
-  font-size: clamp(0.8rem, 2vw, 0.95rem);
+  font-size: clamp(0.8rem, 2vw, 0.9rem);
   color: var(--text-sub);
   line-height: 1.6;
+  max-width: 320px;
 }
 
 .landing-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  align-items: stretch;
-  width: 100%;
-  max-width: 280px;
+  gap: 8px;
+  align-items: center;
 }
 
 .landing-btn {
-  padding: 14px 24px;
-  font-size: 1rem;
+  padding: 10px 28px;
+  font-size: 0.95rem;
   font-weight: 700;
   border: none;
-  border-radius: 9999px;
+  border-radius: 20px;
   cursor: pointer;
   letter-spacing: 0.03em;
+  min-width: 160px;
 }
 
 .landing-btn.login {
