@@ -27,7 +27,8 @@
   --text-muted:   #888888;
   --border:       #1C1C1C;
   --border-light: #CCCCCC;
-  --tile-border:  #1C1C1C;
+  --dark-border:  #2E3335;
+  --tile-border:  var(--dark-border);
 
   /* Score */
   --score-green:  #2E7D32;
@@ -160,24 +161,24 @@ body {
    HEADER (USER BAR)
    ============================================================================= */
 
-.user-bar {
+.header {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
   align-items: center;
-  gap: 12px;
-  margin-bottom: clamp(5px, 2dvh, 20px);
-  padding-bottom: 10px;
-  border-bottom: 2px solid var(--border-light);
+  gap: 4px;
+  margin-bottom: 0;
+  border-bottom: 2px solid var(--dark-border);
 }
 
-.user-bar-left {
+.logo-wrap {
   display: flex;
   align-items: center;
+  padding: 10px 0;
 }
 
 .site-logo {
-  height: clamp(48px, 8dvh, 72px);
-  width: auto;
+  width: 100px;
+  height: 100px;
   display: block;
   cursor: pointer;
   user-select: none;
@@ -197,9 +198,11 @@ body {
   user-select: none;
 }
 
-.user-bar-right {
+.user-bar {
+  width: 100%;
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
 }
 
@@ -238,18 +241,18 @@ body {
 }
 
 .bar-btn.secondary {
-  background: var(--surface);
+  background: transparent;
   color: var(--text);
-  border-color: var(--border-light);
-  padding: 5px 10px;
+  border: none;
+  padding: 4px 6px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .bar-btn.secondary:hover {
-  background: var(--surface-alt);
-  border-color: var(--border);
+  background: transparent;
+  opacity: 0.65;
 }
 
 .btn-label {
@@ -258,8 +261,8 @@ body {
 
 .btn-icon {
   display: inline-block;
-  width: 20px;
-  height: 20px;
+  width: 24px;
+  height: 24px;
   vertical-align: middle;
 }
 
@@ -305,8 +308,8 @@ body {
 
   .bar-btn.secondary .btn-icon {
     display: block;
-    width: 16px;
-    height: 16px;
+    width: 24px;
+    height: 24px;
   }
 }
 
@@ -319,7 +322,7 @@ body {
   justify-content: center;
   align-items: center;
   gap: 12px;
-  margin-bottom: clamp(10px, 2.5dvh, 30px);
+  margin: 30px auto;
 }
 
 .daily-number {
@@ -350,8 +353,8 @@ body {
 .target-tile {
   position: relative;
   background-color: var(--white);
-  color: var(--black);
-  border: 3px solid var(--black);
+  color: var(--dark-border);
+  border: 3px solid var(--dark-border);
   padding: clamp(8px, 1.2dvh, 14px) clamp(10px, 2.5vw, 18px);
   font-size: clamp(2.8rem, 6vmin, 4.5rem);
   font-weight: 900;
@@ -362,23 +365,16 @@ body {
 .target-tile::before {
   content: '';
   position: absolute;
-  top: 5px;
-  left: calc(50% - 8px);
-  width: 6px;
-  height: 6px;
-  background: var(--black);
-  border-radius: 50%;
+  top: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 4px;
+  height: 10px;
+  background: var(--dark-border);
 }
 
 .target-tile::after {
-  content: '';
-  position: absolute;
-  top: 5px;
-  right: calc(50% - 8px);
-  width: 6px;
-  height: 6px;
-  background: var(--black);
-  border-radius: 50%;
+  display: none;
 }
 
 /* =============================================================================
@@ -475,7 +471,7 @@ body {
 .landing-logo {
   width: clamp(110px, 30vw, 150px);
   height: auto;
-  border: 3px solid #2E3335;
+  border: 3px solid var(--dark-border);
   border-radius: 6px;
 }
 
@@ -683,7 +679,7 @@ body {
 .victory-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.88);
+  background: rgba(0, 0, 0, 0.75);
   z-index: 999;
 }
 
@@ -703,10 +699,10 @@ body {
 }
 
 .victory-icon {
-  font-size: clamp(3rem, 8vmin, 5.5rem);
+  font-size: clamp(6rem, 18vmin, 10rem);
   color: var(--white);
   line-height: 1;
-  margin-bottom: 16px;
+  margin-bottom: 32px;
   animation: victory-check 0.5s ease-out;
 }
 
@@ -721,7 +717,7 @@ body {
   padding: 0.1em 0.8em;
   color: var(--white);
   background-color: var(--red);
-  margin: 0 0 20px 0;
+  margin: 0 0 32px 0;
   font-size: clamp(1.4rem, 4vw, 2.6rem);
   font-weight: 900;
   letter-spacing: -0.02em;
@@ -731,7 +727,7 @@ body {
 .victory-message {
   color: #fff;
   font-size: clamp(1rem, 2.5vw, 1.3rem);
-  margin: 0 0 8px 0;
+  margin: 0 0 12px 0;
   line-height: 1.5;
 }
 
@@ -743,11 +739,11 @@ body {
 .victory-hint {
   color: rgba(255,255,255,0.55);
   font-size: 0.9rem;
-  margin: 4px 0 0 0;
+  margin: 8px 0 0 0;
 }
 
 .victory-actions {
-  margin-top: 28px;
+  margin-top: 40px;
   display: flex;
   flex-direction: column;
   gap: 10px;
@@ -760,7 +756,7 @@ body {
   font-size: 1rem;
   font-weight: 700;
   cursor: pointer;
-  min-width: 260px;
+  min-width: 200px;
   border-radius: 8px;
   letter-spacing: 0.02em;
 }
@@ -775,13 +771,13 @@ body {
 }
 
 .victory-btn.secondary {
-  background: rgba(255,255,255,0.15);
+  background: var(--blue);
   color: #fff;
-  border: 2px solid rgba(255,255,255,0.4);
+  border: none;
 }
 
 .victory-btn.secondary:hover {
-  background: rgba(255,255,255,0.25);
+  background: var(--blue-hover);
 }
 
 .victory-btn.share {
@@ -838,7 +834,7 @@ body {
   height: 1.8em;
   font-size: 1.35em;
   color: var(--text);
-  border: 2px solid var(--border-light);
+  border: 2px solid var(--dark-border);
   font-weight: 700;
   display: flex;
   justify-content: center;
@@ -953,7 +949,7 @@ body {
 }
 
 .calc-key.inactive {
-  background-color: var(--gray);
+  background-color: var(--red);
   color: var(--white);
 }
 
@@ -974,7 +970,7 @@ body {
 }
 
 .reset-key {
-  background-color: var(--black);
+  background-color: var(--dark-border);
   color: var(--white);
   grid-column: span 5;
   font-size: 1em;
@@ -984,7 +980,7 @@ body {
 }
 
 .submit-key {
-  background-color: var(--black);
+  background-color: var(--dark-border);
   color: var(--white);
   grid-column: span 5;
   font-size: 1em;
@@ -994,53 +990,14 @@ body {
 }
 
 .key.inactive {
-  opacity: 1;
-  filter: saturate(0.15) brightness(1.1);
-}
-
-/* Override: used/inactive init-key shows as gray (not desaturated red) */
-.init-key.inactive {
+  opacity: 0.35;
   filter: none;
-  background-color: var(--gray);
-  color: var(--white);
 }
 
 .spacer {
   grid-column: span 1;
 }
 
-/* =============================================================================
-   KEYBOARD ACTION BAR
-   ============================================================================= */
-
-.keyboard-action-bar {
-  display: flex;
-  width: 100%;
-  background: var(--black);
-  padding: 6px clamp(8px, 2vw, 20px);
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-.keyboard-action-bar .key {
-  flex: 1;
-  font-size: clamp(0.75rem, 3vmin, 1.1rem);
-  border-radius: 4px;
-  height: clamp(2.2em, 3.5dvh, 2.8em);
-}
-
-.keyboard-action-bar .reset-key,
-.keyboard-action-bar .submit-key {
-  grid-column: unset;
-  border-radius: 4px;
-  flex: 1.4;
-  background-color: #333;
-}
-
-.keyboard-action-bar .operator-key {
-  grid-column: unset;
-  flex: 1;
-}
 
 /* =============================================================================
    KEYBOARD — RESPONSIVE
@@ -1093,6 +1050,18 @@ body {
   padding: clamp(16px, 4dvh, 40px) 20px;
 }
 
+.dark-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: 1100;
+  overflow-y: auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
 .auth-close {
   position: fixed;
   top: 16px;
@@ -1113,7 +1082,7 @@ body {
 
 .auth-modal {
   width: 100%;
-  max-width: 420px;
+  max-width: 320px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1124,7 +1093,7 @@ body {
 .auth-logo {
   width: clamp(110px, 30vw, 150px);
   height: auto;
-  border: 3px solid #2E3335;
+  border: 3px solid var(--dark-border);
   border-radius: 6px;
   margin-bottom: 16px;
 }
@@ -1217,6 +1186,14 @@ body {
 
 .auth-submit:hover:not(:disabled) {
   background: var(--yellow-hover);
+}
+
+.auth-submit.register {
+  background: var(--blue);
+}
+
+.auth-submit.register:hover:not(:disabled) {
+  background: var(--blue-hover);
 }
 
 .auth-submit:disabled {
@@ -1319,10 +1296,6 @@ body {
   max-width: 500px;
   max-height: 80vh;
   overflow-y: auto;
-  position: fixed;
-  top: 10%;
-  left: 50%;
-  transform: translateX(-50%);
   color: #fff;
   border-radius: 8px;
 }
@@ -1336,9 +1309,9 @@ body {
 
 .profile-title {
   display: inline-block;
-  background: var(--red);
+  background: var(--blue);
   color: var(--white);
-  font-size: 2.2rem;
+  font-size: 1.4rem;
   font-weight: 900;
   padding: 0.1em 0.8em;
   margin: 0;
@@ -1420,6 +1393,8 @@ body {
   width: auto;
   padding: 10px 16px;
   white-space: nowrap;
+  background: var(--blue);
+  border-radius: 6px;
 }
 
 .profile-modal .form-group label {
@@ -1442,6 +1417,12 @@ body {
   width: 100%;
   border-radius: 8px;
   margin: 6px 0 0;
+}
+
+.profile-modal .auth-submit.inline-submit {
+  background: var(--blue);
+  width: auto;
+  border-radius: 6px;
 }
 
 .profile-modal .auth-message {
@@ -1613,13 +1594,13 @@ body {
 }
 
 .friend-remove {
-  background: rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.7);
-  border: 1px solid rgba(255,255,255,0.2);
+  background: var(--red);
+  color: #fff;
+  border: none;
 }
 
 .friend-remove:hover {
-  background: rgba(255,255,255,0.2);
+  background: var(--yellow-hover);
   color: #fff;
 }
 
@@ -2291,8 +2272,7 @@ body {
 
 /* "?" button in user bar */
 .bar-btn.tutorial-trigger {
-  padding: 5px 9px;
-  font-size: 1rem;
   font-weight: 900;
+  font-size: 24px;
   line-height: 1;
 }

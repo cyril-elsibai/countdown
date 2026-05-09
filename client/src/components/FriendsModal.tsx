@@ -70,7 +70,7 @@ export default function FriendsModal({ onClose }: FriendsModalProps) {
   const accepted = friends.filter(f => f.status === 'ACCEPTED');
 
   return (
-    <div className="auth-overlay" onClick={onClose}>
+    <div className="dark-overlay" onClick={onClose}>
       <div className="friends-modal" onClick={(e) => e.stopPropagation()}>
 
         <div className="profile-header">

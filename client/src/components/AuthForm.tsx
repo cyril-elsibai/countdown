@@ -67,7 +67,7 @@ export default function AuthForm({ onSuccess, onCancel, initialMode = 'login' }:
   const getSubmitText = () => {
     if (loading) return 'Please wait...';
     if (mode === 'login') return 'Sign In';
-    if (mode === 'register') return 'Create Account';
+    if (mode === 'register') return 'Register';
     return 'Send Reset Link';
   };
 
@@ -129,7 +129,7 @@ export default function AuthForm({ onSuccess, onCancel, initialMode = 'login' }:
 
           {error && <div className="auth-error">{error}</div>}
 
-          <button type="submit" className="auth-submit" disabled={loading}>
+          <button type="submit" className={`auth-submit${mode === 'register' ? ' register' : ''}`} disabled={loading}>
             {getSubmitText()}
           </button>
 

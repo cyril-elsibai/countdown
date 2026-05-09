@@ -54,7 +54,7 @@ export default function Profile({ user, onUserUpdate, onClose, onLogout }: Profi
   };
 
   return (
-    <div className="auth-overlay" onClick={onClose}>
+    <div className="dark-overlay" onClick={onClose}>
       <div className="profile-modal" onClick={(e) => e.stopPropagation()}>
         <div className="profile-header">
           <h1 className="profile-title">Profile</h1>

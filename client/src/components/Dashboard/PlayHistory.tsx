@@ -116,12 +116,14 @@ export default function PlayHistory({ onPlayFrame, onSelectFrame }: PlayHistoryP
                       : <span className="history-status tried">Not solved</span>
                   }
                   <span className="history-item-date">{formatTimeAgo(item.playedAt)}</span>
-                  <button
-                    className={`history-action-btn ${item.solved ? 'view' : 'play'}`}
-                    onClick={() => onPlayFrame(item.frameId, item.name ?? undefined)}
-                  >
-                    {item.solved ? 'View' : 'Play'}
-                  </button>
+                  {!item.solved && (
+                    <button
+                      className="history-action-btn play"
+                      onClick={() => onPlayFrame(item.frameId, item.name ?? undefined)}
+                    >
+                      Play
+                    </button>
+                  )}
                 </div>
               ))}
             </div>

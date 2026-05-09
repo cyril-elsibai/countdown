@@ -222,12 +222,12 @@ export default function App() {
     }
   }, []);
 
-  // Auto-redirect to dashboard if daily challenge is already solved
+  // Redirect to dashboard if the current frame has already been solved
   useEffect(() => {
-    if (previousResult?.solved && user && currentRoute === 'home' && !gameWon) {
+    if (previousResult?.solved && user && !gameWon) {
       navigateToDashboard();
     }
-  }, [previousResult, user, currentRoute, gameWon]);
+  }, [previousResult, user, gameWon]);
 
   // Initialize game — load shared frame directly if URL contains /play/:id and user is logged in
   useEffect(() => {
@@ -326,7 +326,7 @@ export default function App() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  const initializeGame = async () => {
+  const initializeGame = async (fromNavigation = false) => {
     setLoading(true);
 
     try {
@@ -379,8 +379,8 @@ export default function App() {
           activeFrameRef.current = { id: fetchedFrame.id, timer: prevResult.duration, best: prevResult.result ?? 0 };
         }
         setGamePhase('playing');
-      } else if (isLoggedIn() && startedAt && (Date.now() - new Date(startedAt).getTime()) > 30000) {
-        // Mid-game reload — startedAt is old enough to be a real in-progress session
+      } else if (!fromNavigation && isLoggedIn() && startedAt && (Date.now() - new Date(startedAt).getTime()) > 30000) {
+        // Mid-game page reload — startedAt is old enough to be a real in-progress session
         setServerStartTime(new Date(startedAt));
         setGamePhase('playing');
       } else if (isLoggedIn()) {
@@ -501,7 +501,7 @@ export default function App() {
     setPlayFrameId(null);
     window.history.pushState({}, '', '/');
     // Reload daily challenge
-    initializeGame();
+    initializeGame(true);
   };
 
   const handlePlayHistorical = async (frameId: string, frameName?: string) => {
@@ -1038,8 +1038,8 @@ export default function App() {
     <div className={`app-container${currentRoute !== 'dashboard' ? ' game-view' : ''}`}>
       <div className="content-wrapper">
         {/* Shared header */}
-        <div className="user-bar">
-          <div className="user-bar-left">
+        <div className="header">
+          <div className="logo-wrap">
             <img
               className="site-logo"
               src="/logo.png"
@@ -1050,7 +1050,7 @@ export default function App() {
               }}
             />
           </div>
-          <div className="user-bar-right">
+          <div className="user-bar">
             {user ? (
               <>
                 {currentRoute !== 'dashboard' && (
@@ -1228,7 +1228,7 @@ export default function App() {
 
 
         {/* Victory Modal - Signed In User */}
-        {gameWon && !previousResult?.solved && wonWhileSignedIn && (
+        {gameWon && wonWhileSignedIn && (
           <>
             <div className="victory-overlay" onClick={(e) => e.stopPropagation()} />
             <div className="victory-modal-new">
@@ -1246,16 +1246,14 @@ export default function App() {
               )}
               <div className="victory-actions">
                 <button className="victory-btn primary" onClick={handlePlayRandom}>
-                  Play Random Challenge
+                  Play Random
                 </button>
                 <button className="victory-btn secondary" onClick={navigateToDashboard}>
                   View Dashboard
                 </button>
-                {currentRoute !== 'home' && (
-                  <button className="victory-btn share" onClick={handleShare}>
-                    {shareCopied ? '✓ Copied to clipboard!' : '🔗 Share your result'}
-                  </button>
-                )}
+                <button className="victory-btn share" onClick={handleShare}>
+                  {shareCopied ? '✓ Copied to clipboard!' : '🔗 Share your result'}
+                </button>
               </div>
             </div>
           </>
@@ -1317,7 +1315,7 @@ export default function App() {
           })}
         </div>
 
-        {/* Keyboard — number tiles */}
+        {/* Keyboard */}
         <div className={`keyboard ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
           {initCards.map((card, i) => (
             <button
@@ -1342,10 +1340,7 @@ export default function App() {
               {key.value}
             </button>
           ))}
-        </div>
 
-        {/* Action bar — reset / operators / submit */}
-        <div className={`keyboard-action-bar ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
           <button className="key reset-key" onClick={resetGame} disabled={gameWon || (previousResult?.solved)}>Reset</button>
           {['+', '-', '×', '/'].map(op => (
             <button

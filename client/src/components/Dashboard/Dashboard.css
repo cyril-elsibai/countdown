@@ -8,9 +8,10 @@
    ============================================================================= */
 
 .dashboard-page {
-  min-height: 100dvh;
+  min-height: 100%;
   background: var(--bg);
   padding: 20px;
+  margin-top: 30px;
 }
 
 .dashboard-container {
@@ -47,10 +48,10 @@
 .challenge-btn {
   padding: 10px 20px;
   background: var(--yellow);
-  border: 2px solid var(--black);
+  border: 2px solid var(--border-light);
   font-weight: 900;
   cursor: pointer;
-  color: var(--black);
+  color: #fff;
   font-size: 0.85rem;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -161,11 +162,11 @@
 }
 
 .burger-btn {
-  background: var(--yellow);
-  border: 2px solid var(--black);
+  background: var(--blue);
+  border: 2px solid var(--border-light);
   font-size: 1.2rem;
   cursor: pointer;
-  color: var(--black);
+  color: #fff;
   padding: 4px 10px;
   line-height: 1;
   font-weight: 900;
@@ -175,7 +176,7 @@
   flex-direction: column;
   gap: 2px;
   margin-bottom: 16px;
-  background: var(--black);
+  background: var(--dark-border);
   padding: 8px;
 }
 
@@ -194,8 +195,8 @@
 }
 
 .burger-menu button.active {
-  background: var(--yellow);
-  color: var(--black);
+  background: var(--blue);
+  color: #fff;
 }
 
 .dashboard-content {
@@ -222,9 +223,9 @@
 .calendar-nav .nav-btn {
   padding: 8px 14px;
   background: var(--yellow);
-  border: 2px solid var(--black);
+  border: 2px solid var(--border-light);
   cursor: pointer;
-  color: var(--black);
+  color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -284,6 +285,7 @@
 .challenge-tile.solved   { background: var(--surface); }
 .challenge-tile.tried    { background: var(--surface); }
 
+
 /* Difficulty strip */
 .difficulty-bar {
   position: absolute;
@@ -322,7 +324,7 @@
   color: #fff;
 }
 
-.status-bar.unplayed { background: var(--yellow); color: var(--black); }
+.status-bar.unplayed { background: var(--blue); color: #fff; }
 .status-bar.solved   { background: var(--status-solved); }
 .status-bar.tried    { background: var(--status-failed); }
 
@@ -999,7 +1001,7 @@
 
 .history-action-btn.play {
   background: var(--yellow);
-  color: var(--black);
+  color: #fff;
   border-color: var(--yellow);
 }
 
