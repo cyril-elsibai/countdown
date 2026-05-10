@@ -1,6 +1,6 @@
-/* =============================================================================
+/* ============================================================
    67words — App Layout
-   ============================================================================= */
+   ============================================================ */
 
 .app {
   display: flex;
@@ -23,38 +23,61 @@
   flex-shrink: 0;
   position: relative;
   z-index: 10;
-  border-bottom: 2px solid var(--dark-border);
 }
 
 .app-header-inner {
   max-width: 480px;
   margin: 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
-.logo-wrap {
+  padding: 0 16px;
+  height: 52px;
   display: flex;
   align-items: center;
-  padding: 10px 0;
+  justify-content: space-between;
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
 }
 
-.site-logo {
-  width: 100px;
-  height: 100px;
-  display: block;
-  cursor: pointer;
-  user-select: none;
+.logo-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 2px;
+  line-height: 1;
 }
 
-.user-bar {
-  width: 100%;
+.logo-67 {
+  font-size: 1.5rem;
+  font-weight: 900;
+  color: var(--red);
+  letter-spacing: -0.02em;
+}
+
+.logo-words {
+  font-size: 1.1rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text);
+}
+
+.header-right {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding-bottom: 8px;
+  gap: 10px;
+}
+
+.header-user {
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bar-btn {
@@ -63,32 +86,29 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   padding: 6px 12px;
-  border-radius: 4px;
-  border: 2px solid var(--border-light);
+  border: 2px solid var(--border);
 }
 
 .bar-btn.primary {
-  background: var(--red);
-  color: var(--white);
-  border-color: var(--red);
+  background: var(--yellow);
+  color: var(--black);
 }
-.bar-btn.primary:hover { background: var(--red-hover); }
+.bar-btn.primary:hover { background: #d4b800; }
 
 .bar-btn.secondary {
-  background: transparent;
+  background: var(--surface);
   color: var(--text);
-  border: none;
-  padding: 4px 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  padding: 7px 10px;
 }
-.bar-btn.secondary:hover { opacity: 0.65; }
+.bar-btn.secondary:hover { background: var(--surface-alt); }
 
 .btn-icon {
   display: block;
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
 }
 
@@ -170,20 +190,18 @@
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  border-radius: 6px;
+  border: 2px solid var(--border);
 }
 
 .pregame-btn.primary {
-  background: var(--red);
-  color: var(--white);
-  border: none;
+  background: var(--yellow);
+  color: var(--black);
 }
-.pregame-btn.primary:hover { background: var(--red-hover); }
+.pregame-btn.primary:hover { background: #d4b800; }
 
 .pregame-btn.secondary {
   background: var(--surface);
   color: var(--text);
-  border: 2px solid var(--border-light);
 }
 .pregame-btn.secondary:hover { background: var(--surface-alt); }
 

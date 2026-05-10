@@ -111,12 +111,10 @@ export default function App() {
       {/* Header — always visible */}
       <header className="app-header">
         <div className="app-header-inner">
-          <button className="logo-btn" onClick={loadDaily}>
-            <span className="logo-67">67</span>
-            <span className="logo-words">words</span>
-          </button>
-
-          <div className="header-right">
+          <div className="logo-wrap">
+            <img className="site-logo" src="/logo.png" alt="6/7 Words" onClick={loadDaily} />
+          </div>
+          <div className="user-bar">
             {user ? (
               <>
                 {screen !== 'dashboard' && (

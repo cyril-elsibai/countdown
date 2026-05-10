@@ -16,7 +16,7 @@
   width: 36px;
   height: 52px;
   background: var(--surface);
-  border: 2px solid var(--border-light);
+  border: 2px solid var(--border);
   color: var(--text);
   font-size: 0.85rem;
   font-weight: 700;

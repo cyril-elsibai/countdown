@@ -50,7 +50,7 @@ export default function ProfileModal({ user, onUserUpdate, onClose, onLogout }: 
   }
 
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="dark-overlay" onClick={onClose}>
       <div className="profile-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Profile</h2>

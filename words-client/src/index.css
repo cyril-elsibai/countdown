@@ -1,39 +1,29 @@
-/* ============================================================
-   67words — Global Styles (Bauhaus vintage palette)
-   ============================================================ */
+/* =============================================================================
+   67words — Global Styles
+   Palette: light gray bg, bright red, medium blue, near-black, white surfaces
+   ============================================================================= */
 
 :root {
-  --red:         #BB3E03;
-  --yellow:      #ECA800;
-  --blue:        #005F73;
-  --black:       #001219;
-  --white:       #FAF5EC;
-  --bg:          #F0E8D8;
-  --surface:     #FAF5EC;
-  --surface-alt: #E4D9C8;
-  --border:      #001219;
-  --border-light:#B8A888;
-  --text:        #001219;
-  --text-muted:  #5A4E3C;
+  --red:          #E4311A;
+  --red-hover:    #C82D17;
+  --blue:         #5A97D5;
+  --blue-hover:   #4A7FC0;
+  --black:        #1C1C1C;
+  --white:        #FFFFFF;
+  --gray:         #AAAAAA;
+  --dark-border:  #2E3335;
 
-  --correct:  #4A7C3F;
-  --present:  #ECA800;
-  --absent:   #6B5E52;
-}
+  --bg:           #ECEDEC;
+  --surface:      #FFFFFF;
+  --surface-alt:  #F2F2F2;
+  --text:         #1C1C1C;
+  --text-muted:   #888888;
+  --border:       #1C1C1C;
+  --border-light: #CCCCCC;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg:          #0D1B20;
-    --surface:     #1A2E35;
-    --surface-alt: #243D45;
-    --border:      #FAF5EC;
-    --border-light:#4A6670;
-    --text:        #FAF5EC;
-    --text-muted:  #9BB5BD;
-    --correct:     #6A9E5A;
-    --present:     #ECA800;
-    --absent:      #4A433E;
-  }
+  --correct:  #2E7D32;
+  --present:  #E65100;
+  --absent:   #6B6B6B;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -47,10 +37,6 @@ html, body, #root {
 body {
   font-family: 'Arial', sans-serif;
   background-color: var(--bg);
-  background-image:
-    linear-gradient(90deg, var(--border-light) 1px, transparent 1px),
-    linear-gradient(0deg,  var(--border-light) 1px, transparent 1px);
-  background-size: 120px 120px;
   color: var(--text);
   -webkit-font-smoothing: antialiased;
 }

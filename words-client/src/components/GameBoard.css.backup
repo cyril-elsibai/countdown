@@ -13,7 +13,6 @@
   width: 58px;
   height: 58px;
   border: 2px solid var(--border-light);
-  border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;

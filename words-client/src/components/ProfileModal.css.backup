@@ -1,0 +1,213 @@
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 18, 25, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.profile-modal {
+  background: var(--surface);
+  border: 2px solid var(--border);
+  padding: 28px 28px 24px;
+  width: 90vw;
+  max-width: 400px;
+  max-height: 85vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.modal-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1rem;
+  color: var(--text-muted);
+  padding: 4px 8px;
+}
+.modal-close:hover { color: var(--text); }
+
+.logout-btn {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+.logout-btn:hover { color: var(--red); }
+
+.modal-message { color: var(--blue); font-size: 0.85rem; margin: 0 0 4px; }
+.modal-error   { color: var(--red);  font-size: 0.85rem; margin: 0 0 4px; }
+
+.modal-section {
+  margin-bottom: 24px;
+}
+
+.modal-section h3 {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin: 0 0 10px;
+}
+
+.inline-form {
+  display: flex;
+  gap: 8px;
+}
+
+.inline-form input {
+  flex: 1;
+  background: var(--surface-alt);
+  border: 2px solid var(--border);
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+  min-width: 0;
+}
+.inline-form input:focus { border-color: var(--blue); }
+
+.inline-btn {
+  background: var(--yellow);
+  border: 2px solid var(--border);
+  color: var(--black);
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 8px 14px;
+  white-space: nowrap;
+}
+.inline-btn:hover:not(:disabled) { background: #d4b800; }
+.inline-btn:disabled { opacity: 0.5; }
+
+.form-field {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 12px;
+}
+
+.form-field label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 5px;
+}
+
+.form-field input {
+  background: var(--surface-alt);
+  border: 2px solid var(--border);
+  padding: 8px 10px;
+  font-size: 0.9rem;
+  color: var(--text);
+  outline: none;
+}
+.form-field input:focus { border-color: var(--blue); }
+
+.block-btn {
+  width: 100%;
+  background: var(--surface-alt);
+  border: 2px solid var(--border);
+  color: var(--text);
+  font-weight: 700;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 10px;
+  margin-top: 4px;
+}
+.block-btn:hover:not(:disabled) { background: var(--border-light); }
+
+/* Friends list */
+.friends-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.friend-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.friend-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.friend-name {
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.friend-status {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.friend-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.friend-btn {
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 5px 10px;
+  border: 2px solid var(--border);
+}
+
+.friend-btn.accept {
+  background: var(--yellow);
+  color: var(--black);
+}
+.friend-btn.accept:hover { background: #d4b800; }
+
+.friend-btn.remove {
+  background: transparent;
+  color: var(--text-muted);
+}
+.friend-btn.remove:hover { color: var(--red); border-color: var(--red); }
+
+.friends-empty {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+  margin: 0;
+}

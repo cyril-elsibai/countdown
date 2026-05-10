@@ -75,6 +75,7 @@ export default function AuthModal({ onClose, onAuth }: Props) {
     <div className="auth-overlay" onClick={onClose}>
       <div className="auth-modal" onClick={e => e.stopPropagation()}>
         <button className="auth-close" onClick={onClose}>✕</button>
+        <img src="/logo.png" className="auth-logo" alt="6/7 Words" />
 
         {view === 'login' && (
           <>
