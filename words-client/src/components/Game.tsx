@@ -184,7 +184,11 @@ export default function Game({ initialState, isDaily, userId, onPlayRandom, onDa
 
       // Save in-progress state to localStorage (guests and logged-in alike)
       try {
-        localStorage.setItem(`wg-${word.id}`, JSON.stringify({ guesses: newGuesses.map(g => g.guess) }));
+        localStorage.setItem(`wg-${word.id}`, JSON.stringify({
+          guesses: newGuesses.map(g => g.guess),
+          solved,
+          gameOver: newGameOver,
+        }));
       } catch {}
 
       // Persist to server for logged-in users once game is over — retry up to 3 times

@@ -97,11 +97,31 @@ export default function App() {
     setScreen('playing');
   }
 
+  async function submitGuestGames() {
+    const prefix = 'wg-';
+    for (const key of Object.keys(localStorage).filter(k => k.startsWith(prefix))) {
+      try {
+        const raw = localStorage.getItem(key);
+        if (!raw) continue;
+        const { guesses, solved, gameOver } = JSON.parse(raw) as { guesses: string[]; solved?: boolean; gameOver?: boolean };
+        if (!gameOver || !Array.isArray(guesses) || guesses.length === 0) continue;
+        const wordId = key.slice(prefix.length);
+        try {
+          await wordleApi.submitResult(wordId, guesses, solved ?? false);
+        } catch (err: any) {
+          if (err.message !== 'Already submitted') continue; // leave it for next login
+        }
+        localStorage.removeItem(key);
+      } catch {}
+    }
+  }
+
   async function handleAuth(newUser: User, token: string) {
     setToken(token);
     setUser(newUser);
     setShowAuth(false);
     setScreen('loading');
+    await submitGuestGames();
     try {
       const state = await wordleApi.getDaily();
       setGameState(state);
