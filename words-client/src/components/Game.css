@@ -279,10 +279,10 @@
 .play-again-btn.secondary:hover:not(:disabled) { background: var(--blue-hover); }
 
 .play-again-btn.register-btn {
-  background: var(--black);
+  background: var(--blue);
   color: #fff;
 }
-.play-again-btn.register-btn:hover { background: #333; }
+.play-again-btn.register-btn:hover { background: var(--blue-hover); }
 
 .play-again-btn.share-btn {
   background: var(--blue);

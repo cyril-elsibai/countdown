@@ -381,7 +381,7 @@ export default function Game({ initialState, isDaily, userId, onPlayRandom, onDa
             )}
             {!userId && (
               <button className="play-again-btn register-btn" onClick={onRegister}>
-                Create Account
+                Register
               </button>
             )}
           </div>
