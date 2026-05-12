@@ -368,22 +368,24 @@ export default function Game({ initialState, isDaily, userId, onPlayRandom, onDa
               <p className="result-save-error">Result could not be saved. Check your connection.</p>
             )}
 
-            <button className="play-again-btn" onClick={onPlayRandom}>
-              Play Random
-            </button>
-            <button className="play-again-btn secondary" onClick={onDashboard} disabled={!userId}>
-              Dashboard
-            </button>
-            {solved && (
-              <button className="play-again-btn share-btn" onClick={handleShare} disabled={!userId}>
-                {shareCopied ? 'Copied!' : 'Share'}
+            <div className="result-actions">
+              <button className="play-again-btn" onClick={onPlayRandom}>
+                Play Random
               </button>
-            )}
-            {!userId && (
-              <button className="play-again-btn register-btn" onClick={onRegister}>
-                Register
+              <button className="play-again-btn secondary" onClick={onDashboard} disabled={!userId}>
+                Dashboard
               </button>
-            )}
+              {solved && (
+                <button className="play-again-btn share-btn" onClick={handleShare} disabled={!userId}>
+                  {shareCopied ? 'Copied!' : 'Share'}
+                </button>
+              )}
+              {!userId && (
+                <button className="play-again-btn register-btn" onClick={onRegister}>
+                  Register
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
