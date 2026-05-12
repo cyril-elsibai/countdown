@@ -53,7 +53,7 @@ export interface WordleGameState {
   gameOver: boolean;
   duration: number | null;
   startedAt: string | null;
-  answer: string | null; // only revealed when gameOver
+  answer: string | null; // null if server hasn't been updated yet; always set by current server
 }
 
 export interface User {
@@ -73,7 +73,7 @@ export const authApi = {
       body: JSON.stringify({ email, password }),
     }),
 
-  register: (email: string, password: string, name: string) =>
+  register: (email: string, password: string, name?: string) =>
     request<{ message: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ email, password, name }),
@@ -140,6 +140,12 @@ export const wordleApi = {
 
   getWordStats: (id: string) =>
     request<{ totalPlays: number; winRate: number; guessDist: number[] }>(`/wordle/word/${id}/stats`),
+
+  submitResult: (id: string, guesses: string[], solved: boolean) =>
+    request<{ saved: boolean }>(`/wordle/word/${id}/result`, {
+      method: 'POST',
+      body: JSON.stringify({ guesses, solved }),
+    }),
 };
 
 // =============================================================================

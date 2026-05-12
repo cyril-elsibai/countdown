@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { authApi, wordleApi, setToken, removeToken } from './api';
 import type { User, WordleGameState } from './api';
+import { loadWordLists } from './wordlist';
 import Game from './components/Game';
 import AuthModal from './components/AuthModal';
 import ProfileModal from './components/ProfileModal';
@@ -19,6 +20,7 @@ export default function App() {
   const [user, setUser] = useState<User | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
+  const [authInitialView, setAuthInitialView] = useState<'login' | 'register'>('login');
   const [showProfile, setShowProfile] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [screen, setScreen] = useState<Screen>('loading');
@@ -26,20 +28,38 @@ export default function App() {
   const [isDaily, setIsDaily] = useState(false);
   const [loadError, setLoadError] = useState('');
 
-  // Check auth on mount
+  // Load word lists and check auth on mount (in parallel)
   useEffect(() => {
+    loadWordLists().catch(() => {}); // non-blocking; isValidWord fails open if not loaded
     authApi.me()
       .then(({ user }) => setUser(user))
       .catch(() => {})
       .finally(() => setAuthChecked(true));
   }, []);
 
-  // Load daily challenge on mount
+  // Initial load on mount: logged-in user with completed daily → dashboard
   useEffect(() => {
     if (!authChecked) return;
-    loadDaily();
+    setScreen('loading');
+    wordleApi.getDaily()
+      .then(state => {
+        setGameState(state);
+        setIsDaily(true);
+        if (state.gameOver && user) {
+          setScreen('dashboard');
+        } else if (state.gameOver) {
+          setScreen('playing');
+        } else {
+          setScreen('pregame');
+        }
+      })
+      .catch(() => {
+        setLoadError('Failed to load today\'s word. Please refresh.');
+        setScreen('pregame');
+      });
   }, [authChecked]);
 
+  // Explicit navigation to daily (from dashboard or landing modal)
   async function loadDaily() {
     setScreen('loading');
     setLoadError('');
@@ -77,17 +97,27 @@ export default function App() {
     setScreen('playing');
   }
 
-  function handleAuth(newUser: User, token: string) {
+  async function handleAuth(newUser: User, token: string) {
     setToken(token);
     setUser(newUser);
     setShowAuth(false);
-    loadDaily();
+    setScreen('loading');
+    try {
+      const state = await wordleApi.getDaily();
+      setGameState(state);
+      setIsDaily(true);
+      setScreen(state.gameOver ? 'dashboard' : 'playing');
+    } catch (err) {
+      console.error('handleAuth loadDaily failed:', err);
+      setScreen('pregame');
+    }
   }
 
   function handleSignOut() {
     removeToken();
     setUser(null);
     setShowProfile(false);
+    setScreen('pregame');
   }
 
   const wordLength = gameState?.word.wordLength;
@@ -141,7 +171,9 @@ export default function App() {
                 </button>
               </>
             ) : (
-              <button className="bar-btn primary" onClick={() => setShowAuth(true)}>Sign In</button>
+              screen !== 'playing' && (
+                <button className="bar-btn primary" onClick={() => setShowAuth(true)}>Sign In</button>
+              )
             )}
           </div>
         </div>
@@ -154,42 +186,41 @@ export default function App() {
           )}
 
           {screen === 'pregame' && gameState && (
-            <div className="pregame">
-              <div className="pregame-info">
-                <div className="pregame-label">Today's Word</div>
-                <div className="pregame-name">{gameState.word.name}</div>
-                <div className="pregame-length">{wordLength} letters · {gameState.maxGuesses} guesses</div>
+            <>
+              <div className="landing-overlay" />
+              <div className="landing-modal">
+                <img src="/logo.png" className="landing-logo" alt="6/7 Words" />
+                <p className="landing-headline">6/7 Words</p>
+                <p className="landing-desc">Six guesses to uncover a hidden 6 or 7 letter word. Each attempt reveals which letters are in the word and which are in the right position. Register to challenge your friends!</p>
+                {loadError && <p className="load-error">{loadError}</p>}
+                <div className="landing-actions">
+                  {user ? (
+                    <>
+                      <button className="landing-btn login" onClick={startDaily}>
+                        {gameState.gameOver ? 'View Result' : "Play Today's Word"}
+                      </button>
+                      <button className="landing-btn register" onClick={playRandom}>Play Random</button>
+                    </>
+                  ) : (
+                    <>
+                      <button className="landing-btn login" onClick={() => { setAuthInitialView('login'); setShowAuth(true); }}>Login</button>
+                      <button className="landing-btn register" onClick={() => { setAuthInitialView('register'); setShowAuth(true); }}>Register</button>
+                      <button className="landing-btn guest" onClick={startDaily}>Continue as guest</button>
+                    </>
+                  )}
+                </div>
               </div>
-
-              {loadError && <p className="load-error">{loadError}</p>}
-
-              {gameState.gameOver ? (
-                <>
-                  <div className="pregame-done">
-                    {gameState.solved ? '✓ Solved' : '✗ Not solved'} — {gameState.answer}
-                  </div>
-                  <button className="pregame-btn primary" onClick={startDaily}>
-                    View Result
-                  </button>
-                </>
-              ) : (
-                <button className="pregame-btn primary" onClick={startDaily}>
-                  Play Today's Word
-                </button>
-              )}
-
-              <button className="pregame-btn secondary" onClick={playRandom}>
-                {user ? 'Play Random' : 'Sign in to play random'}
-              </button>
-            </div>
+            </>
           )}
 
           {screen === 'playing' && gameState && (
             <Game
               initialState={gameState}
               isDaily={isDaily}
+              userId={user?.id ?? null}
               onPlayRandom={playRandom}
               onDashboard={() => setScreen('dashboard')}
+              onRegister={() => { setAuthInitialView('register'); setShowAuth(true); }}
             />
           )}
         </main>
@@ -204,7 +235,7 @@ export default function App() {
       )}
 
       {showAuth && (
-        <AuthModal onClose={() => setShowAuth(false)} onAuth={handleAuth} />
+        <AuthModal onClose={() => setShowAuth(false)} onAuth={handleAuth} initialView={authInitialView} />
       )}
 
       {showProfile && user && (

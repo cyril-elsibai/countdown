@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { wordleApi } from '../api';
 import type { WordleGameState } from '../api';
+import { isValidWord } from '../wordlist';
 import GameBoard from './GameBoard';
 import Keyboard from './Keyboard';
 import './Game.css';
@@ -8,14 +9,32 @@ import './Game.css';
 interface Props {
   initialState: WordleGameState;
   isDaily: boolean;
+  userId: string | null;
   onPlayRandom: () => void;
   onDashboard: () => void;
+  onRegister: () => void;
 }
 
 interface WordStats {
   totalPlays: number;
   winRate: number;
   guessDist: number[];
+}
+
+function evaluateGuessLocally(guess: string, answer: string): import('../api').GuessResult {
+  const g = guess.toUpperCase();
+  const a = answer.toUpperCase();
+  const feedback: import('../api').LetterStatus[] = new Array(g.length).fill('absent');
+  const remaining: (string | null)[] = a.split('');
+  for (let i = 0; i < g.length; i++) {
+    if (g[i] === a[i]) { feedback[i] = 'correct'; remaining[i] = null; }
+  }
+  for (let i = 0; i < g.length; i++) {
+    if (feedback[i] === 'correct') continue;
+    const idx = remaining.indexOf(g[i]);
+    if (idx !== -1) { feedback[i] = 'present'; remaining[idx] = null; }
+  }
+  return { guess: g, feedback, solved: g === a };
 }
 
 function getDailyNumber(name: string | null): number | null {
@@ -43,12 +62,14 @@ function buildShareText(
   return `${header}\n${result}\n\n${grid}`;
 }
 
-export default function Game({ initialState, isDaily, onPlayRandom, onDashboard }: Props) {
+export default function Game({ initialState, isDaily, userId, onPlayRandom, onDashboard, onRegister }: Props) {
   const [state, setState] = useState<WordleGameState>(initialState);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
   const submittingRef = useRef(false);
+  const stateRef = useRef(state);
+  stateRef.current = state; // always points to latest state, avoids stale closures
   const [revealingRow, setRevealingRow] = useState<number | null>(null);
   const [revealedCount, setRevealedCount] = useState(0);
   const [showResult, setShowResult] = useState(initialState.gameOver);
@@ -58,11 +79,29 @@ export default function Game({ initialState, isDaily, onPlayRandom, onDashboard 
   );
   const [wordStats, setWordStats] = useState<WordStats | null>(null);
   const [shareCopied, setShareCopied] = useState(false);
+  const [saveFailed, setSaveFailed] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const wordLength = state.word.wordLength as 6 | 7;
   const { gameOver, solved, guesses, word } = state;
+
+  // Restore in-progress guesses from localStorage on mount
+  useEffect(() => {
+    if (initialState.gameOver || !initialState.answer) return;
+    const saved = localStorage.getItem(`wg-${initialState.word.id}`);
+    if (!saved) return;
+    try {
+      const { guesses: savedGuesses } = JSON.parse(saved) as { guesses: string[] };
+      if (!Array.isArray(savedGuesses) || savedGuesses.length === 0) return;
+      const restored = savedGuesses.map(g => evaluateGuessLocally(g, initialState.answer!));
+      const wasSolved = restored[restored.length - 1]?.solved ?? false;
+      const wasOver = wasSolved || restored.length >= initialState.maxGuesses;
+      setState(prev => ({ ...prev, guesses: restored, guessCount: restored.length, solved: wasSolved, gameOver: wasOver }));
+      setSettledRows(new Set(restored.map((_, i) => i)));
+      if (wasOver) setShowResult(true);
+    } catch {}
+  }, []);
 
   // Start server timer on mount for daily
   useEffect(() => {
@@ -111,9 +150,61 @@ export default function Game({ initialState, isDaily, onPlayRandom, onDashboard 
     }
     submittingRef.current = true;
     try {
-      const newState = await wordleApi.submitGuess(word.id, guess);
-      const newRowIdx = newState.guesses.length - 1;
+      const g = guess.toUpperCase();
+
+      if (!isValidWord(g, wordLength)) {
+        showError('Not a valid word');
+        submittingRef.current = false;
+        return;
+      }
+
+      const current = stateRef.current;
+
+      if (!current.answer) {
+        showError('Word not loaded yet — please refresh');
+        submittingRef.current = false;
+        return;
+      }
+
+      const newRowIdx = current.guesses.length;
+      const newGuess = evaluateGuessLocally(g, current.answer);
+      const newGuesses = [...current.guesses, newGuess];
+      const solved = newGuess.solved;
+      const newGameOver = solved || newGuesses.length >= current.maxGuesses;
+
+      const newState: WordleGameState = {
+        ...current,
+        guesses: newGuesses,
+        guessCount: newGuesses.length,
+        solved,
+        gameOver: newGameOver,
+      };
+
       setState(newState);
+
+      // Save in-progress state to localStorage (guests and logged-in alike)
+      try {
+        localStorage.setItem(`wg-${word.id}`, JSON.stringify({ guesses: newGuesses.map(g => g.guess) }));
+      } catch {}
+
+      // Persist to server for logged-in users once game is over — retry up to 3 times
+      if (newGameOver && userId) {
+        const guessWords = newGuesses.map(g => g.guess);
+        const trySave = async (attemptsLeft: number) => {
+          try {
+            await wordleApi.submitResult(word.id, guessWords, solved);
+            setSaveFailed(false);
+            localStorage.removeItem(`wg-${word.id}`);
+          } catch {
+            if (attemptsLeft > 1) {
+              setTimeout(() => trySave(attemptsLeft - 1), 3000);
+            } else {
+              setSaveFailed(true);
+            }
+          }
+        };
+        trySave(3);
+      }
       setInput('');
       setRevealingRow(newRowIdx);
       setRevealedCount(0);
@@ -127,14 +218,13 @@ export default function Game({ initialState, isDaily, onPlayRandom, onDashboard 
       // Build current best-status map from previous guesses (before this one)
       const statusPriority: Record<string, number> = { correct: 3, present: 2, absent: 1 };
       const prevBest: Record<string, number> = {};
-      for (const g of state.guesses) {
+      for (const g of current.guesses) {
         g.feedback.forEach((s, i) => {
           const l = g.guess[i];
           prevBest[l] = Math.max(prevBest[l] ?? 0, statusPriority[s]);
         });
       }
-      // Only animate letters that get a status upgrade
-      const newGuess = newState.guesses[newRowIdx];
+      // Only animate letters that get a status upgrade (newGuess is set above in both branches)
       const guessedLetters = new Set<string>();
       newGuess.feedback.forEach((s, i) => {
         const l = newGuess.guess[i];
@@ -234,13 +324,13 @@ export default function Game({ initialState, isDaily, onPlayRandom, onDashboard 
               </>
             ) : (
               <>
+                <p className="result-headline lose">So Close!</p>
+                {isDaily && <p className="result-tomorrow">Come back tomorrow for the next one.</p>}
                 <div className="result-answer">
                   {state.answer.split('').map((letter, i) => (
                     <div key={i} className="result-answer-cell">{letter}</div>
                   ))}
                 </div>
-                <p className="result-headline lose">So Close!</p>
-                {isDaily && <p className="result-tomorrow">Come back tomorrow for the next one.</p>}
               </>
             )}
 
@@ -274,17 +364,26 @@ export default function Game({ initialState, isDaily, onPlayRandom, onDashboard 
               </div>
             )}
 
-            {solved && (
-              <button className="play-again-btn share-btn" onClick={handleShare}>
-                {shareCopied ? 'Copied!' : 'Share'}
-              </button>
+            {saveFailed && (
+              <p className="result-save-error">Result could not be saved. Check your connection.</p>
             )}
+
             <button className="play-again-btn" onClick={onPlayRandom}>
               Play Random
             </button>
-            <button className="play-again-btn secondary" onClick={onDashboard}>
+            <button className="play-again-btn secondary" onClick={onDashboard} disabled={!userId}>
               Dashboard
             </button>
+            {solved && (
+              <button className="play-again-btn share-btn" onClick={handleShare} disabled={!userId}>
+                {shareCopied ? 'Copied!' : 'Share'}
+              </button>
+            )}
+            {!userId && (
+              <button className="play-again-btn register-btn" onClick={onRegister}>
+                Create Account
+              </button>
+            )}
           </div>
         </div>
       )}

@@ -52,7 +52,7 @@ function getTodayUTC(): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
 }
 
-/** Build the public game state payload (no answer unless game over) */
+/** Build the public game state payload. Answer is always included — validation happens client-side. */
 function buildGameState(
   wordleWord: { id: string; wordLength: number; date: Date | null; name: string | null; randomNumber: number | null },
   result: { guesses: string[]; solved: boolean; duration: number | null } | null,
@@ -79,8 +79,7 @@ function buildGameState(
     gameOver,
     duration: result?.duration ?? null,
     startedAt: startedAt?.toISOString() ?? null,
-    // Only reveal answer when game is over
-    answer: gameOver ? answer : null,
+    answer,
   };
 }
 
@@ -309,6 +308,50 @@ router.post('/word/:id/guess', optionalAuth, async (req: AuthRequest, res: Respo
     return res.json(buildGameState(wordleWord, resultForState, startedAt, wordleWord.word));
   } catch (err) {
     console.error('POST /wordle/word/:id/guess error:', err);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// =============================================================================
+// POST /api/wordle/word/:id/result  — save completed game (client-side gameplay)
+// =============================================================================
+
+router.post('/word/:id/result', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const userId = req.userId!;
+    const { guesses, solved } = req.body;
+
+    if (!Array.isArray(guesses) || typeof solved !== 'boolean') {
+      return res.status(400).json({ error: 'Invalid payload' });
+    }
+
+    const wordleWord = await prisma.wordleWord.findUnique({ where: { id } });
+    if (!wordleWord) return res.status(404).json({ error: 'Word not found' });
+
+    const existing = await prisma.wordleResult.findUnique({
+      where: { userId_wordId: { userId, wordId: id } },
+    });
+    if (existing) return res.status(409).json({ error: 'Already submitted' });
+
+    const normalizedGuesses: string[] = guesses.map((g: string) => g.trim().toUpperCase());
+
+    let duration: number | null = null;
+    if (wordleWord.date) {
+      const attempt = await prisma.wordleAttempt.findUnique({
+        where: { userId_wordId: { userId, wordId: id } },
+        select: { startedAt: true },
+      });
+      if (attempt) duration = (Date.now() - attempt.startedAt.getTime()) / 1000;
+    }
+
+    await prisma.wordleResult.create({
+      data: { userId, wordId: id, guesses: normalizedGuesses, solved, duration },
+    });
+
+    return res.json({ saved: true });
+  } catch (err) {
+    console.error('POST /wordle/word/:id/result error:', err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 });
