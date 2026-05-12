@@ -1136,15 +1136,18 @@
   background: var(--surface-alt);
 }
 
+.stats-row-label,
+.stats-row-value {
+  padding: 10px 16px;
+}
+
 .stats-row-label {
-  padding: 14px 16px;
   color: var(--text-sub);
   font-size: 0.85rem;
   font-weight: 700;
 }
 
 .stats-row-value {
-  padding: 14px 16px;
   text-align: center;
   font-weight: 900;
   font-size: 1rem;
