@@ -1009,23 +1009,8 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="app-container">
-        <div className="content-wrapper">
-          <div className="header">
-            <h1>6/7 Numbers</h1>
-          </div>
-          {verificationStatus === 'success' && (
-            <div className="verify-container verify-success">
-              <h2>{verificationMessage}</h2>
-            </div>
-          )}
-          {verificationStatus === 'error' && (
-            <div className="verify-container verify-error">
-              <h2>{verificationMessage}</h2>
-            </div>
-          )}
-          <div className="loading">{loadingMessage}</div>
-        </div>
+      <div className="loading-screen">
+        <div className="loading">{loadingMessage}</div>
       </div>
     );
   }

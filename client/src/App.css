@@ -424,12 +424,20 @@ body {
    LOADING
    ============================================================================= */
 
+.loading-screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
 .loading {
   text-align: center;
   font-size: 1.2rem;
   font-weight: 700;
   color: var(--text-muted);
-  padding: 60px 20px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
 }
