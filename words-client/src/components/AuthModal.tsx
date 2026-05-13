@@ -8,10 +8,11 @@ type AuthView = 'login' | 'register' | 'forgot' | 'verify-prompt';
 interface Props {
   onClose: () => void;
   onAuth: (user: User, token: string) => void;
+  initialView?: AuthView;
 }
 
-export default function AuthModal({ onClose, onAuth }: Props) {
-  const [view, setView] = useState<AuthView>('login');
+export default function AuthModal({ onClose, onAuth, initialView = 'login' }: Props) {
+  const [view, setView] = useState<AuthView>(initialView);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -37,7 +38,7 @@ export default function AuthModal({ onClose, onAuth }: Props) {
     e.preventDefault();
     setError(''); setLoading(true);
     try {
-      await authApi.register(email, password, name);
+      await authApi.register(email, password, name || undefined);
       setView('verify-prompt');
     } catch (err: any) {
       setError(err.message);
@@ -71,84 +72,95 @@ export default function AuthModal({ onClose, onAuth }: Props) {
     }
   }
 
+  function switchView(v: AuthView) {
+    setView(v);
+    setError('');
+    setMessage('');
+  }
+
   return (
     <div className="auth-overlay" onClick={onClose}>
+      <button className="auth-close" onClick={onClose}>✕</button>
       <div className="auth-modal" onClick={e => e.stopPropagation()}>
-        <button className="auth-close" onClick={onClose}>✕</button>
         <img src="/logo.png" className="auth-logo" alt="6/7 Words" />
 
         {view === 'login' && (
           <>
-            <h2>Sign In</h2>
+            <p className="auth-mode-title">Sign in</p>
             <form onSubmit={handleLogin}>
-              <div className="auth-field">
-                <label>Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus />
               </div>
-              <div className="auth-field">
-                <label>Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+              <div className="form-group">
+                <label htmlFor="password">Password</label>
+                <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
               </div>
-              <div className="auth-error-wrap"><div style={{ minHeight: 20 }}>{error && <p className="auth-error">{error}</p>}</div></div>
-              <button className="auth-btn primary" type="submit" disabled={loading}>{loading ? '…' : 'Sign In'}</button>
+              {error && <div className="auth-error">{error}</div>}
+              <button className="auth-submit" type="submit" disabled={loading}>{loading ? '…' : 'Sign In'}</button>
+              <button type="button" className="auth-forgot" onClick={() => switchView('forgot')}>Forgot password?</button>
             </form>
-            <div className="auth-links">
-              <button onClick={() => { setView('forgot'); setError(''); }}>Forgot password?</button>
-              <button onClick={() => { setView('register'); setError(''); }}>Create account</button>
+            <div className="auth-switch">
+              Don't have an account?{' '}
+              <button onClick={() => switchView('register')}>Sign up</button>
             </div>
           </>
         )}
 
         {view === 'register' && (
           <>
-            <h2>Create Account</h2>
+            <p className="auth-mode-title">Create account</p>
             <form onSubmit={handleRegister}>
-              <div className="auth-field">
-                <label>Name</label>
-                <input type="text" value={name} onChange={e => setName(e.target.value)} required autoFocus />
+              <div className="form-group">
+                <label htmlFor="name">Name (optional)</label>
+                <input id="name" type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" autoFocus />
               </div>
-              <div className="auth-field">
-                <label>Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required />
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required />
               </div>
-              <div className="auth-field">
-                <label>Password</label>
-                <input type="password" value={password} onChange={e => setPassword(e.target.value)} required />
+              <div className="form-group">
+                <label htmlFor="password">Password</label>
+                <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
               </div>
-              <div className="auth-error-wrap"><div style={{ minHeight: 20 }}>{error && <p className="auth-error">{error}</p>}</div></div>
-              <button className="auth-btn primary" type="submit" disabled={loading}>{loading ? '…' : 'Create Account'}</button>
+              {error && <div className="auth-error">{error}</div>}
+              <button className="auth-submit register" type="submit" disabled={loading}>{loading ? '…' : 'Register'}</button>
             </form>
-            <div className="auth-links">
-              <button onClick={() => { setView('login'); setError(''); }}>Already have an account?</button>
+            <div className="auth-switch">
+              Already have an account?{' '}
+              <button onClick={() => switchView('login')}>Sign in</button>
             </div>
           </>
         )}
 
         {view === 'forgot' && (
           <>
-            <h2>Reset Password</h2>
+            <p className="auth-mode-title">Reset password</p>
             <form onSubmit={handleForgot}>
-              <div className="auth-field">
-                <label>Email</label>
-                <input type="email" value={email} onChange={e => setEmail(e.target.value)} required autoFocus />
+              <div className="form-group">
+                <label htmlFor="email">Email</label>
+                <input id="email" type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" required autoFocus />
               </div>
-              <div className="auth-error-wrap"><div style={{ minHeight: 20 }}>{error && <p className="auth-error">{error}</p>}{message && <p className="auth-message">{message}</p>}</div></div>
-              <button className="auth-btn primary" type="submit" disabled={loading}>{loading ? '…' : 'Send Reset Link'}</button>
+              {error && <div className="auth-error">{error}</div>}
+              {message && <div className="auth-message">{message}</div>}
+              <button className="auth-submit" type="submit" disabled={loading}>{loading ? '…' : 'Send Reset Link'}</button>
             </form>
-            <div className="auth-links">
-              <button onClick={() => { setView('login'); setError(''); setMessage(''); }}>Back to Sign In</button>
+            <div className="auth-switch">
+              Remember your password?{' '}
+              <button onClick={() => switchView('login')}>Sign in</button>
             </div>
           </>
         )}
 
         {view === 'verify-prompt' && (
           <>
-            <h2>Check Your Email</h2>
+            <p className="auth-mode-title">Check your email</p>
             <p className="auth-info">We sent a verification link to <strong>{email}</strong>. Click it to activate your account.</p>
-            <div className="auth-error-wrap"><div style={{ minHeight: 20 }}>{error && <p className="auth-error">{error}</p>}{message && <p className="auth-message">{message}</p>}</div></div>
-            <button className="auth-btn secondary" onClick={handleResend} disabled={loading}>{loading ? '…' : 'Resend Email'}</button>
-            <div className="auth-links">
-              <button onClick={() => { setView('login'); setError(''); setMessage(''); }}>Back to Sign In</button>
+            {error && <div className="auth-error">{error}</div>}
+            {message && <div className="auth-message">{message}</div>}
+            <button className="auth-resend" onClick={handleResend} disabled={loading}>{loading ? '…' : 'Resend verification email'}</button>
+            <div className="auth-switch">
+              <button onClick={() => switchView('login')}>Back to Sign In</button>
             </div>
           </>
         )}
