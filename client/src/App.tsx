@@ -96,6 +96,7 @@ export default function App() {
   const [initialAuthMode, setInitialAuthMode] = useState<'login' | 'register'>('login');
   const [previousResult, setPreviousResult] = useState<PreviousResult | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
+  const [dashboardKey, setDashboardKey] = useState(0);
   const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
   const [countdownNumber, setCountdownNumber] = useState(3);
@@ -492,6 +493,7 @@ export default function App() {
   const navigateToDashboard = () => {
     saveActiveFrameProgress();
     setCurrentRoute('dashboard');
+    setDashboardKey(k => k + 1);
     window.history.pushState({}, '', '/dashboard');
   };
 
@@ -1133,6 +1135,7 @@ export default function App() {
 
         {currentRoute === 'dashboard' ? (
           <Dashboard
+            key={dashboardKey}
             onNavigateHome={navigateToHome}
             onPlayFrame={handlePlayHistorical}
             onPlayRandom={handlePlayRandom}

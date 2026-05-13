@@ -451,7 +451,7 @@ body {
 .landing-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(236, 237, 236, 0.96);
+  background: var(--bg);
   z-index: 1050;
 }
 
@@ -463,15 +463,16 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
-  padding: clamp(16px, 4dvh, 40px) 20px;
+  justify-content: center;
+  gap: 30px;
+  padding: 20px;
   text-align: center;
 }
 
 .landing-logo {
-  width: clamp(110px, 30vw, 150px);
+  width: 100px;
   height: auto;
-  border: 3px solid var(--dark-border);
+  border: 2px solid var(--dark-border);
   border-radius: 6px;
 }
 
@@ -1041,13 +1042,14 @@ body {
 .auth-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(236, 237, 236, 0.97);
+  background: var(--bg);
   z-index: 1100;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: clamp(16px, 4dvh, 40px) 20px;
+  justify-content: center;
+  padding: 20px;
 }
 
 .dark-overlay {
@@ -1091,9 +1093,9 @@ body {
 }
 
 .auth-logo {
-  width: clamp(110px, 30vw, 150px);
+  width: 100px;
   height: auto;
-  border: 3px solid var(--dark-border);
+  border: 2px solid var(--dark-border);
   border-radius: 6px;
   margin-bottom: 16px;
 }
