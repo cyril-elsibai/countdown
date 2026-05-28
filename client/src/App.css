@@ -1041,6 +1041,29 @@ body {
   .submit-key {
     font-size: 1.1em;
   }
+
+  /* Game-view vertical space budget on small phones */
+  .app-container.game-view {
+    padding: 0;
+  }
+
+  .app-container.game-view .site-logo {
+    width: 60px;
+    height: 60px;
+  }
+
+  .app-container.game-view .logo-wrap {
+    padding: 6px 0;
+  }
+
+  .game-header-row {
+    margin: 8px auto;
+  }
+
+  .target-tile {
+    font-size: clamp(2rem, 6vmin, 3.5rem);
+    padding: clamp(4px, 0.8dvh, 10px) clamp(8px, 2vw, 14px);
+  }
 }
 
 /* =============================================================================
