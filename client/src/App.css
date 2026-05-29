@@ -1042,6 +1042,15 @@ body {
     font-size: 1.1em;
   }
 
+  .dark-overlay {
+    padding: 12px;
+  }
+
+  .profile-modal,
+  .friends-modal {
+    padding: 20px;
+  }
+
   /* Game-view vertical space budget on small phones */
   .app-container.game-view {
     padding: 0;
@@ -1424,6 +1433,7 @@ body {
 
 .inline-submit {
   width: auto;
+  min-width: unset;
   padding: 10px 16px;
   white-space: nowrap;
   background: var(--blue);
