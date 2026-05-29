@@ -44,6 +44,12 @@ export default function ChallengeTooltip({
   const canPlay = !challenge.userResult && !isToday();
   const canRetry = challenge.userResult && !challenge.userResult.solved;
 
+  const titleStatus = challenge.userResult?.solved
+    ? 'status-solved'
+    : challenge.userResult
+      ? 'status-failed'
+      : 'status-new';
+
   const placement = position.placement ?? 'above';
 
   return (
@@ -57,7 +63,7 @@ export default function ChallengeTooltip({
       onMouseLeave={onMouseLeave}
     >
       <div className="tooltip-header">
-        <span className="tooltip-daily">Daily #{challenge.dailyNumber}</span>
+        <span className={`tooltip-daily ${titleStatus}`}>Daily #{challenge.dailyNumber}</span>
         <span className="tooltip-date">
           {new Date(challenge.date).toLocaleDateString('en-US', {
             weekday: 'short',

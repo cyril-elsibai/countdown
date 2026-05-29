@@ -403,10 +403,13 @@
 
 .tooltip-daily {
   font-weight: 900;
-  color: var(--yellow);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
+
+.tooltip-daily.status-new    { color: var(--blue); }
+.tooltip-daily.status-solved { color: var(--green); }
+.tooltip-daily.status-failed { color: var(--yellow); }
 
 .tooltip-date {
   color: var(--text-muted);
@@ -491,14 +494,14 @@
 }
 
 .tooltip-btn.play {
-  background: var(--yellow);
-  color: var(--black);
-  border: 2px solid var(--yellow);
+  background: var(--blue);
+  color: #fff;
+  border: 2px solid var(--blue);
 }
 
 .tooltip-btn.play:hover {
-  background: var(--yellow-hover);
-  border-color: var(--yellow-hover);
+  background: var(--blue-hover);
+  border-color: var(--blue-hover);
 }
 
 .tooltip-btn.leaderboard {

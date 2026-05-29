@@ -13,10 +13,10 @@
 
   /* Semantic */
   --dark:         #1C1C1C;
-  --green:        #2E7D32;
-  --green-hover:  #1B5E20;
+  --green:        #25D366;
+  --green-hover:  #1FAD55;
   --error-color:  #E4311A;
-  --success-color:#2E7D32;
+  --success-color:#25D366;
 
   /* Layout tokens */
   --bg:           #ECEDEC;
@@ -31,16 +31,16 @@
   --tile-border:  var(--dark-border);
 
   /* Score */
-  --score-green:  #2E7D32;
+  --score-green:  #25D366;
   --score-orange: #E65100;
   --score-red:    #E4311A;
 
   /* Dashboard difficulty */
-  --diff-easy:     #2E7D32;
+  --diff-easy:     #25D366;
   --diff-medium:   #F57C00;
   --diff-hard:     #E65100;
   --diff-very-hard:#C62828;
-  --status-solved: #2E7D32;
+  --status-solved: #25D366;
   --status-failed: #E4311A;
 
   /* Legacy aliases so Dashboard.css keeps working */
