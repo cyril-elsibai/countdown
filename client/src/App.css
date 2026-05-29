@@ -1051,18 +1051,19 @@ body {
     padding: 20px;
   }
 
-  /* Game-view vertical space budget on small phones */
-  .app-container.game-view {
-    padding: 0;
-  }
-
-  .app-container.game-view .site-logo {
+  /* Compact header on all mobile screens */
+  .site-logo {
     width: 60px;
     height: 60px;
   }
 
-  .app-container.game-view .logo-wrap {
+  .logo-wrap {
     padding: 6px 0;
+  }
+
+  /* Game-view vertical space budget on small phones */
+  .app-container.game-view {
+    padding: 0;
   }
 
   .game-header-row {
