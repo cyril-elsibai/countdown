@@ -1201,6 +1201,16 @@
 @media only screen and (max-width: 600px) {
   .dashboard-page {
     padding: 10px;
+    margin-top: 8px;
+  }
+
+  .dashboard-tabs {
+    margin-bottom: 10px;
+  }
+
+  .dashboard-tab {
+    padding: 7px 6px;
+    font-size: 0.72rem;
   }
 
   .challenge-btn {
@@ -1217,7 +1227,11 @@
   }
 
   .dashboard-content {
-    padding: 10px 0;
+    padding: 6px 0;
+  }
+
+  .challenge-calendar {
+    gap: 10px;
   }
 
   .calendar-nav {
@@ -1226,25 +1240,25 @@
   }
 
   .calendar-nav .nav-btn {
-    padding: 8px 12px;
+    padding: 5px 10px;
     font-size: 0.85rem;
   }
 
   .calendar-nav .nav-title {
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
 
   .challenge-grid {
     grid-template-columns: repeat(5, 1fr);
-    gap: 6px;
+    gap: 5px;
   }
 
   .challenge-tile {
-    padding: 30px 3px 14px 3px;
+    padding: 22px 3px 6px 3px;
   }
 
   .challenge-tile .daily-number {
-    font-size: 1rem;
+    font-size: 0.85rem;
   }
 
   .challenge-tooltip {
