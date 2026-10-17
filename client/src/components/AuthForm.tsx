@@ -81,7 +81,7 @@ export default function AuthForm({ onSuccess, onCancel, initialMode = 'login' }:
     <div className="auth-overlay">
       <button className="auth-close" onClick={onCancel}>&times;</button>
       <div className="auth-modal">
-        <img src="/logo.png" className="auth-logo" alt="6/7 Numbers" />
+        <div className="auth-logo" aria-hidden="true">6/7</div>
         <p className="auth-mode-title">{getModeTitle()}</p>
 
         {message && <div className="auth-message">{message}</div>}

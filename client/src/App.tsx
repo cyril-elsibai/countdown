@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { gameApi, authApi, friendsApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult } from './api';
+import { gameApi, authApi, friendsApi, dashboardApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult, UserStats } from './api';
 import AuthForm from './components/AuthForm';
 import ResetPasswordForm from './components/ResetPasswordForm';
 import Profile from './components/Profile';
@@ -100,6 +100,9 @@ export default function App() {
   const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
   const [countdownNumber, setCountdownNumber] = useState(3);
+  const [shakeRow, setShakeRow] = useState<number | null>(null);
+  const [resultClosed, setResultClosed] = useState(false);
+  const [winStats, setWinStats] = useState<UserStats | null>(null);
 
   const startTimeRef = useRef(Date.now());
   const timerIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -297,6 +300,11 @@ export default function App() {
       clearTimeout(timerGo);
     };
   }, [gamePhase, frame]);
+
+  // A new game re-opens the result sheet next time it is won
+  useEffect(() => {
+    if (!gameWon) setResultClosed(false);
+  }, [gameWon]);
 
   // Sync currentBest to activeFrameRef
   useEffect(() => {
@@ -579,11 +587,10 @@ export default function App() {
   };
 
   const handleShare = async () => {
-    const name = frame?.name;
-    const timeStr = winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime';
-    const text = name
-      ? `I just solved ${name} in ${timeStr} on 6/7 Numbers! Can you beat me?`
-      : `I just solved a challenge in ${timeStr} on 6/7 Numbers!`;
+    const name = frame?.name ?? 'a challenge';
+    const timeStr = winTime <= OVERTIME_THRESHOLD ? `${winTime.toFixed(1)}s` : 'overtime';
+    // One square per step, colored by distance band: shows the path without spoiling the answer
+    const text = `6/7 Numbers · ${name}\n${target} in ${timeStr}\n${shareSquares()}`;
     const url = `${window.location.origin}/play/${frame?.id}`;
 
     if (navigator.share) {
@@ -593,7 +600,7 @@ export default function App() {
         // user cancelled — do nothing
       }
     } else {
-      await navigator.clipboard.writeText(`${text} ${url}`);
+      await navigator.clipboard.writeText(`${text}\n${url}`);
       setShareCopied(true);
       setTimeout(() => setShareCopied(false), 2500);
     }
@@ -657,6 +664,26 @@ export default function App() {
     }
   };
 
+  // Distance band drives every color in the UI: exact (green), within 10 (amber), further (gray).
+  // Bands follow Countdown's own scoring thresholds.
+  const band = (value: number): 'exact' | 'close' | 'far' => {
+    const diff = Math.abs(target - value);
+    if (diff === 0) return 'exact';
+    if (diff <= 10) return 'close';
+    return 'far';
+  };
+
+  // Operators are stored as ASCII '-' and '/' (server expression format); shown as typographic minus/divide
+  const displayOp = (op: string) => (op === '-' ? '−' : op === '/' ? '÷' : op);
+
+  const shareSquares = () => {
+    const squares: Record<string, string> = { exact: '🟩', close: '🟨', far: '⬛' };
+    return rows
+      .filter(row => row.result.filled)
+      .map(row => squares[band(parseInt(row.result.value))])
+      .join('');
+  };
+
   const handleKeyPress = (value: string, isCalculated: boolean, calcKeyIndex?: number, initCardIndex?: number) => {
     const { row, type } = activePosition;
     const currentRow = rows[row];
@@ -666,6 +693,18 @@ export default function App() {
 
     if (isNumber !== keyIsNumber) return;
 
+    // Validate the step before consuming anything: an invalid operation
+    // (e.g. 5 − 8) must leave the tile available instead of silently using it up.
+    const result = type === 'num2'
+      ? calculateResult(parseInt(currentRow.num1.value), currentRow.operator.value, parseInt(value))
+      : null;
+    if (result?.error) {
+      showAlert(result.error);
+      setShakeRow(row);
+      setTimeout(() => setShakeRow(null), 400);
+      return;
+    }
+
     const newRows = [...rows];
     newRows[row] = { ...currentRow };
     newRows[row][type] = { value, filled: true, active: false };
@@ -673,7 +712,7 @@ export default function App() {
     // Track calculated keys updates in a single array to avoid state overwrites
     let newCalcKeys = [...calculatedKeys];
 
-    // Mark the used key as inactive first (before calculating result)
+    // Mark the used key as inactive (the step is known to be valid at this point)
     if (isNumber) {
       if (isCalculated && calcKeyIndex !== undefined) {
         newCalcKeys[calcKeyIndex] = { ...newCalcKeys[calcKeyIndex], used: true, inactive: true };
@@ -684,18 +723,7 @@ export default function App() {
       }
     }
 
-    if (type === 'num2') {
-      const result = calculateResult(
-        parseInt(currentRow.num1.value),
-        currentRow.operator.value,
-        parseInt(value)
-      );
-
-      if (result.error) {
-        showAlert(result.error);
-        return;
-      }
-
+    if (type === 'num2' && result) {
       newRows[row].result = { value: result.value, filled: true, active: false };
 
       const newValue = parseInt(result.value);
@@ -725,7 +753,11 @@ export default function App() {
 
           if (user) {
             // Signed in user - submit to backend with time tracking
+            // Stats for the result sheet are fetched after the submit lands, so they include this win
+            setWinStats(null);
             gameApi.submit(frame.id, expression, parseFloat(endTime.toFixed(2)), newValue)
+              .then(() => dashboardApi.getStats())
+              .then(res => setWinStats(res.myStats.forever ?? null))
               .catch(err => console.error('Failed to submit solution:', err));
             if (frame.date) setDailyPlayed(true);
           }
@@ -762,7 +794,7 @@ export default function App() {
         result = num1 + num2;
         break;
       case '-':
-        if (num2 >= num1) return { error: 'Error: result must be positive', value: '' };
+        if (num2 >= num1) return { error: 'Result must be positive', value: '' };
         result = num1 - num2;
         break;
       case '×':
@@ -770,7 +802,7 @@ export default function App() {
         break;
       case '/':
         result = num1 / num2;
-        if (!Number.isInteger(result)) return { error: 'Error: result must be an integer', value: '' };
+        if (!Number.isInteger(result)) return { error: 'Result must be a whole number', value: '' };
         break;
       default:
         return { error: 'Invalid operator', value: '' };
@@ -992,17 +1024,24 @@ export default function App() {
     return row.num1.filled ? index : lastIndex;
   }, -1);
 
+  const locked = gameWon || !!previousResult?.solved;
+  const canUndo = gamePhase === 'playing' && !locked && currentWorkingRowIndex >= 0;
+  const usedTileCount = initCards.filter(card => card.used).length;
+  const frameDate = frame?.date
+    ? new Date(frame.date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+    : null;
+  const clockFill = gamePhase === 'playing' ? Math.max(0, 1 - timer / COUNTDOWN_SECONDS) : 1;
+  const winTimeLabel = winTime <= OVERTIME_THRESHOLD ? `${winTime.toFixed(1)}s` : 'Overtime';
+
+  const openAuth = (mode: 'login' | 'register') => {
+    setInitialAuthMode(mode);
+    setShowAuthModal(true);
+  };
+
   if (verificationStatus === 'verifying') {
     return (
-      <div className="app-container">
-        <div className="content-wrapper">
-          <div className="header">
-            <h1>6/7 Numbers</h1>
-          </div>
-          <div className="verify-container">
-            <h2>Verifying your email...</h2>
-          </div>
-        </div>
+      <div className="loading-screen">
+        <div className="loading">Verifying your email...</div>
       </div>
     );
   }
@@ -1023,113 +1062,110 @@ export default function App() {
 
   return (
     <div className={`app-container${currentRoute !== 'dashboard' ? ' game-view' : ''}`}>
-      <div className="content-wrapper">
-        {/* Shared header */}
-        <div className="header">
-          <div className="logo-wrap">
-            <img
-              className="site-logo"
-              src="/logo.png"
-              alt="6/7 Numbers"
-              onClick={() => {
-                if (user) navigateToDashboard();
-                else setShowAuthModal(true);
-              }}
-            />
-          </div>
-          <div className="user-bar">
-            {user ? (
-              <>
-                {currentRoute !== 'dashboard' && (
-                  <button className="bar-btn secondary" onClick={navigateToDashboard}>
-                    <span className="btn-label">Dashboard</span>
-                    <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="7" height="7"/>
-                      <rect x="14" y="3" width="7" height="7"/>
-                      <rect x="3" y="14" width="7" height="7"/>
-                      <rect x="14" y="14" width="7" height="7"/>
-                    </svg>
-                  </button>
-                )}
-                <button className="bar-btn secondary btn-with-badge" onClick={() => { setShowFriends(true); setPendingFriendCount(0); }}>
-                  <span className="btn-label">Friends</span>
-                  <span className="btn-icon-wrap">
-                    <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                      <circle cx="9" cy="7" r="4"/>
-                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                    </svg>
-                    {pendingFriendCount > 0 && (
-                      <span className="notif-badge">{pendingFriendCount}</span>
-                    )}
-                  </span>
-                </button>
-                <button className="bar-btn secondary" onClick={() => setShowProfile(true)}>
-                  <span className="btn-label">Profile</span>
-                  <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="8" r="4"/>
-                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                  </svg>
-                </button>
-              </>
-            ) : (
-              <button className="bar-btn primary" onClick={() => setShowAuthModal(true)}>Sign In</button>
-            )}
-            <button className="bar-btn secondary tutorial-trigger" onClick={() => setShowTutorial(true)} title="How to play">?</button>
-          </div>
+      {/* Header: help on the left, wordmark centered, account actions on the right (Wordle layout) */}
+      <header className="app-head">
+        <div className="head-l">
+          <button className="icon-btn" onClick={() => setShowTutorial(true)} aria-label="How to play" title="How to play">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6"/><path d="M12 17.2v.1"/></svg>
+          </button>
         </div>
+        <button
+          className="wordmark"
+          onClick={() => {
+            if (user) navigateToDashboard();
+            else openAuth('login');
+          }}
+        >
+          6/7 Numbers
+        </button>
+        <div className="head-r">
+          {user ? (
+            <>
+              <button className="icon-btn" onClick={() => { setShowFriends(true); setPendingFriendCount(0); }} aria-label="Friends" title="Friends">
+                <svg viewBox="0 0 24 24"><path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20"/><circle cx="10" cy="8" r="3.5"/><path d="M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.3"/><path d="M15.5 4.7a3.5 3.5 0 0 1 0 6.6"/></svg>
+                {pendingFriendCount > 0 && <span className="badge">{pendingFriendCount}</span>}
+              </button>
+              {currentRoute !== 'dashboard' && (
+                <button className="icon-btn" onClick={navigateToDashboard} aria-label="Dashboard" title="Dashboard">
+                  <svg viewBox="0 0 24 24"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg>
+                </button>
+              )}
+              <button className="icon-btn" onClick={() => setShowProfile(true)} aria-label="Profile" title="Profile">
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c.6-3.6 3.6-6 7.5-6s6.9 2.4 7.5 6"/></svg>
+              </button>
+            </>
+          ) : gamePhase !== 'pre-game' ? (
+            /* The landing screen has its own Log in button */
+            <button className="head-signin" onClick={() => openAuth('login')}>Log in</button>
+          ) : null}
+        </div>
+      </header>
 
-        {/* Auth modal */}
-        {showAuthModal && (
-          <AuthForm
-            initialMode={initialAuthMode}
-            onSuccess={handleAuthSuccess}
-            onCancel={() => setShowAuthModal(false)}
-          />
-        )}
+      {showAuthModal && (
+        <AuthForm
+          initialMode={initialAuthMode}
+          onSuccess={handleAuthSuccess}
+          onCancel={() => setShowAuthModal(false)}
+        />
+      )}
 
-        {/* Reset password modal */}
-        {resetPasswordToken && (
-          <ResetPasswordForm
-            token={resetPasswordToken}
-            onSuccess={handleResetPasswordSuccess}
-            onCancel={handleResetPasswordCancel}
-          />
-        )}
+      {resetPasswordToken && (
+        <ResetPasswordForm
+          token={resetPasswordToken}
+          onSuccess={handleResetPasswordSuccess}
+          onCancel={handleResetPasswordCancel}
+        />
+      )}
 
-        {/* Profile modal */}
-        {showProfile && user && (
-          <Profile
-            user={user}
-            onUserUpdate={handleUserUpdate}
-            onClose={() => setShowProfile(false)}
-            onLogout={() => { setShowProfile(false); handleLogout(); }}
-          />
-        )}
+      {showProfile && user && (
+        <Profile
+          user={user}
+          onUserUpdate={handleUserUpdate}
+          onClose={() => setShowProfile(false)}
+          onLogout={() => { setShowProfile(false); handleLogout(); }}
+        />
+      )}
 
-        {/* Friends modal */}
-        {showFriends && (
-          <FriendsModal onClose={() => setShowFriends(false)} />
-        )}
+      {showFriends && (
+        <FriendsModal onClose={() => setShowFriends(false)} />
+      )}
 
-        {/* Tutorial modal */}
-        {showTutorial && (
-          <TutorialModal onClose={() => setShowTutorial(false)} />
-        )}
+      {showTutorial && (
+        <TutorialModal
+          onClose={() => setShowTutorial(false)}
+          onClearAll={gamePhase === 'playing' && !locked && currentRoute !== 'dashboard'
+            ? () => { resetGame(); setShowTutorial(false); }
+            : undefined}
+        />
+      )}
 
-        {currentRoute === 'dashboard' ? (
-          <Dashboard
-            key={dashboardKey}
-            onNavigateHome={navigateToHome}
-            onPlayFrame={handlePlayHistorical}
-            onPlayRandom={handlePlayRandom}
-          />
-        ) : (
-        <>
-
-
-        {/* Verification message */}
+      {currentRoute === 'dashboard' ? (
+        <Dashboard
+          key={dashboardKey}
+          onNavigateHome={navigateToHome}
+          onPlayFrame={handlePlayHistorical}
+          onPlayRandom={handlePlayRandom}
+        />
+      ) : gamePhase === 'pre-game' ? (
+        /* First visit for guests: one sentence of rules, one main action */
+        <main className="landing">
+          <div className="landing-mark">6/7</div>
+          <h1 className="landing-title">6/7 Numbers</h1>
+          <p className="landing-desc">Reach the target with six numbers and four operations.</p>
+          <div className="landing-actions">
+            <button className="btn ink" onClick={() => setGamePhase('countdown')}>Play</button>
+            <button className="btn line" onClick={() => openAuth('login')}>Log in</button>
+            <button className="btn text" onClick={() => openAuth('register')}>Create an account</button>
+          </div>
+          {frame?.name && (
+            <p className="landing-date">
+              <b>{frame.date ? new Date(frame.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }) : ''}</b>
+              {frame.name}
+            </p>
+          )}
+        </main>
+      ) : (
+      <main className="game">
         {verificationStatus === 'success' && (
           <div className="verify-container verify-success">
             <p>{verificationMessage}</p>
@@ -1138,218 +1174,217 @@ export default function App() {
         {verificationStatus === 'error' && (
           <div className="verify-container verify-error">
             <p>{verificationMessage}</p>
-            <p className="verify-hint">The link may have expired. Sign in to request a new verification email.</p>
-            <button onClick={() => { setVerificationStatus('none'); setShowAuthModal(true); }}>
-              Sign In
+            <p className="verify-hint">The link may have expired. Log in to request a new verification email.</p>
+            <button onClick={() => { setVerificationStatus('none'); openAuth('login'); }}>
+              Log in
             </button>
           </div>
         )}
 
-        {/* Daily number + timer inline */}
-        <div className="game-header-row">
-          {frame?.name ? (
-            <div className="daily-number">
-              {`${frame.name}${previousResult?.solved ? ' (solved !)' : previousResult?.result != null ? ` (${Math.abs(target - previousResult.result)} away)` : ''}`}
-            </div>
-          ) : null}
-          <div className={`timer ${timerStopped ? 'overtime' : ''}`}>
+        {/* The 60-second clock drains as a line; overtime is spelled out in the meta row */}
+        <div className="clock" aria-hidden="true">
+          <i style={{ width: `${clockFill * 100}%` }} />
+        </div>
+
+        <div className="meta">
+          <span>
+            <b>{frame?.name}</b>
+            {frameDate && ` · ${frameDate}`}
+            {previousResult?.solved
+              ? ' · Solved'
+              : previousResult?.result != null
+                ? ` · best ${Math.abs(target - previousResult.result)} away`
+                : ''}
+          </span>
+          <span className={`timer${timerStopped ? ' over' : ''}`}>
             {gamePhase === 'playing'
-              ? (timerStopped ? `${COUNTDOWN_SECONDS}++ seconds` : `${timer.toFixed(1)}s`)
+              ? (timerStopped ? 'Overtime' : `${timer.toFixed(1)}s`)
               : '0.0s'}
-          </div>
+          </span>
         </div>
 
-        {/* Target */}
-        <div className={`target-grid ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
-          {String(target).split('').map((digit, i) => (
-            <div key={i} className="target-tile">{digit}</div>
-          ))}
+        <div className={`target${gamePhase !== 'playing' ? ' game-hidden' : ''}`}>
+          <div className="target-num">{target}</div>
         </div>
 
-        {/* Landing screen for non signed-in users */}
-        {gamePhase === 'pre-game' && !showAuthModal && (
-          <>
-            <div className="landing-overlay" />
-            <div className="landing-modal">
-              <img src="/logo.png" className="landing-logo" alt="6/7 Numbers" />
-              <p className="landing-headline">It's a countdown, baby!</p>
-              <p className="landing-desc">
-                Use the red numbers and the four operations to reach the target,
-                or get as close as you can. You can use each number only once.
-                Register to compete with your friends!
-              </p>
-              <div className="landing-actions">
-                <button className="landing-btn login" onClick={() => { setInitialAuthMode('login'); setShowAuthModal(true); }}>
-                  Login
-                </button>
-                <button className="landing-btn register" onClick={() => { setInitialAuthMode('register'); setShowAuthModal(true); }}>
-                  Register
-                </button>
-                <button className="landing-btn guest" onClick={() => setGamePhase('countdown')}>
-                  Continue as guest
-                </button>
-              </div>
-            </div>
+        <div className={`closest${gamePhase !== 'playing' ? ' game-hidden' : ''}`}>
+          {currentBest > 0 ? (
+            <>
+              <span>Closest</span>
+              <span className={`chip ${band(currentBest)}`}>{currentBest}</span>
+              <span>{currentBest === target ? 'Exact' : `${Math.abs(target - currentBest)} away`}</span>
+            </>
+          ) : (
+            <span>Closest so far: none yet</span>
+          )}
+        </div>
 
-          </>
-        )}
-
-        {/* Countdown animation */}
-        {gamePhase === 'countdown' && (
-          <>
-            <div className="countdown-overlay" />
-            {frame?.name && (
-              <div className="countdown-frame-label">
-                {frame.name}
-              </div>
-            )}
-            <div className="countdown-number" key={countdownNumber}>
-              {countdownNumber}
-            </div>
-          </>
-        )}
-
-        {/* Alert */}
-        {alert && <div className={`alert-inline ${alert.type === 'success' ? 'success' : ''}`}>{alert.message}</div>}
-
-
-
-        {/* Victory Modal - Signed In User */}
-        {gameWon && wonWhileSignedIn && (
-          <>
-            <div className="victory-overlay" onClick={(e) => e.stopPropagation()} />
-            <div className="victory-modal-new">
-              <div className="victory-icon">&#x2713;</div>
-              <h1 className="victory-title">Congratulations!</h1>
-              <p className="victory-message">
-                {frame?.name ? (
-                  <>You solved <span className="victory-highlight">{frame.name}</span> in <span className="victory-highlight">{winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime'}</span>!</>
-                ) : (
-                  <>You solved it in <span className="victory-highlight">{winTime <= OVERTIME_THRESHOLD ? `${winTime}s` : 'overtime'}</span>!</>
-                )}
-              </p>
-              {currentRoute === 'home' && (
-                <p className="victory-hint">Come back tomorrow for a new daily challenge.</p>
-              )}
-              <div className="victory-actions">
-                <button className="victory-btn primary" onClick={handlePlayRandom}>
-                  Play Random
-                </button>
-                <button className="victory-btn secondary" onClick={navigateToDashboard}>
-                  View Dashboard
-                </button>
-                <button className="victory-btn share" onClick={handleShare}>
-                  {shareCopied ? '✓ Copied to clipboard!' : '🔗 Share your result'}
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Victory Modal - Guest user (not signed in) */}
-        {gameWon && !user && (
-          <>
-            <div className="victory-overlay" onClick={(e) => e.stopPropagation()} />
-            <div className="victory-modal-new">
-              <div className="victory-icon">&#x2713;</div>
-              <h1 className="victory-title">Congratulations!</h1>
-              <p className="victory-hint">
-                Come back tomorrow for a new daily challenge.
-              </p>
-              <p className="victory-hint">
-                Sign up to play random challenges and compete with friends!
-              </p>
-              <div className="victory-actions">
-                <button className="victory-btn primary" onClick={() => setShowAuthModal(true)}>
-                  Sign Up / Sign In
-                </button>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Game Grid */}
-        <div className={`game-grid ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
+        {/* Calculation rows. Result tiles take the distance color: exact / within 10 / further */}
+        <div className={`board${gamePhase !== 'playing' ? ' game-hidden' : ''}`}>
           {rows.map((row, rowIndex) => {
-            const isBest = row.result.filled && parseInt(row.result.value) === currentBest;
-            const showDelete = row.num1.filled && rowIndex === currentWorkingRowIndex;
-
+            const resultBand = row.result.filled ? band(parseInt(row.result.value)) : '';
             return (
-              <div key={rowIndex} className="grid-row">
-                <div className="row-spacer" />
-                <div className={`tile ${row.num1.active ? 'active' : ''} ${isBest ? 'best' : ''}`}>
+              <div key={rowIndex} className={`eqrow${shakeRow === rowIndex ? ' shake' : ''}`}>
+                <div className={`cell${row.num1.filled ? ' filled' : ''}${row.num1.active ? ' cursor' : ''}`}>
                   {row.num1.value}
                 </div>
-                <div className={`tile operator-tile ${row.operator.active ? 'active' : ''}`}>
-                  {row.operator.value}
+                <div className={`cell op${row.operator.filled ? ' filled' : ''}${row.operator.active ? ' cursor' : ''}`}>
+                  {displayOp(row.operator.value)}
                 </div>
-                <div className={`tile ${row.num2.active ? 'active' : ''} ${isBest ? 'best' : ''}`}>
+                <div className={`cell${row.num2.filled ? ' filled' : ''}${row.num2.active ? ' cursor' : ''}`}>
                   {row.num2.value}
                 </div>
-                <div className="equals">=</div>
-                <div className={`tile result-tile ${isBest ? 'best' : ''}`}>
+                <div className="eq">=</div>
+                <div key={row.result.value} className={`cell res${row.result.filled ? ` filled ${resultBand} flip` : ''}`}>
                   {row.result.value}
                 </div>
-                <button
-                  onClick={() => deleteRow(rowIndex)}
-                  className="delete-row-btn"
-                  style={{ visibility: showDelete && !previousResult?.solved ? 'visible' : 'hidden' }}
-                >
-                  ×
-                </button>
               </div>
             );
           })}
         </div>
 
-        {/* Keyboard */}
-        <div className={`keyboard ${gamePhase !== 'playing' ? 'game-hidden' : ''}`}>
-          {initCards.map((card, i) => (
+        {/* Keyboard: starting numbers, results, then Undo / operators / Submit */}
+        <div className={`keys${gamePhase !== 'playing' ? ' game-hidden' : ''}`}>
+          <div className="krow">
+            {initCards.map((card, i) => (
+              card.used ? (
+                <button key={i} className="key ghost" disabled aria-label="Used" />
+              ) : (
+                <button
+                  key={i}
+                  onClick={() => handleKeyPress(card.value, false, undefined, i)}
+                  disabled={locked || available.operators.length > 0}
+                  className={`key${available.operators.length > 0 ? ' dim' : ''}`}
+                >
+                  {card.value}
+                </button>
+              )
+            ))}
+          </div>
+          <div className="krow results">
+            {calculatedKeys.map((key, i) => (
+              !key.value || key.used ? (
+                <button key={`calc-${i}`} className="key ghost" disabled aria-label="Empty" />
+              ) : (
+                <button
+                  key={`calc-${i}`}
+                  onClick={() => handleKeyPress(key.value, true, i)}
+                  disabled={locked || key.inactive || available.operators.length > 0}
+                  className={`key derived${key.inactive || available.operators.length > 0 ? ' dim' : ''}`}
+                >
+                  {key.value}
+                </button>
+              )
+            ))}
+          </div>
+          <div className="krow">
             <button
-              key={i}
-              onClick={() => handleKeyPress(card.value, false, undefined, i)}
-              disabled={gameWon || (previousResult?.solved) || card.inactive || available.operators.length > 0}
-              className={`key init-key ${card.inactive || available.operators.length > 0 ? 'inactive' : ''}`}
+              className={`key word${canUndo ? '' : ' dim'}`}
+              onClick={() => canUndo && deleteRow(currentWorkingRowIndex)}
+              disabled={!canUndo}
             >
-              {card.value}
+              Undo
             </button>
-          ))}
-
-          <div className="spacer" />
-
-          {calculatedKeys.map((key, i) => (
+            {['+', '-', '×', '/'].map(op => (
+              <button
+                key={op}
+                onClick={() => handleKeyPress(op, false)}
+                disabled={locked || available.operators.length === 0}
+                className={`key op${available.operators.length === 0 ? ' dim' : ''}`}
+                aria-label={op === '/' ? 'Divide' : op === '-' ? 'Minus' : op === '×' ? 'Times' : 'Plus'}
+              >
+                {displayOp(op)}
+              </button>
+            ))}
             <button
-              key={`calc-${i}`}
-              onClick={() => handleKeyPress(key.value, true, i)}
-              disabled={gameWon || (previousResult?.solved) || key.inactive || !key.value || available.operators.length > 0}
-              className={`key calc-key ${key.inactive || !key.value || available.operators.length > 0 ? 'inactive' : ''} ${key.value ? 'has-value' : ''}`}
+              className={`key word ink${locked || currentBest === 0 ? ' dim' : ''}`}
+              onClick={handleSubmit}
+              disabled={locked || currentBest === 0}
             >
-              {key.value}
+              Submit
             </button>
-          ))}
-
-          <button className="key reset-key" onClick={resetGame} disabled={gameWon || (previousResult?.solved)}>Reset</button>
-          {['+', '-', '×', '/'].map(op => (
-            <button
-              key={op}
-              onClick={() => handleKeyPress(op, false)}
-              disabled={gameWon || (previousResult?.solved) || available.numbers.length > 0}
-              className={`key operator-key ${available.numbers.length > 0 ? 'inactive' : ''}`}
-            >
-              {op}
-            </button>
-          ))}
-          <button
-            className="key submit-key"
-            onClick={handleSubmit}
-            disabled={gameWon || (previousResult?.solved) || currentBest === 0}
-          >
-            Submit
-          </button>
+          </div>
         </div>
-        </>
+
+        {/* 3-2-1 countdown */}
+        {gamePhase === 'countdown' && (
+          <div className="cover">
+            <div className="cover-panel">
+              {frame?.name && <div className="eyebrow">{frame.name}</div>}
+              <div className="count" key={countdownNumber} aria-live="polite">{countdownNumber}</div>
+            </div>
+          </div>
         )}
-      </div>
+
+        {alert && <div className={`toast${alert.type === 'success' ? ' success' : ''}`} role="status">{alert.message}</div>}
+
+        {/* Result sheet, signed in */}
+        {gameWon && wonWhileSignedIn && !resultClosed && (
+          <>
+            <div className="scrim delayed" />
+            <div className="sheet delayed" role="dialog" aria-label="Solved">
+              <div className="grab" />
+              <div className="sheet-top">
+                <div className="eyebrow">Solved{frame?.name ? ` · ${frame.name}` : ''}</div>
+                <button className="icon-btn close-x" onClick={() => setResultClosed(true)} aria-label="Close">
+                  <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                </button>
+              </div>
+              <div className="solve-line">
+                <span className="solve-time">{winTimeLabel}</span>
+                <span className="sub">{winSteps} {winSteps === 1 ? 'step' : 'steps'} · {usedTileCount} of 6 numbers</span>
+              </div>
+              {winStats && (
+                <div className="statrow">
+                  <div><b>{winStats.totalGamesPlayed}</b><span>Played</span></div>
+                  <div><b>{winStats.successRate}</b><span>Solved %</span></div>
+                  <div><b>{winStats.currentStreak}</b><span>Streak</span></div>
+                  <div><b>{winStats.bestTime != null ? winStats.bestTime.toFixed(1) : '—'}</b><span>Best time</span></div>
+                </div>
+              )}
+              <div className="sharebox">{`${frame?.name ?? ''}\n${target} in ${winTimeLabel === 'Overtime' ? 'overtime' : winTimeLabel}\n${shareSquares()}`}</div>
+              {currentRoute === 'home' && (
+                <p className="sub">Come back tomorrow for a new daily challenge.</p>
+              )}
+              <div className="actions">
+                <button className="btn ink wide" onClick={handleShare}>
+                  {shareCopied ? 'Copied to clipboard' : 'Share result'}
+                </button>
+                <div className="pair">
+                  <button className="btn line" onClick={handlePlayRandom}>Play random</button>
+                  <button className="btn line" onClick={navigateToDashboard}>Dashboard</button>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Result sheet, guest */}
+        {gameWon && !user && !resultClosed && (
+          <>
+            <div className="scrim delayed" />
+            <div className="sheet delayed" role="dialog" aria-label="Solved">
+              <div className="grab" />
+              <div className="sheet-top">
+                <div className="eyebrow">Solved{frame?.name ? ` · ${frame.name}` : ''}</div>
+                <button className="icon-btn close-x" onClick={() => setResultClosed(true)} aria-label="Close">
+                  <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+                </button>
+              </div>
+              <div className="solve-line">
+                <span className="solve-time">{winTimeLabel}</span>
+                <span className="sub">{winSteps} {winSteps === 1 ? 'step' : 'steps'}</span>
+              </div>
+              <p>Create an account to save this result, keep a streak, play past dailies and compete with friends.</p>
+              <div className="actions">
+                <button className="btn ink wide" onClick={() => openAuth('register')}>Create an account</button>
+                <button className="btn line wide" onClick={() => openAuth('login')}>Log in</button>
+              </div>
+            </div>
+          </>
+        )}
+      </main>
+      )}
     </div>
   );
 }

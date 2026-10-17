@@ -738,6 +738,8 @@ export interface UserStats {
   averageDistance: number | null;
   bestTime: number | null;    // seconds
   perfectSolves: number;
+  // Optional: absent while an older server is still deployed (Vercel ships before Railway)
+  distanceDist?: { exact: number; within5: number; within10: number; further: number };
   currentStreak: number;
   longestStreak: number;
 }

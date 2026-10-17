@@ -16,6 +16,7 @@ import {
   LeaderboardResponse,
   OverallLeaderboardResponse,
 } from '../../api';
+import { bandFromDifference } from './format';
 
 
 interface LeaderboardProps {
@@ -60,15 +61,15 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
 
   const OVERTIME_SECONDS = 60;
 
-  const formatStatus = (entry: LeaderboardEntry): string => {
+  // Per-day status chip uses the distance colors: solved = exact, otherwise by how far away
+  const statusChip = (entry: LeaderboardEntry) => {
     if (entry.solved) {
-      if ((entry.duration ?? Infinity) <= OVERTIME_SECONDS) {
-        return `${entry.duration!.toFixed(2)}s`;
-      }
-      return 'Overtime';
+      const label = (entry.duration ?? Infinity) <= OVERTIME_SECONDS
+        ? `${entry.duration!.toFixed(2)}s`
+        : 'Overtime';
+      return <span className="chip exact">{label}</span>;
     }
-    if (entry.difference === 1) return '1 away';
-    return `${entry.difference} away`;
+    return <span className={`chip ${bandFromDifference(entry.difference)}`}>{entry.difference} away</span>;
   };
 
   const renderDailyLeaderboard = () => {
@@ -76,65 +77,42 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
 
     return (
       <div className="leaderboard-section">
-        <div className="leaderboard-info">
-          {dailyData.dailyNumber && (
-            <h3 className="leaderboard-title">Daily #{dailyData.dailyNumber}</h3>
-          )}
-          {dailyData.userRank && (
-            <span className="user-rank-badge">Your rank: #{dailyData.userRank}</span>
-          )}
+        <div className="you-rank">
+          <div>
+            <h3 className="section-label">Leaderboard</h3>
+            <b>Daily #{dailyData.dailyNumber}</b>
+          </div>
+          {dailyData.userRank && <span className="sub">You: #{dailyData.userRank}</span>}
         </div>
 
-        <div className="leaderboard-filter">
-          <button
-            className={filter === 'global' ? 'active' : ''}
-            onClick={() => setFilter('global')}
-          >
+        <div className="seg small" role="tablist">
+          <button role="tab" aria-selected={filter === 'global'} className={filter === 'global' ? 'on' : ''} onClick={() => setFilter('global')}>
             Global
           </button>
-          <button
-            className={filter === 'friends' ? 'active' : ''}
-            onClick={() => setFilter('friends')}
-          >
+          <button role="tab" aria-selected={filter === 'friends'} className={filter === 'friends' ? 'on' : ''} onClick={() => setFilter('friends')}>
             Friends
           </button>
         </div>
 
         {dailyData.leaderboard.length === 0 ? (
-          <div className="leaderboard-empty">
+          <div className="dash-note">
             {filter === 'friends'
-              ? 'No friends have completed this challenge yet.'
-              : 'No one has completed this challenge yet.'}
+              ? 'None of your friends have played this one yet.'
+              : 'Nobody has played this one yet.'}
           </div>
         ) : (
-          <table className="leaderboard-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Player</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {dailyData.leaderboard.map((entry: LeaderboardEntry) => (
-                <tr key={entry.userId} className={entry.rank === dailyData.userRank ? 'current-user' : ''}>
-                  <td className="rank-cell">
-                    {entry.solved && entry.rank <= 3 ? (
-                      <span className={`medal medal-${entry.rank}`}>
-                        {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
-                      </span>
-                    ) : (
-                      `#${entry.rank}`
-                    )}
-                  </td>
-                  <td className="name-cell">{entry.name || 'Anonymous'}</td>
-                  <td className={`status-cell ${entry.solved ? (entry.duration! <= OVERTIME_SECONDS ? 'status-solved' : 'status-overtime') : 'status-away'}`}>
-                    {formatStatus(entry)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ol className="list">
+            {dailyData.leaderboard.map((entry: LeaderboardEntry) => (
+              <li
+                key={entry.userId}
+                className={`lrow${entry.rank === dailyData.userRank ? ' me' : ''}${entry.solved && entry.rank <= 3 ? ' top' : ''}`}
+              >
+                <span className="r">{entry.rank}</span>
+                <span className="who">{entry.name || 'Anonymous'}</span>
+                {statusChip(entry)}
+              </li>
+            ))}
+          </ol>
         )}
       </div>
     );
@@ -145,44 +123,33 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
 
     return (
       <div className="leaderboard-section">
-        <div className="leaderboard-info">
-          <h3 className="leaderboard-title">All-Time Points</h3>
-          {overallData.userRank && (
-            <span className="user-rank-badge">
-              Your rank: #{overallData.userRank} ({overallData.userPoints} pts)
-            </span>
+        <div className="you-rank">
+          <div>
+            <h3 className="section-label">All-time points</h3>
+            {overallData.userRank && <b>#{overallData.userRank}</b>}
+          </div>
+          {overallData.userRank ? (
+            <span className="sub">{overallData.userPoints?.toLocaleString()} pts</span>
+          ) : (
+            <span className="sub">Not ranked yet. Points update daily.</span>
           )}
         </div>
 
         {overallData.leaderboard.length === 0 ? (
-          <div className="leaderboard-empty">No leaderboard data yet.</div>
+          <div className="dash-note">No points yet. Solve a daily to get on the board.</div>
         ) : (
-          <table className="leaderboard-table">
-            <thead>
-              <tr>
-                <th>Rank</th>
-                <th>Player</th>
-                <th>Points</th>
-              </tr>
-            </thead>
-            <tbody>
-              {overallData.leaderboard.map((entry: OverallLeaderboardEntry) => (
-                <tr key={entry.userId} className={entry.rank === overallData.userRank ? 'current-user' : ''}>
-                  <td className="rank-cell">
-                    {entry.rank <= 3 ? (
-                      <span className={`medal medal-${entry.rank}`}>
-                        {entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}
-                      </span>
-                    ) : (
-                      `#${entry.rank}`
-                    )}
-                  </td>
-                  <td className="name-cell">{entry.name || 'Anonymous'}</td>
-                  <td className="points-cell">{entry.totalPoints.toLocaleString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          <ol className="list">
+            {overallData.leaderboard.map((entry: OverallLeaderboardEntry) => (
+              <li
+                key={entry.userId}
+                className={`lrow${entry.rank === overallData.userRank ? ' me' : ''}${entry.rank <= 3 ? ' top' : ''}`}
+              >
+                <span className="r">{entry.rank}</span>
+                <span className="who">{entry.name || 'Anonymous'}</span>
+                <span className="pts">{entry.totalPoints.toLocaleString()}</span>
+              </li>
+            ))}
+          </ol>
         )}
       </div>
     );
@@ -191,9 +158,9 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
   return (
     <div className="leaderboard">
       {loading ? (
-        <div className="leaderboard-loading">Loading leaderboard...</div>
+        <div className="dash-note">Loading leaderboard...</div>
       ) : error ? (
-        <div className="leaderboard-error">{error}</div>
+        <div className="dash-note">{error}</div>
       ) : type === 'daily' ? (
         renderDailyLeaderboard()
       ) : (

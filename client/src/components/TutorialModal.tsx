@@ -1,141 +1,66 @@
-import { useState } from 'react';
+/**
+ * How-to-play sheet. Auto-opens once for new guests (localStorage 'tutorialSeen'),
+ * and from the help icon in the header. One screen, Wordle-style: the rules,
+ * one worked example row, and the three distance colors used everywhere in the app.
+ */
 
 interface TutorialModalProps {
   onClose: () => void;
+  // Present only during an active game: clearing all rows lives here instead of on the keyboard
+  onClearAll?: () => void;
 }
 
-const STEPS = [
-  {
-    title: 'Reach the target',
-    content: (
-      <div className="tutorial-step-body">
-        <p className="tutorial-step-label">Your goal</p>
-        <div className="tutorial-target-tiles">
-          <div className="tutorial-target-tile">4</div>
-          <div className="tutorial-target-tile">8</div>
-          <div className="tutorial-target-tile">3</div>
-        </div>
-        <p className="tutorial-step-desc">
-          The yellow number at the top is your target. Get as close to it as possible. You have <strong>60 seconds</strong> — after that it's overtime but you can still play.
-        </p>
-      </div>
-    ),
-  },
-  {
-    title: 'Pick your numbers',
-    content: (
-      <div className="tutorial-step-body">
-        <p className="tutorial-step-label">Tap a red tile to start</p>
-        <div className="tutorial-tiles-row">
-          <div className="tutorial-tile red">3</div>
-          <div className="tutorial-tile red">7</div>
-          <div className="tutorial-tile red">25</div>
-          <div className="tutorial-tile red">6</div>
-          <div className="tutorial-tile red">50</div>
-          <div className="tutorial-tile red">100</div>
-        </div>
-        <p className="tutorial-step-desc">
-          These are your 6 starting numbers. Tap one — it fills the first slot of a new calculation row.
-        </p>
-      </div>
-    ),
-  },
-  {
-    title: 'Build a calculation',
-    content: (
-      <div className="tutorial-step-body">
-        <div className="tutorial-calc-row">
-          <div className="tutorial-tile red">25</div>
-          <div className="tutorial-tile blue">×</div>
-          <div className="tutorial-tile red">3</div>
-          <span className="tutorial-equals">=</span>
-          <div className="tutorial-tile yellow">75</div>
-        </div>
-        <div className="tutorial-tiles-row" style={{ marginTop: '10px' }}>
-          <div className="tutorial-tile blue">+</div>
-          <div className="tutorial-tile blue">−</div>
-          <div className="tutorial-tile blue">×</div>
-          <div className="tutorial-tile blue">÷</div>
-        </div>
-        <p className="tutorial-step-desc">
-          Pick a <strong>blue operator</strong>, then a second number. The result appears automatically. Each row is one calculation.
-        </p>
-      </div>
-    ),
-  },
-  {
-    title: 'Chain & submit',
-    content: (
-      <div className="tutorial-step-body">
-        <div className="tutorial-calc-row">
-          <div className="tutorial-tile red">25</div>
-          <div className="tutorial-tile blue">×</div>
-          <div className="tutorial-tile red">3</div>
-          <span className="tutorial-equals">=</span>
-          <div className="tutorial-tile yellow">75</div>
-        </div>
-        <div className="tutorial-chain-arrow">↓ reuse</div>
-        <div className="tutorial-calc-row">
-          <div className="tutorial-tile yellow">75</div>
-          <div className="tutorial-tile blue">+</div>
-          <div className="tutorial-tile red">7</div>
-          <span className="tutorial-equals">=</span>
-          <div className="tutorial-tile yellow">82</div>
-        </div>
-        <p className="tutorial-step-desc">
-          Yellow tiles are results you can reuse. Chain as many rows as you need, then hit <strong>Submit</strong> when you're as close as you can get!
-        </p>
-      </div>
-    ),
-  },
-];
-
-export default function TutorialModal({ onClose }: TutorialModalProps) {
-  const [step, setStep] = useState(0);
-  const isLast = step === STEPS.length - 1;
-
+export default function TutorialModal({ onClose, onClearAll }: TutorialModalProps) {
   const handleClose = () => {
     localStorage.setItem('tutorialSeen', '1');
     onClose();
   };
 
   return (
-    <div className="tutorial-overlay" onClick={handleClose}>
-      <div className="tutorial-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="tutorial-header">
-          <span className="tutorial-title">How to play</span>
-          <button className="tutorial-close" onClick={handleClose}>×</button>
-        </div>
-
-        <div className="tutorial-dots">
-          {STEPS.map((_, i) => (
-            <div
-              key={i}
-              className={`tutorial-dot${i === step ? ' active' : ''}`}
-              onClick={() => setStep(i)}
-            />
-          ))}
-        </div>
-
-        <div className="tutorial-step-title">{STEPS[step].title}</div>
-
-        {STEPS[step].content}
-
-        <div className="tutorial-nav">
-          <button
-            className="tutorial-btn secondary"
-            onClick={step === 0 ? handleClose : () => setStep(step - 1)}
-          >
-            {step === 0 ? 'Skip' : '← Back'}
-          </button>
-          <button
-            className="tutorial-btn primary"
-            onClick={isLast ? handleClose : () => setStep(step + 1)}
-          >
-            {isLast ? 'Let\'s play!' : 'Next →'}
+    <>
+      <div className="scrim" onClick={handleClose} />
+      <div className="sheet" role="dialog" aria-label="How to play">
+        <div className="grab" />
+        <div className="sheet-top">
+          <h2 className="sheet-title">How to play</h2>
+          <button className="icon-btn close-x" onClick={handleClose} aria-label="Close">
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
           </button>
         </div>
+
+        <p>
+          Reach the target using the six numbers and + − × ÷. Each number can be used once.
+          Every result becomes a new number you can use in the next row.
+        </p>
+
+        <div className="eqrow example">
+          <div className="cell filled">25</div>
+          <div className="cell op filled">×</div>
+          <div className="cell filled">3</div>
+          <div className="eq">=</div>
+          <div className="cell res filled far">75</div>
+        </div>
+
+        <div className="legend">
+          <div><i className="exact-bg" />Exact: you hit the target</div>
+          <div><i className="close-bg" />Within 10 of the target</div>
+          <div><i className="far-bg" />More than 10 away</div>
+        </div>
+
+        <p className="sub">
+          The line under the header is your 60 seconds. After that it's overtime and you can keep playing.
+          Not exact? Submit your closest result any time.
+        </p>
+
+        {onClearAll ? (
+          <div className="actions">
+            <button className="btn ink wide" onClick={handleClose}>Back to the game</button>
+            <button className="btn line wide" onClick={onClearAll}>Clear all rows</button>
+          </div>
+        ) : (
+          <button className="btn ink wide" onClick={handleClose}>Let's play</button>
+        )}
       </div>
-    </div>
+    </>
   );
 }
