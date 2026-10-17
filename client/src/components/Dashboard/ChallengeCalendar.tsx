@@ -3,19 +3,45 @@
  * CHALLENGE CALENDAR (Dashboard/ChallengeCalendar.tsx)
  * =============================================================================
  *
- * Monthly grid calendar view of daily challenges with color-coded difficulty
- * and hover tooltips showing details.
+ * Month grid (Monday first) of daily challenges. Each day is colored by the
+ * user's best result using the game's distance bands: exact / within 10 /
+ * further, or neutral if not played. Dots show difficulty for everyone
+ * (more dots = fewer people solved it). Tapping a day opens ChallengeSheet.
  *
  * @module client/components/Dashboard/ChallengeCalendar
  */
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { dashboardApi, HistoryChallenge } from '../../api';
-import ChallengeTooltip from './ChallengeTooltip';
+import ChallengeSheet from './ChallengeSheet';
+import { distanceBand, isTodayUTC } from './format';
 
 interface ChallengeCalendarProps {
   onSelectFrame: (frameId: string) => void;
   onPlayFrame: (frameId: string, frameName?: string) => void;
+}
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December',
+];
+
+/** 1 (easy) to 4 (very hard) dots; 0 when nobody has played yet. */
+function difficultyDots(challenge: HistoryChallenge): number {
+  if (challenge.difficulty.totalAttempts === 0) return 0;
+  const percent = challenge.difficulty.completionPercent;
+  if (percent > 70) return 1;
+  if (percent >= 40) return 2;
+  if (percent >= 20) return 3;
+  return 4;
+}
+
+function dayClass(challenge: HistoryChallenge): string {
+  const result = challenge.userResult;
+  if (!result) return '';
+  if (result.solved) return 'exact';
+  if (result.result == null) return 'far';
+  return distanceBand(challenge.targetNumber, result.result);
 }
 
 export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: ChallengeCalendarProps) {
@@ -24,8 +50,7 @@ export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: Challe
   const [error, setError] = useState<string | null>(null);
   const [year, setYear] = useState(() => new Date().getUTCFullYear());
   const [month, setMonth] = useState(() => new Date().getUTCMonth() + 1);
-  const [hoveredChallenge, setHoveredChallenge] = useState<HistoryChallenge | null>(null);
-  const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0, placement: 'above' as 'above' | 'below' });
+  const [selected, setSelected] = useState<HistoryChallenge | null>(null);
 
   useEffect(() => {
     loadHistory();
@@ -44,6 +69,9 @@ export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: Challe
     }
   };
 
+  const now = new Date();
+  const isCurrentMonth = year === now.getUTCFullYear() && month >= now.getUTCMonth() + 1;
+
   const handlePrevMonth = () => {
     if (month === 1) {
       setMonth(12);
@@ -54,14 +82,7 @@ export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: Challe
   };
 
   const handleNextMonth = () => {
-    const now = new Date();
-    const currentYear = now.getUTCFullYear();
-    const currentMonth = now.getUTCMonth() + 1;
-
-    if (year === currentYear && month >= currentMonth) {
-      return;
-    }
-
+    if (isCurrentMonth) return;
     if (month === 12) {
       setMonth(1);
       setYear(year + 1);
@@ -70,150 +91,93 @@ export default function ChallengeCalendar({ onSelectFrame, onPlayFrame }: Challe
     }
   };
 
-  // Use a ref to track the hide timeout so we can cancel it
-  const hideTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // Index challenges by UTC day of month
+  const byDay = new Map<number, HistoryChallenge>();
+  challenges.forEach(c => byDay.set(new Date(c.date).getUTCDate(), c));
 
-  const handleMouseEnter = (challenge: HistoryChallenge, event: React.MouseEvent) => {
-    // Cancel any pending hide
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
-    }
-
-    const rect = event.currentTarget.getBoundingClientRect();
-    const placement = rect.top > 380 ? 'above' : 'below';
-    setTooltipPosition({
-      x: rect.left + rect.width / 2,
-      y: placement === 'above' ? rect.top : rect.bottom,
-      placement,
-    });
-    setHoveredChallenge(challenge);
-  };
-
-  const handleMouseLeave = () => {
-    // Delay hiding to allow mouse to move to tooltip
-    hideTimeoutRef.current = setTimeout(() => {
-      setHoveredChallenge(null);
-    }, 150);
-  };
-
-  const handleTooltipMouseEnter = () => {
-    // Cancel the hide when mouse enters tooltip
-    if (hideTimeoutRef.current) {
-      clearTimeout(hideTimeoutRef.current);
-      hideTimeoutRef.current = null;
-    }
-  };
-
-  const handleTooltipMouseLeave = () => {
-    // Hide immediately when leaving tooltip
-    setHoveredChallenge(null);
-  };
-
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-
-  const getStatusClass = (challenge: HistoryChallenge): string => {
-    if (!challenge.userResult) return 'unplayed';
-    return challenge.userResult.solved ? 'solved' : 'tried';
-  };
-
-  const getDifficultyClass = (challenge: HistoryChallenge): string | null => {
-    if (challenge.difficulty.totalAttempts === 0) return null;
-    const percent = challenge.difficulty.completionPercent;
-    if (percent > 70) return 'easy';
-    if (percent >= 40) return 'medium';
-    if (percent >= 20) return 'hard';
-    return 'very-hard';
-  };
-
-  const isToday = (challenge: HistoryChallenge): boolean => {
-    const date = new Date(challenge.date);
-    const today = new Date();
-    return date.toDateString() === today.toDateString();
-  };
-
-  const isFuture = (dateStr: string): boolean => {
-    const cellDate = new Date(dateStr);
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
-    return cellDate > today;
-  };
-
-  if (loading) {
-    return <div className="calendar-loading">Loading challenges...</div>;
-  }
-
-  if (error) {
-    return <div className="calendar-error">{error}</div>;
-  }
+  const daysInMonth = new Date(Date.UTC(year, month, 0)).getUTCDate();
+  // getUTCDay: 0 = Sunday. Shift so Monday is the first column.
+  const leadingBlanks = (new Date(Date.UTC(year, month - 1, 1)).getUTCDay() + 6) % 7;
+  const todayStart = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
 
   return (
-    <div className="challenge-calendar">
-      <div className="calendar-nav">
+    <div className="calendar">
+      <div className="cal-nav">
         <button
           onClick={handlePrevMonth}
-          className="nav-btn"
+          className="icon-btn"
           aria-label="Previous month"
           disabled={!loading && challenges.length === 0}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
+          <svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg>
         </button>
-        <h2 className="nav-title">{monthNames[month - 1]} {year}</h2>
+        <h2 className="cal-title">{MONTH_NAMES[month - 1]} {year}</h2>
         <button
           onClick={handleNextMonth}
-          className="nav-btn"
+          className="icon-btn"
           aria-label="Next month"
-          disabled={year === new Date().getUTCFullYear() && month >= new Date().getUTCMonth() + 1}
+          disabled={isCurrentMonth}
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+          <svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg>
         </button>
       </div>
 
-      <div className="challenge-grid">
-        {challenges.filter(c => !isFuture(c.date)).map((challenge) => {
-          const statusClass = getStatusClass(challenge);
-          const difficultyClass = getDifficultyClass(challenge);
-          const isTodayChallenge = isToday(challenge);
+      {error ? (
+        <div className="dash-note">{error}</div>
+      ) : (
+        <div className={`cal-grid${loading ? ' loading' : ''}`}>
+          {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => (
+            <div key={`dow-${i}`} className="dow">{d}</div>
+          ))}
+          {Array.from({ length: leadingBlanks }, (_, i) => <div key={`blank-${i}`} />)}
+          {Array.from({ length: daysInMonth }, (_, i) => {
+            const day = i + 1;
+            const challenge = byDay.get(day);
+            const isFuture = Date.UTC(year, month - 1, day) > todayStart;
 
-          return (
-            <div
-              key={challenge.id}
-              className={`challenge-tile ${statusClass} ${isTodayChallenge ? 'today' : ''} ${challenge.userResult?.solved ? 'no-click' : ''}`}
-              onMouseEnter={(e) => handleMouseEnter(challenge, e)}
-              onMouseLeave={handleMouseLeave}
-              onClick={() => !challenge.userResult?.solved && onPlayFrame(challenge.id, `Daily #${challenge.dailyNumber}`)}
-            >
-              <div className={`status-bar ${statusClass}`}>
-                {statusClass === 'solved' ? 'Solved' : statusClass === 'tried' ? 'Failed' : 'New'}
-              </div>
-              <span className="daily-number">#{challenge.dailyNumber}</span>
-              {difficultyClass && <div className={`difficulty-bar ${difficultyClass}`} />}
-            </div>
-          );
-        })}
+            // Dailies are generated ahead of time; never reveal or open future ones
+            if (!challenge || isFuture) {
+              return <div key={day} className={`day ${isFuture ? 'future' : 'none'}`}>{day}</div>;
+            }
+
+            const dots = difficultyDots(challenge);
+            return (
+              <button
+                key={day}
+                className={`day ${dayClass(challenge)}${isTodayUTC(challenge.date) ? ' today' : ''}`}
+                onClick={() => setSelected(challenge)}
+                aria-label={`Daily #${challenge.dailyNumber}`}
+              >
+                {day}
+                <span className={`pips${dots === 0 ? ' empty' : ''}`} aria-hidden="true">
+                  {[1, 2, 3, 4].map(p => <i key={p} className={p <= dots ? 'on' : ''} />)}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="cal-legend">
+        <span><i className="exact-bg" />Solved</span>
+        <span><i className="close-bg" />Within 10</span>
+        <span><i className="far-bg" />Further</span>
+        <span><i className="key-bg" />Not played</span>
+        <span><span className="pips"><i className="on" /><i className="on" /><i /><i /></span>Difficulty</span>
       </div>
 
-      {hoveredChallenge && (
-        <ChallengeTooltip
-          challenge={hoveredChallenge}
-          position={tooltipPosition}
+      {selected && (
+        <ChallengeSheet
+          challenge={selected}
+          onClose={() => setSelected(null)}
           onPlay={() => {
-            setHoveredChallenge(null);
-            onPlayFrame(hoveredChallenge.id, `Daily #${hoveredChallenge.dailyNumber}`);
+            setSelected(null);
+            onPlayFrame(selected.id, `Daily #${selected.dailyNumber}`);
           }}
           onViewLeaderboard={() => {
-            setHoveredChallenge(null);
-            onSelectFrame(hoveredChallenge.id);
+            setSelected(null);
+            onSelectFrame(selected.id);
           }}
-          onMouseEnter={handleTooltipMouseEnter}
-          onMouseLeave={handleTooltipMouseLeave}
         />
       )}
     </div>

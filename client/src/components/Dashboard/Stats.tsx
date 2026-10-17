@@ -4,10 +4,13 @@ import { dashboardApi, UserStats, StatsResponse } from '../../api';
 type Timeframe = 'forever' | 'month' | 'week';
 
 const TIMEFRAME_LABELS: Record<Timeframe, string> = {
-  forever: 'Forever',
-  month: 'Last 30 Days',
-  week: 'Last 7 Days',
+  forever: 'All time',
+  month: '30 days',
+  week: '7 days',
 };
+
+// Shown as big numbers at the top; the details table repeats them only when comparing
+const SUMMARY_LABELS = ['Games played', 'Success rate', 'Current streak', 'Longest streak'];
 
 export default function Stats() {
   const [data, setData] = useState<StatsResponse | null>(null);
@@ -46,15 +49,15 @@ export default function Stats() {
     return `${seconds.toFixed(2)}s`;
   };
 
-  if (loading) return <div className="stats-loading">Loading stats...</div>;
-  if (error) return <div className="stats-error">{error}</div>;
+  if (loading) return <div className="dash-note">Loading stats...</div>;
+  if (error) return <div className="dash-note">{error}</div>;
   if (!data) return null;
 
   const { myStats, friendStats, friendName, friends } = data;
   const myStatsSlice: UserStats | undefined = myStats[timeframe];
   const friendStatsSlice: UserStats | null = friendStats ? (friendStats[timeframe] ?? null) : null;
 
-  if (!myStatsSlice) return <div className="stats-error">Stats unavailable — please refresh.</div>;
+  if (!myStatsSlice) return <div className="dash-note">Stats unavailable — please refresh.</div>;
 
   const winner = (myVal: number | null, friendVal: number | null, lowerIsBetter: boolean): 'me' | 'friend' | 'tie' | null => {
     if (!comparing || friendStatsSlice === null) return null;
@@ -77,7 +80,7 @@ export default function Stats() {
 
   const rows: StatRow[] = [
     {
-      label: 'Games Played',
+      label: 'Games played',
       myValue: String(myStatsSlice.totalGamesPlayed),
       friendValue: friendStatsSlice ? String(friendStatsSlice.totalGamesPlayed) : '—',
       rawMy: myStatsSlice.totalGamesPlayed,
@@ -85,7 +88,7 @@ export default function Stats() {
       lowerIsBetter: false,
     },
     {
-      label: 'Success Rate',
+      label: 'Success rate',
       myValue: `${myStatsSlice.successRate}%`,
       friendValue: friendStatsSlice ? `${friendStatsSlice.successRate}%` : '—',
       rawMy: myStatsSlice.successRate,
@@ -93,7 +96,7 @@ export default function Stats() {
       lowerIsBetter: false,
     },
     {
-      label: 'Exact Solves',
+      label: 'Exact solves',
       myValue: String(myStatsSlice.perfectSolves),
       friendValue: friendStatsSlice ? String(friendStatsSlice.perfectSolves) : '—',
       rawMy: myStatsSlice.perfectSolves,
@@ -101,7 +104,7 @@ export default function Stats() {
       lowerIsBetter: false,
     },
     {
-      label: 'Avg. Distance from Target',
+      label: 'Avg. distance',
       myValue: myStatsSlice.averageDistance !== null ? String(myStatsSlice.averageDistance) : '—',
       friendValue: friendStatsSlice
         ? (friendStatsSlice.averageDistance !== null ? String(friendStatsSlice.averageDistance) : '—')
@@ -111,7 +114,7 @@ export default function Stats() {
       lowerIsBetter: true,
     },
     {
-      label: 'Best Time',
+      label: 'Best time',
       myValue: formatTime(myStatsSlice.bestTime),
       friendValue: friendStatsSlice ? formatTime(friendStatsSlice.bestTime) : '—',
       rawMy: myStatsSlice.bestTime,
@@ -119,7 +122,7 @@ export default function Stats() {
       lowerIsBetter: true,
     },
     {
-      label: 'Current Streak',
+      label: 'Current streak',
       myValue: `${myStatsSlice.currentStreak} day${myStatsSlice.currentStreak !== 1 ? 's' : ''}`,
       friendValue: friendStatsSlice
         ? `${friendStatsSlice.currentStreak} day${friendStatsSlice.currentStreak !== 1 ? 's' : ''}`
@@ -129,7 +132,7 @@ export default function Stats() {
       lowerIsBetter: false,
     },
     {
-      label: 'Longest Streak',
+      label: 'Longest streak',
       myValue: `${myStatsSlice.longestStreak} day${myStatsSlice.longestStreak !== 1 ? 's' : ''}`,
       friendValue: friendStatsSlice
         ? `${friendStatsSlice.longestStreak} day${friendStatsSlice.longestStreak !== 1 ? 's' : ''}`
@@ -140,14 +143,27 @@ export default function Stats() {
     },
   ];
 
+  // Distance distribution, bucketed like Countdown scoring. Absent on older servers.
+  const dist = myStatsSlice.distanceDist;
+  const distRows = dist
+    ? [
+        { label: 'Exact', value: dist.exact, band: 'exact' },
+        { label: '1–5', value: dist.within5, band: 'close' },
+        { label: '6–10', value: dist.within10, band: 'close' },
+        { label: '11+', value: dist.further, band: 'far' },
+      ]
+    : [];
+  const distMax = Math.max(1, ...distRows.map(r => r.value));
+
   return (
     <div className="stats-page">
-      {/* Timeframe filter */}
-      <div className="stats-timeframe">
+      <div className="seg small" role="tablist">
         {(['forever', 'month', 'week'] as Timeframe[]).map(tf => (
           <button
             key={tf}
-            className={`stats-timeframe-btn ${timeframe === tf ? 'active' : ''}`}
+            role="tab"
+            aria-selected={timeframe === tf}
+            className={timeframe === tf ? 'on' : ''}
             onClick={() => setTimeframe(tf)}
           >
             {TIMEFRAME_LABELS[tf]}
@@ -155,60 +171,78 @@ export default function Stats() {
         ))}
       </div>
 
-      {/* Friend picker */}
-      <div className="stats-header">
-        {friends.length > 0 ? (
-          <div className="stats-compare-bar">
-            <label htmlFor="friend-select">Compare with:</label>
+      <div className="statrow">
+        <div><b>{myStatsSlice.totalGamesPlayed}</b><span>Played</span></div>
+        <div><b>{myStatsSlice.successRate}</b><span>Solved %</span></div>
+        <div><b>{myStatsSlice.currentStreak}</b><span>Streak</span></div>
+        <div><b>{myStatsSlice.longestStreak}</b><span>Longest</span></div>
+      </div>
+
+      {distRows.length > 0 && myStatsSlice.totalGamesPlayed > 0 && (
+        <section className="stats-block">
+          <h3 className="section-label">Distance from target</h3>
+          <div className="dist">
+            {distRows.map(row => (
+              <div key={row.label}>
+                <em>{row.label}</em>
+                {row.value > 0 ? (
+                  <span className={`bar ${row.band}-bg`} style={{ width: `${(row.value / distMax) * 100}%` }}>
+                    {row.value}
+                  </span>
+                ) : (
+                  <span className="bar zero">0</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      <section className="stats-block">
+        <div className="picker">
+          <h3 className="section-label">{comparing ? 'Compare' : 'Details'}</h3>
+          {friends.length > 0 ? (
             <select
               id="friend-select"
+              aria-label="Compare with a friend"
               value={selectedFriend}
               onChange={e => handleFriendChange(e.target.value)}
-              className="stats-friend-select"
             >
-              <option value="">— just my stats —</option>
+              <option value="">Compare with…</option>
               {friends.map(f => (
                 <option key={f.id} value={f.id}>{f.name || 'Unnamed'}</option>
               ))}
             </select>
-          </div>
-        ) : (
-          <p className="stats-no-friends">Add friends to compare your stats!</p>
-        )}
-      </div>
+          ) : (
+            <span className="sub">Add friends to compare</span>
+          )}
+        </div>
 
-      {/* Stats table */}
-      <div className="stats-table-wrap">
-        <table className="stats-table">
-          <thead>
-            <tr>
-              <th className="stats-col-label"></th>
-              <th className="stats-col-player">You</th>
-              {comparing && <th className="stats-col-player">{friendName || 'Friend'}</th>}
-            </tr>
-          </thead>
+        {/* The better value is bold with a dot. Not green: green means "exact" everywhere else. */}
+        <table className="cmp">
+          {comparing && (
+            <thead>
+              <tr>
+                <th />
+                <th>You</th>
+                <th>{friendName || 'Friend'}</th>
+              </tr>
+            </thead>
+          )}
           <tbody>
-            {rows.map(row => {
+            {rows.filter(row => comparing || !SUMMARY_LABELS.includes(row.label)).map(row => {
               const w = winner(row.rawMy, row.rawFriend, row.lowerIsBetter);
               return (
                 <tr key={row.label}>
-                  <td className="stats-row-label">{row.label}</td>
-                  <td className={`stats-row-value ${comparing && w === 'me' ? 'stats-winner' : ''}`}>
-                    {row.myValue}
-                    {comparing && w === 'me' && <span className="stats-win-dot" />}
-                  </td>
-                  {comparing && (
-                    <td className={`stats-row-value ${w === 'friend' ? 'stats-winner' : ''}`}>
-                      {row.friendValue}
-                      {w === 'friend' && <span className="stats-win-dot" />}
-                    </td>
-                  )}
+                  <td>{row.label}</td>
+                  <td className={comparing && w === 'me' ? 'win' : ''}>{row.myValue}</td>
+                  {comparing && <td className={w === 'friend' ? 'win' : ''}>{row.friendValue}</td>}
                 </tr>
               );
             })}
           </tbody>
         </table>
-      </div>
+      </section>
     </div>
   );
 }

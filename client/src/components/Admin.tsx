@@ -1,3 +1,4 @@
+import './Admin.css';
 import { useState, useEffect } from 'react';
 import { adminApi, Challenge, setAdminToken, clearAdminToken, isAdminLoggedIn } from '../api';
 

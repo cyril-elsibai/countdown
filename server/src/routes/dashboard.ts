@@ -557,6 +557,17 @@ function computeStatsFromResults(results: { solved: boolean; result: number | nu
 
   const perfectSolves = solvedResults.length;
 
+  // How far from the target each game ended, bucketed like Countdown scoring
+  // (exact / within 5 / within 10 / further). Drives the Stats tab bar chart.
+  const distanceDist = { exact: 0, within5: 0, within10: 0, further: 0 };
+  for (const r of resultsWithValue) {
+    const d = Math.abs(r.frame.targetNumber - r.result!);
+    if (d === 0) distanceDist.exact++;
+    else if (d <= 5) distanceDist.within5++;
+    else if (d <= 10) distanceDist.within10++;
+    else distanceDist.further++;
+  }
+
   const solvedDailyDates = results
     .filter(r => r.solved && r.frame.date !== null)
     .map(r => r.frame.date!.toISOString().split('T')[0])
@@ -600,7 +611,7 @@ function computeStatsFromResults(results: { solved: boolean; result: number | nu
     }
   }
 
-  return { totalGamesPlayed, successRate, averageDistance, bestTime, perfectSolves, currentStreak, longestStreak };
+  return { totalGamesPlayed, successRate, averageDistance, bestTime, perfectSolves, distanceDist, currentStreak, longestStreak };
 }
 
 async function computeStats(userId: string) {

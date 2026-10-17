@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { dashboardApi, PlayHistoryEntry, FriendActivity } from '../../api';
+import { distanceBand, formatDuration, formatTimeAgo } from './format';
 
 interface PlayHistoryProps {
   onPlayFrame: (frameId: string, frameName?: string) => void;
@@ -56,121 +57,80 @@ export default function PlayHistory({ onPlayFrame, onSelectFrame }: PlayHistoryP
     return () => clearInterval(interval);
   }, []);
 
-  const formatDuration = (seconds: number | null): string => {
-    if (seconds === null) return '—';
-    if (seconds >= 10000) return 'overtime';
-    if (seconds >= 300) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-    return `${seconds.toFixed(2)}s`;
-  };
-
-  const formatTimeAgo = (dateStr: string): string => {
-    const date = new Date(dateStr);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    const diffHours = Math.floor(diffMins / 60);
-    const diffDays = Math.floor(diffHours / 24);
-    if (diffMins < 1) return 'just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffHours < 24) return `${diffHours}h ago`;
-    if (diffDays === 1) return 'yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
-    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-  };
-
   return (
     <div className="play-history">
-      {/* Toggle */}
-      <div className="history-toggle">
-        <button
-          className={`history-toggle-btn ${view === 'me' ? 'active' : ''}`}
-          onClick={() => setView('me')}
-        >
+      <div className="seg small" role="tablist">
+        <button role="tab" aria-selected={view === 'me'} className={view === 'me' ? 'on' : ''} onClick={() => setView('me')}>
           Me
         </button>
-        <button
-          className={`history-toggle-btn ${view === 'friends' ? 'active' : ''}`}
-          onClick={() => setView('friends')}
-        >
+        <button role="tab" aria-selected={view === 'friends'} className={view === 'friends' ? 'on' : ''} onClick={() => setView('friends')}>
           Friends
         </button>
       </div>
 
-      {/* My history */}
+      {/* My history: chip color = how close the game ended (exact / within 10 / further) */}
       {view === 'me' && (
         <>
-          {myLoading && <div className="history-loading">Loading...</div>}
-          {myError && <div className="history-error">{myError}</div>}
+          {myLoading && <div className="dash-note">Loading...</div>}
+          {myError && <div className="dash-note">{myError}</div>}
           {!myLoading && !myError && myHistory.length === 0 && (
-            <div className="history-empty">No games played yet.</div>
+            <div className="dash-note">No games played yet.</div>
           )}
           {!myLoading && !myError && myHistory.length > 0 && (
-            <div className="history-list">
+            <ul className="list">
               {myHistory.map(item => (
-                <div key={item.frameId} className="history-item">
-                  <span className="history-item-name">{item.name || 'Unnamed'}</span>
-                  {item.solved
-                    ? <span className="history-status solved">Solved in {formatDuration(item.duration)}</span>
-                    : item.result !== null
-                      ? <span className="history-status tried">{Math.abs(item.targetNumber - item.result)} away</span>
-                      : <span className="history-status tried">Not solved</span>
-                  }
-                  <span className="history-item-date">{formatTimeAgo(item.playedAt)}</span>
-                  {!item.solved && (
-                    <button
-                      className="history-action-btn play"
-                      onClick={() => onPlayFrame(item.frameId, item.name ?? undefined)}
-                    >
-                      Play
-                    </button>
-                  )}
-                </div>
+                <li key={item.frameId} className="hrow">
+                  <b>{item.name || 'Unnamed'}</b>
+                  <span className="when">{formatTimeAgo(item.playedAt)}</span>
+                  <span className="right">
+                    {item.solved ? (
+                      <span className="chip exact">{formatDuration(item.duration)}</span>
+                    ) : item.result !== null ? (
+                      <span className={`chip ${distanceBand(item.targetNumber, item.result)}`}>
+                        {Math.abs(item.targetNumber - item.result)} away
+                      </span>
+                    ) : (
+                      <span className="chip none">Not finished</span>
+                    )}
+                    {!item.solved && (
+                      <button className="btn line mini" onClick={() => onPlayFrame(item.frameId, item.name ?? undefined)}>
+                        Play
+                      </button>
+                    )}
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </>
       )}
 
-      {/* Friends activity */}
       {view === 'friends' && (
         <>
-          {friendLoading && <div className="history-loading">Loading...</div>}
-          {friendError && <div className="history-error">{friendError}</div>}
+          {friendLoading && <div className="dash-note">Loading...</div>}
+          {friendError && <div className="dash-note">{friendError}</div>}
           {!friendLoading && !friendError && friendActivity.length === 0 && (
-            <div className="activity-empty">
-              <div className="empty-icon">👥</div>
-              <h3>No Recent Activity</h3>
-              <p>Your friends haven't played any challenges recently.</p>
+            <div className="dash-note">
+              Your friends haven't played recently. Add friends with the people icon at the top.
             </div>
           )}
           {!friendLoading && !friendError && friendActivity.length > 0 && (
-            <div className="activity-feed">
+            <ul className="list">
               {friendActivity.map(item => (
-                <div key={item.id} className="activity-card">
-                  <div className="activity-avatar">
-                    {(item.name || 'F')[0].toUpperCase()}
-                  </div>
-                  <div className="activity-content">
-                    <div className="activity-header">
-                      <span className="activity-name">{item.name || 'Friend'}</span>
-                      <span className="activity-time">{formatTimeAgo(item.playedAt)}</span>
-                    </div>
-                    <div className="activity-body">
-                      {item.dailyNumber && (
-                        <span className="activity-challenge">Daily #{item.dailyNumber}</span>
-                      )}
-                      {item.solved
-                        ? <span className="activity-result solved">Solved in {formatDuration(item.duration)}</span>
-                        : <span className="activity-result failed">Did not solve</span>
-                      }
-                    </div>
-                  </div>
-                  <button className="activity-view-btn" onClick={() => onSelectFrame(item.frameId)}>
-                    View
-                  </button>
-                </div>
+                <li key={item.id} className="hrow">
+                  <b>{item.name || 'Friend'}{item.dailyNumber ? <span className="sub"> · Daily #{item.dailyNumber}</span> : null}</b>
+                  <span className="when">{formatTimeAgo(item.playedAt)}</span>
+                  <span className="right">
+                    {item.solved
+                      ? <span className="chip exact">{formatDuration(item.duration)}</span>
+                      : <span className="chip none">Not solved</span>}
+                    <button className="btn line mini" onClick={() => onSelectFrame(item.frameId)}>
+                      View
+                    </button>
+                  </span>
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </>
       )}

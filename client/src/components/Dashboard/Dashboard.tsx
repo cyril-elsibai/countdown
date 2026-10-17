@@ -3,8 +3,10 @@
  * DASHBOARD PAGE (Dashboard/Dashboard.tsx)
  * =============================================================================
  *
- * Main dashboard page with tabs for history calendar, leaderboards,
- * and friends activity. Accessible at /dashboard route.
+ * Four tabs shown as a segmented control (they fit at phone width, so no
+ * burger menu): Daily calendar, Ranks (all-time points), Stats, History.
+ * A dock at the bottom always offers today's daily and a random frame.
+ * Accessible at /dashboard route.
  *
  * @module client/components/Dashboard/Dashboard
  */
@@ -25,6 +27,13 @@ interface DashboardProps {
 
 type TabType = 'daily' | 'leaderboard' | 'stats' | 'history';
 
+const TABS: { id: TabType; label: string }[] = [
+  { id: 'daily', label: 'Daily' },
+  { id: 'leaderboard', label: 'Ranks' },
+  { id: 'stats', label: 'Stats' },
+  { id: 'history', label: 'History' },
+];
+
 /**
  * Calculate hours until next daily challenge (midnight UTC).
  */
@@ -41,7 +50,6 @@ function getHoursUntilTomorrow(): number {
 
 export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<TabType>('daily');
-  const [menuOpen, setMenuOpen] = useState(false);
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
   const [dailyStatus, setDailyStatus] = useState<PreviousResult | null | undefined>(undefined);
   const [hoursUntilTomorrow, setHoursUntilTomorrow] = useState(getHoursUntilTomorrow());
@@ -61,149 +69,84 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
     return () => clearInterval(interval);
   }, []);
 
+  // Per-day leaderboard opens inside the Daily tab, with a back link to the calendar
   const handleSelectFrame = (frameId: string) => {
     setSelectedFrameId(frameId);
-    setActiveTab('history'); // stays on history tab, shows inline leaderboard
+    setActiveTab('daily');
   };
 
-  const handleBackToHistory = () => {
+  const selectTab = (tab: TabType) => {
+    setActiveTab(tab);
     setSelectedFrameId(null);
   };
 
-  // Determine button text and disabled state
   const getChallengeButtonText = (): string => {
     if (dailyStatus === undefined) return 'Loading...';
-    if (dailyStatus === null) return "Play today's challenge";
-    if (dailyStatus.solved === true) {
-      return `Tomorrow's challenge in ${hoursUntilTomorrow}h`;
-    }
-    if (dailyStatus.result !== null) {
-      return "Try today's challenge again";
-    }
-    return "Play today's challenge";
+    if (dailyStatus === null) return "Play today's daily";
+    if (dailyStatus.solved === true) return `Next daily in ${hoursUntilTomorrow}h`;
+    if (dailyStatus.result !== null) return "Try today's daily again";
+    return "Play today's daily";
   };
 
   const isChallengeButtonDisabled = dailyStatus?.solved === true;
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-container">
-        {/* Desktop tabs */}
-        <nav className="dashboard-tabs desktop-only">
+      <nav className="seg dash-tabs" role="tablist">
+        {TABS.map(tab => (
           <button
-            className={`dashboard-tab ${activeTab === 'daily' ? 'active' : ''}`}
-            onClick={() => { setActiveTab('daily'); setSelectedFrameId(null); }}
+            key={tab.id}
+            role="tab"
+            aria-selected={activeTab === tab.id}
+            className={activeTab === tab.id ? 'on' : ''}
+            onClick={() => selectTab(tab.id)}
           >
-            Daily
+            {tab.label}
           </button>
-          <button
-            className={`dashboard-tab ${activeTab === 'leaderboard' ? 'active' : ''}`}
-            onClick={() => setActiveTab('leaderboard')}
-          >
-            Leaderboard
-          </button>
-          <button
-            className={`dashboard-tab ${activeTab === 'stats' ? 'active' : ''}`}
-            onClick={() => setActiveTab('stats')}
-          >
-            Stats
-          </button>
-          <button
-            className={`dashboard-tab ${activeTab === 'history' ? 'active' : ''}`}
-            onClick={() => setActiveTab('history')}
-          >
-            History
-          </button>
-        </nav>
+        ))}
+      </nav>
 
-        {/* Mobile menu */}
-        <div className="mobile-menu-bar mobile-only">
-          <span className="mobile-active-tab">
-            {activeTab === 'daily' ? 'Daily' : activeTab === 'leaderboard' ? 'Leaderboard' : activeTab === 'stats' ? 'Stats' : 'History'}
-          </span>
-          <button className="burger-btn" onClick={() => setMenuOpen(!menuOpen)}>
-            {menuOpen ? '\u2715' : '\u2630'}
-          </button>
-        </div>
-        {menuOpen && (
-          <div className="burger-overlay mobile-only" onClick={() => setMenuOpen(false)} />
+      <main className="dashboard-content">
+        {activeTab === 'daily' && !selectedFrameId && (
+          <ChallengeCalendar
+            onSelectFrame={handleSelectFrame}
+            onPlayFrame={onPlayFrame}
+          />
         )}
-        {menuOpen && (
-          <div className="burger-menu mobile-only">
-            <button
-              className={activeTab === 'daily' ? 'active' : ''}
-              onClick={() => { setActiveTab('daily'); setSelectedFrameId(null); setMenuOpen(false); }}
-            >
-              Daily
+        {activeTab === 'daily' && selectedFrameId && (
+          <>
+            <button className="back-btn" onClick={() => setSelectedFrameId(null)}>
+              ← Calendar
             </button>
-            <button
-              className={activeTab === 'leaderboard' ? 'active' : ''}
-              onClick={() => { setActiveTab('leaderboard'); setMenuOpen(false); }}
-            >
-              Leaderboard
-            </button>
-            <button
-              className={activeTab === 'stats' ? 'active' : ''}
-              onClick={() => { setActiveTab('stats'); setMenuOpen(false); }}
-            >
-              Stats
-            </button>
-            <button
-              className={activeTab === 'history' ? 'active' : ''}
-              onClick={() => { setActiveTab('history'); setMenuOpen(false); }}
-            >
-              History
-            </button>
-          </div>
-        )}
-
-        <main className="dashboard-content">
-          {activeTab === 'daily' && !selectedFrameId && (
-            <ChallengeCalendar
-              onSelectFrame={handleSelectFrame}
-              onPlayFrame={onPlayFrame}
-            />
-          )}
-          {activeTab === 'daily' && selectedFrameId && (
-            <div>
-              <button className="back-btn" onClick={handleBackToHistory}>
-                ← Back to challenges
-              </button>
-              <Leaderboard
-                frameId={selectedFrameId}
-                onSelectFrame={setSelectedFrameId}
-              />
-            </div>
-          )}
-          {activeTab === 'leaderboard' && (
             <Leaderboard
-              frameId={null}
+              frameId={selectedFrameId}
               onSelectFrame={setSelectedFrameId}
             />
-          )}
-          {activeTab === 'stats' && (
-            <Stats />
-          )}
-          {activeTab === 'history' && (
-            <PlayHistory onPlayFrame={onPlayFrame} onSelectFrame={handleSelectFrame} />
-          )}
-        </main>
+          </>
+        )}
+        {activeTab === 'leaderboard' && (
+          <Leaderboard
+            frameId={null}
+            onSelectFrame={setSelectedFrameId}
+          />
+        )}
+        {activeTab === 'stats' && <Stats />}
+        {activeTab === 'history' && (
+          <PlayHistory onPlayFrame={onPlayFrame} onSelectFrame={handleSelectFrame} />
+        )}
+      </main>
 
-        <div className="dashboard-footer-actions">
-          <button
-            className="challenge-btn"
-            onClick={onNavigateHome}
-            disabled={isChallengeButtonDisabled}
-          >
-            {getChallengeButtonText()}
-          </button>
-          <button
-            className="challenge-btn random-btn"
-            onClick={onPlayRandom}
-          >
-            Play Random
-          </button>
-        </div>
+      <div className="dock">
+        <button
+          className="btn ink grow"
+          onClick={onNavigateHome}
+          disabled={isChallengeButtonDisabled}
+        >
+          {getChallengeButtonText()}
+        </button>
+        <button className="btn line" onClick={onPlayRandom}>
+          Random
+        </button>
       </div>
     </div>
   );

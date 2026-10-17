@@ -1,4 +1,4 @@
-const CACHE_NAME = '67numbers-v2';
+const CACHE_NAME = '67numbers-v3';
 const STATIC_ASSETS = [
   '/icon-192.png',
   '/icon-512.png',
