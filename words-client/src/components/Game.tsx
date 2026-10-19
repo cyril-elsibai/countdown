@@ -4,7 +4,6 @@ import type { WordleGameState } from '../api';
 import { isValidWord } from '../wordlist';
 import GameBoard from './GameBoard';
 import Keyboard from './Keyboard';
-import './Game.css';
 
 interface Props {
   initialState: WordleGameState;
@@ -13,6 +12,7 @@ interface Props {
   onPlayRandom: () => void;
   onDashboard: () => void;
   onRegister: () => void;
+  onLogin: () => void;
 }
 
 interface WordStats {
@@ -62,7 +62,7 @@ function buildShareText(
   return `${header}\n${result}\n\n${grid}`;
 }
 
-export default function Game({ initialState, isDaily, userId, onPlayRandom, onDashboard, onRegister }: Props) {
+export default function Game({ initialState, isDaily, userId, onPlayRandom, onDashboard, onRegister, onLogin }: Props) {
   const [state, setState] = useState<WordleGameState>(initialState);
   const [input, setInput] = useState('');
   const [error, setError] = useState('');
@@ -73,6 +73,8 @@ export default function Game({ initialState, isDaily, userId, onPlayRandom, onDa
   const [revealingRow, setRevealingRow] = useState<number | null>(null);
   const [revealedCount, setRevealedCount] = useState(0);
   const [showResult, setShowResult] = useState(initialState.gameOver);
+  // Closing the result sheet leaves the board visible with a small bar to reopen it
+  const [resultClosed, setResultClosed] = useState(false);
   const [flippingLetters, setFlippingLetters] = useState<Set<string>>(new Set());
   const [settledRows, setSettledRows] = useState<Set<number>>(
     new Set(initialState.guesses.map((_, i) => i))
@@ -288,80 +290,97 @@ export default function Game({ initialState, isDaily, userId, onPlayRandom, onDa
     ? `${Math.floor(s / 60)}m ${(s % 60).toFixed(0)}s`
     : `${s.toFixed(1)}s`;
 
+  const close = (
+    <button className="icon-btn close-x" onClick={() => setResultClosed(true)} aria-label="Close">
+      <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+    </button>
+  );
+
   return (
-    <div className="game">
-      <div className="game-meta">
-        <span className="game-label">
-          {word.name ?? (isDaily ? 'Daily Word' : 'Random Word')}
-        </span>
-        <span className="game-length">{wordLength} letters</span>
+    <main className="game">
+      <div className="meta">
+        <span><b>{word.name ?? (isDaily ? 'Daily word' : 'Random word')}</b> · {wordLength} letters</span>
+        {!gameOver && (
+          <span className="timer">
+            {guessesLeft} left{state.startedAt ? ` · ${formatElapsed(elapsed)}` : ''}
+          </span>
+        )}
       </div>
 
-      {error && <div className="game-error">{error}</div>}
+      {error && <div className="toast" role="alert">{error}</div>}
 
-      <div className="game-board-wrap">
-        <GameBoard
-          wordLength={wordLength}
+      <GameBoard
+        wordLength={wordLength}
+        guesses={guesses}
+        currentInput={input}
+        maxGuesses={state.maxGuesses}
+        shake={shake}
+        settledRows={settledRows}
+        revealingRow={revealingRow}
+        revealedCount={revealedCount}
+      />
+
+      {/* Keep the keyboard while the result sheet is up so the board doesn't jump;
+          swap to the small bar only once the sheet is closed */}
+      {!(gameOver && resultClosed) ? (
+        <Keyboard
           guesses={guesses}
-          currentInput={input}
-          maxGuesses={state.maxGuesses}
-          shake={shake}
-          settledRows={settledRows}
+          onKey={handleKey}
+          disabled={gameOver}
+          flippingLetters={flippingLetters}
           revealingRow={revealingRow}
-          revealedCount={revealedCount}
         />
-      </div>
+      ) : (
+        <div className="over-bar">
+          <button className="btn ink" onClick={() => { setShowResult(true); setResultClosed(false); }}>
+            {solved ? 'Your result' : 'See the word'}
+          </button>
+          <button className="btn line" onClick={onPlayRandom}>Random word</button>
+        </div>
+      )}
 
-      {showResult && (
-        <div className="result-overlay">
-          <div className="result-modal">
-            {solved ? (
-              <>
-                <p className="result-headline win">Solved!</p>
-                {guesses.length === 1 && <p className="result-sub">Genius!</p>}
-                {state.duration && <p className="result-time">{state.duration.toFixed(1)}s</p>}
-                <div className="result-answer">
-                  {state.answer.split('').map((letter, i) => (
-                    <div key={i} className="result-answer-cell">{letter}</div>
-                  ))}
-                </div>
-              </>
-            ) : (
-              <>
-                <p className="result-headline lose">So Close!</p>
-                {isDaily && <p className="result-tomorrow">Come back tomorrow for the next one.</p>}
-                <div className="result-answer">
-                  {state.answer.split('').map((letter, i) => (
-                    <div key={i} className="result-answer-cell">{letter}</div>
-                  ))}
-                </div>
-              </>
+      {showResult && !resultClosed && (
+        <>
+          <div className="scrim delayed" onClick={() => setResultClosed(true)} />
+          <div className="sheet delayed" role="dialog" aria-label={solved ? 'Solved' : 'Result'}>
+            <div className="sheet-top">
+              <div className="eyebrow">{solved ? 'Solved' : 'Not this time'}{word.name ? ` · ${word.name}` : ''}</div>
+              {close}
+            </div>
+
+            <div className="solve-line">
+              <span className="solve-score">{solved ? guesses.length : 'X'}/6</span>
+              <span className="sub">
+                {solved
+                  ? `${guesses.length === 1 ? 'First try' : `${guesses.length} guesses`}${state.duration ? ` · ${formatElapsed(state.duration)}` : ''}`
+                  : 'The word was'}
+              </span>
+            </div>
+
+            {state.answer && !solved && (
+              <div className="answer" aria-label={`The word was ${state.answer}`}>
+                {state.answer.split('').map((letter, i) => (
+                  <div key={i} className="tile">{letter}</div>
+                ))}
+              </div>
             )}
 
-            {wordStats && (
-              <div className="result-stats">
-                <div className="result-stats-row">
-                  <div className="result-stat">
-                    <span className="result-stat-value">{wordStats.totalPlays}</span>
-                    <span className="result-stat-label">Played</span>
-                  </div>
-                  <div className="result-stat">
-                    <span className="result-stat-value">{wordStats.winRate}%</span>
-                    <span className="result-stat-label">Win rate</span>
-                  </div>
+            {wordStats && wordStats.totalPlays > 0 && (
+              <div className="word-stats">
+                <div className="statrow two">
+                  <div><b>{wordStats.totalPlays}</b><span>Players on this word</span></div>
+                  <div><b>{wordStats.winRate}%</b><span>Solved it</span></div>
                 </div>
-                <div className="result-dist">
+                <div className="dist">
                   {wordStats.guessDist.map((count, i) => (
-                    <div key={i} className="result-dist-row">
-                      <span className="result-dist-label">{i + 1}</span>
-                      <div className="result-dist-bar-wrap">
-                        <div
-                          className={`result-dist-bar${guesses.length === i + 1 && solved ? ' current' : ''}`}
-                          style={{ width: `${Math.max((count / distMax) * 100, count > 0 ? 8 : 0)}%` }}
-                        >
-                          {count > 0 && <span className="result-dist-count">{count}</span>}
-                        </div>
-                      </div>
+                    <div key={i}>
+                      <em>{i + 1}</em>
+                      <span
+                        className={`bar${count === 0 ? ' zero' : ''}${solved && guesses.length === i + 1 ? ' now' : ''}`}
+                        style={count > 0 ? { width: `${Math.max((count / distMax) * 100, 8)}%` } : undefined}
+                      >
+                        {count}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -369,49 +388,37 @@ export default function Game({ initialState, isDaily, userId, onPlayRandom, onDa
             )}
 
             {saveFailed && (
-              <p className="result-save-error">Result could not be saved. Check your connection.</p>
+              <p className="save-error">Result could not be saved. Check your connection.</p>
             )}
 
-            <div className="result-actions">
-              <button className="play-again-btn" onClick={onPlayRandom}>
-                Play Random
-              </button>
-              <button className="play-again-btn secondary" onClick={onDashboard} disabled={!userId}>
-                Dashboard
-              </button>
-              {solved && (
-                <button className="play-again-btn share-btn" onClick={handleShare} disabled={!userId}>
-                  {shareCopied ? 'Copied!' : 'Share'}
-                </button>
-              )}
-              {!userId && (
-                <button className="play-again-btn register-btn" onClick={onRegister}>
-                  Register
-                </button>
-              )}
-            </div>
+            {userId ? (
+              <>
+                {solved && <div className="sharebox">{buildShareText(word, guesses, solved, isDaily)}</div>}
+                {isDaily && <p className="sub">Come back tomorrow for a new daily word.</p>}
+                <div className="actions">
+                  {solved && (
+                    <button className="btn ink wide" onClick={handleShare}>
+                      {shareCopied ? 'Copied to clipboard' : 'Share result'}
+                    </button>
+                  )}
+                  <div className="pair">
+                    <button className={`btn ${solved ? 'line' : 'ink'}`} onClick={onPlayRandom}>Random word</button>
+                    <button className="btn line" onClick={onDashboard}>Dashboard</button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>Create an account to save this result, keep a streak, play past words and compete with friends.</p>
+                <div className="actions">
+                  <button className="btn ink wide" onClick={onRegister}>Create an account</button>
+                  <button className="btn line wide" onClick={onLogin}>Log in</button>
+                </div>
+              </>
+            )}
           </div>
-        </div>
+        </>
       )}
-
-      {!gameOver && (
-        <div className="game-status-row">
-          <span className="game-status">
-            {guessesLeft} guess{guessesLeft !== 1 ? 'es' : ''} left
-          </span>
-          <span className="game-timer" style={{ visibility: state.startedAt ? 'visible' : 'hidden' }}>
-            {formatElapsed(elapsed)}
-          </span>
-        </div>
-      )}
-
-      <Keyboard
-        guesses={guesses}
-        onKey={handleKey}
-        disabled={gameOver}
-        flippingLetters={flippingLetters}
-        revealingRow={revealingRow}
-      />
-    </div>
+    </main>
   );
 }

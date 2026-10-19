@@ -1,5 +1,4 @@
 import type { GuessResult, LetterStatus } from '../api';
-import './GameBoard.css';
 
 interface Props {
   wordLength: 6 | 7;
@@ -12,7 +11,7 @@ interface Props {
   settledRows: Set<number>;
 }
 
-export default function GameBoard({ wordLength, guesses, currentInput, maxGuesses, shake, revealingRow, revealedCount, settledRows }: Props) {
+export default function GameBoard({ wordLength, guesses, currentInput, maxGuesses, shake, revealingRow, revealedCount }: Props) {
   const rows: (GuessResult | null)[] = [];
 
   for (let i = 0; i < maxGuesses; i++) {
@@ -20,7 +19,7 @@ export default function GameBoard({ wordLength, guesses, currentInput, maxGuesse
   }
 
   return (
-    <div className="game-board">
+    <div className={`board${wordLength === 6 ? ' six' : ''}`}>
       {rows.map((guess, rowIdx) => {
         const isCurrentRow = rowIdx === guesses.length;
         const isRevealing = rowIdx === revealingRow;
@@ -32,10 +31,10 @@ export default function GameBoard({ wordLength, guesses, currentInput, maxGuesse
 
         const isRowFull = isCurrentRow && currentInput.length === wordLength;
         const activeColIdx = isCurrentRow && !isRowFull ? currentInput.length : -1;
-        const isActiveRow = isCurrentRow && !guess && revealingRow === null;
+        const isActiveRow = isCurrentRow && !guess && revealingRow === null && !guesses[guesses.length - 1]?.solved;
 
         return (
-          <div key={rowIdx} className={`board-row${wordLength === 7 ? ' seven' : ''}${isCurrentRow && shake ? ' shake' : ''}${isActiveRow ? ' active-row' : ''}${isRowFull ? ' row-ready' : ''}${settledRows.has(rowIdx) ? ' row-settled' : ''}`}>
+          <div key={rowIdx} className={`brow${isCurrentRow && shake ? ' shake' : ''}`}>
             {letters.map((letter, colIdx) => {
               const status: LetterStatus | null = guess?.feedback[colIdx] ?? null;
               // Only apply color class after the cell has passed its flip midpoint
@@ -44,7 +43,7 @@ export default function GameBoard({ wordLength, guesses, currentInput, maxGuesse
               return (
                 <div
                   key={colIdx}
-                  className={`board-cell${showColor ? ` ${status}` : ''}${letter.trim() && !showColor ? ' filled' : ''}${isRevealing ? ' flipping' : ''}${isActiveCell ? ' active-cell' : ''}`}
+                  className={`tile${showColor ? ` ${status}` : ''}${letter.trim() && !showColor ? ' filled' : ''}${isRevealing ? ' flipping' : ''}${isActiveCell && isActiveRow ? ' cursor' : ''}`}
                   style={isRevealing ? { '--reveal-delay': `${colIdx * 0.3}s` } as React.CSSProperties : undefined}
                 >
                   {letter.trim()}

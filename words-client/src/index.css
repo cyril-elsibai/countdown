@@ -1,58 +1,89 @@
 /* =============================================================================
-   67words — Global Styles
-   Palette: light gray bg, bright red, medium blue, near-black, white surfaces
+   6/7 WORDS — DESIGN SYSTEM ("ink on paper", shared look with 6/7 Numbers)
+
+   One rule: color carries meaning, never decoration.
+   - Everything is ink on paper (two neutrals + grays for keys and lines).
+   - The only hues are the three letter results:
+       --correct  right letter, right spot
+       --present  in the word, wrong spot
+       --absent   not in the word
+     They are used for board tiles, keyboard keys, calendar days, result
+     chips, the current bar in guess distributions and share squares.
+     Nothing else gets a hue.
+   - The values match 6/7 Numbers' exact / close / far, so the two games
+     read as one family.
+   - One typeface (Archivo). Narrow + heavy widths for letters and numbers,
+     normal width for text.
+
+   The previous red/blue look wore out because color was decorative.
+   Before adding a new color here, tie it to game meaning or don't add it.
    ============================================================================= */
 
 :root {
-  --red:          #E4311A;
-  --red-hover:    #C82D17;
-  --blue:         #5A97D5;
-  --blue-hover:   #4A7FC0;
-  --black:        #1C1C1C;
-  --white:        #FFFFFF;
-  --gray:         #AAAAAA;
-  --dark-border:  #2E3335;
+  --bg: #FFFFFF;
+  --fg: #15171A;
+  --muted: #687078;
+  --line: #D7DADE;
+  --line-strong: #9EA4AA;
+  --key: #E3E6E9;
+  --key-strong: #C8CDD2;
 
-  --bg:           #ECEDEC;
-  --surface:      #FFFFFF;
-  --surface-alt:  #F2F2F2;
-  --text:         #1C1C1C;
-  --text-sub:     #555555;
-  --text-muted:   #888888;
-  --border:       #1C1C1C;
-  --border-light: #CCCCCC;
-  --green:        #2E7D32;
+  /* Letter results (the only hues in the app) */
+  --correct: #4A9A5E;
+  --present: #C99A2E;
+  --absent: #7B8087;
+  --on-fill: #FFFFFF;
 
-  --correct:  #2E7D32;
-  --present:  #C9A84C;
-  --absent:   #6B6B6B;
+  --scrim: rgba(21, 23, 26, 0.38);
+  --shadow: rgba(21, 23, 26, 0.16);
+  --error: #B3261E; /* form errors only */
 
-  --diff-easy:      #2E7D32;
-  --diff-medium:    #F57C00;
-  --diff-hard:      #E65100;
-  --diff-very-hard: #C62828;
-  --status-solved:  #2E7D32;
-  --status-failed:  #E4311A;
+  --font: 'Archivo', 'Helvetica Neue', Arial, sans-serif;
+  --head-h: 56px;
+  --content-w: 500px;
 }
 
-* { box-sizing: border-box; margin: 0; padding: 0; }
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #131416;
+    --fg: #F1F2F3;
+    --muted: #9AA1A8;
+    --line: #33363B;
+    --line-strong: #5C6168;
+    --key: #2E3136;
+    --key-strong: #464A50;
+    --correct: #4C9160;
+    --present: #B98F2C;
+    --absent: #5D6168;
+    --scrim: rgba(0, 0, 0, 0.55);
+    --shadow: rgba(0, 0, 0, 0.5);
+    --error: #F2867E;
+    color-scheme: dark;
+  }
+}
 
-html, body, #root {
-  height: 100%;
+* {
+  box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-body {
-  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
-  background-color: var(--bg);
-  color: var(--text);
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
   -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button {
-  cursor: pointer;
   font-family: inherit;
-  border: none;
-  outline: none;
+  color: inherit;
+}
+
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
 }

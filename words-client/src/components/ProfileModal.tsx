@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { authApi } from '../api';
 import type { User } from '../api';
-import './ProfileModal.css';
 
 interface Props {
   user: User;
@@ -55,42 +54,44 @@ export default function ProfileModal({ user, onUserUpdate, onClose, onLogout }: 
         <div className="modal-header">
           <h2>Profile</h2>
           <div className="modal-header-actions">
-            <button className="logout-btn" onClick={onLogout} title="Sign out">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" width="18" height="18">
+            <button className="icon-btn" onClick={onLogout} title="Log out" aria-label="Log out">
+              <svg viewBox="0 0 24 24">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
                 <polyline points="16 17 21 12 16 7"/>
                 <line x1="21" y1="12" x2="9" y2="12"/>
               </svg>
             </button>
-            <button className="modal-close" onClick={onClose}>✕</button>
+            <button className="icon-btn" onClick={onClose} aria-label="Close">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
           </div>
         </div>
 
-        <div style={{ minHeight: 24 }}>
-          {message && <p className="modal-message">{message}</p>}
-          {error && <p className="modal-error">{error}</p>}
+        <div className="modal-msg">
+          {message && <p className="ok">{message}</p>}
+          {error && <p className="err">{error}</p>}
         </div>
 
         <section className="modal-section">
-          <h3>Display Name</h3>
+          <h3>Display name</h3>
           <form onSubmit={handleUpdateName} className="inline-form">
             <input type="text" value={name} onChange={e => setName(e.target.value)} placeholder="Your name" />
-            <button type="submit" className="inline-btn" disabled={loading}>{loading ? '…' : 'Update'}</button>
+            <button type="submit" className="auth-submit" disabled={loading}>{loading ? '…' : 'Update'}</button>
           </form>
         </section>
 
         <section className="modal-section">
-          <h3>Change Password</h3>
+          <h3>Change password</h3>
           <form onSubmit={handleChangePassword}>
-            <div className="form-field">
-              <label>Current Password</label>
+            <div className="form-group">
+              <label>Current password</label>
               <input type="password" value={currentPassword} onChange={e => setCurrentPassword(e.target.value)} required />
             </div>
-            <div className="form-field">
-              <label>New Password</label>
+            <div className="form-group">
+              <label>New password</label>
               <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} required minLength={6} />
             </div>
-            <button type="submit" className="block-btn" disabled={loading}>{loading ? '…' : 'Change Password'}</button>
+            <button type="submit" className="auth-submit" disabled={loading}>{loading ? '…' : 'Change password'}</button>
           </form>
         </section>
       </div>

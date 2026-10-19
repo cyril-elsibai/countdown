@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { authApi, setToken } from '../api';
 import type { User } from '../api';
-import './AuthModal.css';
 
 type AuthView = 'login' | 'register' | 'forgot' | 'verify-prompt';
 
@@ -80,13 +79,13 @@ export default function AuthModal({ onClose, onAuth, initialView = 'login' }: Pr
 
   return (
     <div className="auth-overlay" onClick={onClose}>
-      <button className="auth-close" onClick={onClose}>✕</button>
+      <button className="auth-close" onClick={onClose} aria-label="Close">×</button>
       <div className="auth-modal" onClick={e => e.stopPropagation()}>
-        <img src="/logo.png" className="auth-logo" alt="6/7 Words" />
+        <div className="auth-logo" aria-label="6/7 Words">6/7</div>
 
         {view === 'login' && (
           <>
-            <p className="auth-mode-title">Sign in</p>
+            <p className="auth-mode-title">Log in</p>
             <form onSubmit={handleLogin}>
               <div className="form-group">
                 <label htmlFor="email">Email</label>
@@ -97,7 +96,7 @@ export default function AuthModal({ onClose, onAuth, initialView = 'login' }: Pr
                 <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
               </div>
               {error && <div className="auth-error">{error}</div>}
-              <button className="auth-submit" type="submit" disabled={loading}>{loading ? '…' : 'Sign In'}</button>
+              <button className="auth-submit" type="submit" disabled={loading}>{loading ? '…' : 'Log in'}</button>
               <button type="button" className="auth-forgot" onClick={() => switchView('forgot')}>Forgot password?</button>
             </form>
             <div className="auth-switch">
@@ -124,11 +123,11 @@ export default function AuthModal({ onClose, onAuth, initialView = 'login' }: Pr
                 <input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" required />
               </div>
               {error && <div className="auth-error">{error}</div>}
-              <button className="auth-submit register" type="submit" disabled={loading}>{loading ? '…' : 'Register'}</button>
+              <button className="auth-submit register" type="submit" disabled={loading}>{loading ? '…' : 'Create account'}</button>
             </form>
             <div className="auth-switch">
               Already have an account?{' '}
-              <button onClick={() => switchView('login')}>Sign in</button>
+              <button onClick={() => switchView('login')}>Log in</button>
             </div>
           </>
         )}
@@ -143,11 +142,11 @@ export default function AuthModal({ onClose, onAuth, initialView = 'login' }: Pr
               </div>
               {error && <div className="auth-error">{error}</div>}
               {message && <div className="auth-message">{message}</div>}
-              <button className="auth-submit" type="submit" disabled={loading}>{loading ? '…' : 'Send Reset Link'}</button>
+              <button className="auth-submit" type="submit" disabled={loading}>{loading ? '…' : 'Send reset link'}</button>
             </form>
             <div className="auth-switch">
               Remember your password?{' '}
-              <button onClick={() => switchView('login')}>Sign in</button>
+              <button onClick={() => switchView('login')}>Log in</button>
             </div>
           </>
         )}
@@ -160,7 +159,7 @@ export default function AuthModal({ onClose, onAuth, initialView = 'login' }: Pr
             {message && <div className="auth-message">{message}</div>}
             <button className="auth-resend" onClick={handleResend} disabled={loading}>{loading ? '…' : 'Resend verification email'}</button>
             <div className="auth-switch">
-              <button onClick={() => switchView('login')}>Back to Sign In</button>
+              <button onClick={() => switchView('login')}>Back to log in</button>
             </div>
           </>
         )}

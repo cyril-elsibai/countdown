@@ -8,6 +8,7 @@ import ProfileModal from './components/ProfileModal';
 import FriendsModal from './components/FriendsModal';
 import Dashboard from './components/Dashboard/Dashboard';
 import Admin from './components/Admin';
+import HelpSheet from './components/HelpSheet';
 import './App.css';
 
 type Screen = 'loading' | 'pregame' | 'playing' | 'dashboard';
@@ -27,6 +28,15 @@ export default function App() {
   const [gameState, setGameState] = useState<WordleGameState | null>(null);
   const [isDaily, setIsDaily] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [showHelp, setShowHelp] = useState(false);
+
+  // dvh ignores iOS Chrome's bottom bar; the game layout sizes itself from the real inner height
+  useEffect(() => {
+    const setRealVh = () => document.documentElement.style.setProperty('--real-vh', `${window.innerHeight}px`);
+    setRealVh();
+    window.addEventListener('resize', setRealVh);
+    return () => window.removeEventListener('resize', setRealVh);
+  }, []);
 
   // Load word lists and check auth on mount (in parallel)
   useEffect(() => {
@@ -140,8 +150,6 @@ export default function App() {
     setScreen('pregame');
   }
 
-  const wordLength = gameState?.word.wordLength;
-
   async function playWord(wordId: string) {
     setScreen('loading');
     setLoadError('');
@@ -156,94 +164,87 @@ export default function App() {
     }
   }
 
+  const dateLabel = gameState?.word.date
+    ? new Date(gameState.word.date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
+    : null;
+
   return (
-    <div className={`app${screen === 'dashboard' ? ' dashboard-view' : ''}`}>
-      {/* Header — always visible */}
-      <header className="app-header">
-        <div className="app-header-inner">
-          <div className="logo-wrap">
-            <img className="site-logo" src="/logo.png" alt="6/7 Words" onClick={loadDaily} />
-          </div>
-          <div className="user-bar">
-            {user ? (
-              <>
-                {screen !== 'dashboard' && (
-                  <button className="bar-btn secondary" onClick={() => setScreen('dashboard')} title="Dashboard">
-                    <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
-                      <rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/>
-                    </svg>
-                  </button>
-                )}
-                <button className="bar-btn secondary" onClick={() => setShowFriends(true)} title="Friends">
-                  <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                    <circle cx="9" cy="7" r="4"/>
-                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                  </svg>
+    <div className={`app${screen === 'playing' ? ' game-view' : ''}`}>
+      <header className="app-head">
+        <div className="head-l">
+          <button className="icon-btn" onClick={() => setShowHelp(true)} aria-label="How to play" title="How to play">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.6 9.2a2.5 2.5 0 1 1 3.4 2.3c-.6.3-1 .8-1 1.5v.6"/><path d="M12 17.2v.1"/></svg>
+          </button>
+        </div>
+        <button className="wordmark" onClick={loadDaily}>6/7 Words</button>
+        <div className="head-r">
+          {user ? (
+            <>
+              <button className="icon-btn" onClick={() => setShowFriends(true)} aria-label="Friends" title="Friends">
+                <svg viewBox="0 0 24 24"><path d="M16 20v-1.5a3.5 3.5 0 0 0-3.5-3.5h-5A3.5 3.5 0 0 0 4 18.5V20"/><circle cx="10" cy="8" r="3.5"/><path d="M20 20v-1.5a3.5 3.5 0 0 0-2.5-3.3"/><path d="M15.5 4.7a3.5 3.5 0 0 1 0 6.6"/></svg>
+              </button>
+              {screen !== 'dashboard' && (
+                <button className="icon-btn" onClick={() => setScreen('dashboard')} aria-label="Dashboard" title="Dashboard">
+                  <svg viewBox="0 0 24 24"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg>
                 </button>
-                <button className="bar-btn secondary" onClick={() => setShowProfile(true)} title={user.name ?? 'Profile'}>
-                  <svg className="btn-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="8" r="4"/>
-                    <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
-                  </svg>
-                </button>
-              </>
-            ) : (
-              screen !== 'playing' && (
-                <button className="bar-btn primary" onClick={() => setShowAuth(true)}>Sign In</button>
-              )
-            )}
-          </div>
+              )}
+              <button className="icon-btn" onClick={() => setShowProfile(true)} aria-label="Profile" title={user.name ?? 'Profile'}>
+                <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4.5 20c.6-3.6 3.6-6 7.5-6s6.9 2.4 7.5 6"/></svg>
+              </button>
+            </>
+          ) : screen !== 'pregame' ? (
+            /* The landing screen has its own Log in button */
+            <button className="head-signin" onClick={() => { setAuthInitialView('login'); setShowAuth(true); }}>Log in</button>
+          ) : null}
         </div>
       </header>
 
-      {screen !== 'dashboard' && (
-        <main className="app-main">
-          {screen === 'loading' && (
-            <div className="loading-state">Loading…</div>
-          )}
+      {screen === 'loading' && <div className="loading">Loading…</div>}
 
-          {screen === 'pregame' && gameState && (
-            <>
-              <div className="landing-overlay" />
-              <div className="landing-modal">
-                <img src="/logo.png" className="landing-logo" alt="6/7 Words" />
-                <p className="landing-headline">6/7 Words</p>
-                <p className="landing-desc">Six guesses to uncover a hidden 6 or 7 letter word. Each attempt reveals which letters are in the word and which are in the right position. Register to challenge your friends!</p>
-                {loadError && <p className="load-error">{loadError}</p>}
-                <div className="landing-actions">
-                  {user ? (
-                    <>
-                      <button className="landing-btn login" onClick={startDaily}>
-                        {gameState.gameOver ? 'View Result' : "Play Today's Word"}
-                      </button>
-                      <button className="landing-btn register" onClick={playRandom}>Play Random</button>
-                    </>
-                  ) : (
-                    <>
-                      <button className="landing-btn login" onClick={() => { setAuthInitialView('login'); setShowAuth(true); }}>Login</button>
-                      <button className="landing-btn register" onClick={() => { setAuthInitialView('register'); setShowAuth(true); }}>Register</button>
-                      <button className="landing-btn guest" onClick={startDaily}>Continue as guest</button>
-                    </>
-                  )}
-                </div>
-              </div>
-            </>
+      {screen === 'pregame' && (
+        <main className="landing">
+          <div className="landing-mark">6/7</div>
+          <h1 className="landing-title">6/7 Words</h1>
+          <p className="landing-desc">Find the hidden 6 or 7 letter word in six guesses.</p>
+          {loadError && <p className="load-error">{loadError}</p>}
+          {gameState && (
+            <div className="landing-actions">
+              {user ? (
+                <>
+                  <button className="btn ink" onClick={startDaily}>
+                    {gameState.gameOver ? 'See your result' : "Play today's word"}
+                  </button>
+                  <button className="btn line" onClick={playRandom}>Random word</button>
+                </>
+              ) : (
+                <>
+                  <button className="btn ink" onClick={startDaily}>Play</button>
+                  <button className="btn line" onClick={() => { setAuthInitialView('login'); setShowAuth(true); }}>Log in</button>
+                  <button className="btn text" onClick={() => { setAuthInitialView('register'); setShowAuth(true); }}>Create an account</button>
+                </>
+              )}
+            </div>
           )}
-
-          {screen === 'playing' && gameState && (
-            <Game
-              initialState={gameState}
-              isDaily={isDaily}
-              userId={user?.id ?? null}
-              onPlayRandom={playRandom}
-              onDashboard={() => setScreen('dashboard')}
-              onRegister={() => { setAuthInitialView('register'); setShowAuth(true); }}
-            />
+          {gameState?.word.name && (
+            <p className="landing-date">
+              {dateLabel && <b>{dateLabel}</b>}
+              {gameState.word.name} · {gameState.word.wordLength} letters
+            </p>
           )}
         </main>
+      )}
+
+      {screen === 'playing' && gameState && (
+        <Game
+          key={gameState.word.id}
+          initialState={gameState}
+          isDaily={isDaily}
+          userId={user?.id ?? null}
+          onPlayRandom={playRandom}
+          onDashboard={() => setScreen('dashboard')}
+          onRegister={() => { setAuthInitialView('register'); setShowAuth(true); }}
+          onLogin={() => { setAuthInitialView('login'); setShowAuth(true); }}
+        />
       )}
 
       {screen === 'dashboard' && (
@@ -253,6 +254,8 @@ export default function App() {
           onPlayDaily={() => { loadDaily(); }}
         />
       )}
+
+      {showHelp && <HelpSheet onClose={() => setShowHelp(false)} />}
 
       {showAuth && (
         <AuthModal onClose={() => setShowAuth(false)} onAuth={handleAuth} initialView={authInitialView} />

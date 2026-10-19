@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { friendsApi } from '../api';
 import type { Friend } from '../api';
-import './ProfileModal.css';
 
 interface Props {
   onClose: () => void;
@@ -73,24 +72,26 @@ export default function FriendsModal({ onClose }: Props) {
       <div className="profile-modal" onClick={e => e.stopPropagation()}>
         <div className="modal-header">
           <h2>Friends</h2>
-          <button className="modal-close" onClick={onClose}>✕</button>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+              <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+            </button>
         </div>
 
-        <div style={{ minHeight: 24 }}>
-          {message && <p className="modal-message">{message}</p>}
-          {error && <p className="modal-error">{error}</p>}
+        <div className="modal-msg">
+          {message && <p className="ok">{message}</p>}
+          {error && <p className="err">{error}</p>}
         </div>
 
         <section className="modal-section">
           <form onSubmit={handleSendRequest} className="inline-form">
             <input type="email" value={friendEmail} onChange={e => setFriendEmail(e.target.value)} placeholder="Add friend by email" />
-            <button type="submit" className="inline-btn" disabled={loading || !friendEmail.trim()}>{loading ? '…' : 'Add'}</button>
+            <button type="submit" className="auth-submit" disabled={loading || !friendEmail.trim()}>{loading ? '…' : 'Add'}</button>
           </form>
         </section>
 
         {pending.length > 0 && (
           <section className="modal-section">
-            <h3>Notifications</h3>
+            <h3>Requests</h3>
             <ul className="friends-list">
               {pending.map(f => (
                 <li key={f.id} className="friend-item">
@@ -100,9 +101,9 @@ export default function FriendsModal({ onClose }: Props) {
                   </div>
                   <div className="friend-actions">
                     {f.direction === 'received' && (
-                      <button className="friend-btn accept" onClick={() => handleAccept(f.id)}>Accept</button>
+                      <button className="btn mini ink" onClick={() => handleAccept(f.id)}>Accept</button>
                     )}
-                    <button className="friend-btn remove" onClick={() => handleRemove(f.id)}>
+                    <button className="btn mini line" onClick={() => handleRemove(f.id)}>
                       {f.direction === 'sent' ? 'Cancel' : 'Decline'}
                     </button>
                   </div>
@@ -113,7 +114,7 @@ export default function FriendsModal({ onClose }: Props) {
         )}
 
         <section className="modal-section">
-          <h3>My Friends</h3>
+          <h3>My friends</h3>
           {friendsLoading ? (
             <p className="friends-empty">Loading…</p>
           ) : accepted.length === 0 ? (
@@ -123,7 +124,7 @@ export default function FriendsModal({ onClose }: Props) {
               {accepted.map(f => (
                 <li key={f.id} className="friend-item">
                   <span className="friend-name">{f.user.name || f.user.email}</span>
-                  <button className="friend-btn remove" onClick={() => handleRemove(f.id)}>Unfriend</button>
+                  <button className="btn mini line" onClick={() => handleRemove(f.id)}>Unfriend</button>
                 </li>
               ))}
             </ul>

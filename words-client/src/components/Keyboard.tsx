@@ -1,5 +1,4 @@
 import type { GuessResult, LetterStatus } from '../api';
-import './Keyboard.css';
 
 const ROWS = [
   ['Q','W','E','R','T','Y','U','I','O','P'],
@@ -34,20 +33,24 @@ export default function Keyboard({ guesses, onKey, disabled, flippingLetters, re
   }
 
   return (
-    <div className="keyboard">
+    <div className="keys">
       {ROWS.map((row, i) => (
-        <div key={i} className="keyboard-row">
+        <div key={i} className={`krow${i === 1 ? ' mid' : ''}`}>
           {row.map(key => {
             const status = key.length === 1 ? letterStatus[key] : undefined;
             const isFlipping = key.length === 1 && flippingLetters?.has(key);
+            const cls = key === 'ENTER' ? ' word ink' : key === '⌫' ? ' word' : status && !isFlipping ? ` ${status}` : '';
             return (
               <button
                 key={key}
-                className={`key${key === 'ENTER' || key === '⌫' ? ' key-wide' : ''}${status && !isFlipping ? ` key-${status}` : ''}`}
+                className={`key${cls}`}
                 onClick={() => !disabled && onKey(key)}
                 disabled={disabled}
+                aria-label={key === '⌫' ? 'Delete' : key === 'ENTER' ? 'Enter' : key}
               >
-                {key}
+                {key === '⌫'
+                  ? <svg viewBox="0 0 24 24"><path d="M9 5h11v14H9l-6-7z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/></svg>
+                  : key === 'ENTER' ? 'Enter' : key}
               </button>
             );
           })}
