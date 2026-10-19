@@ -320,7 +320,9 @@ export default function Game({ initialState, isDaily, userId, onPlayRandom, onDa
         revealedCount={revealedCount}
       />
 
-      {!gameOver || revealingRow !== null ? (
+      {/* Keep the keyboard while the result sheet is up so the board doesn't jump;
+          swap to the small bar only once the sheet is closed */}
+      {!(gameOver && resultClosed) ? (
         <Keyboard
           guesses={guesses}
           onKey={handleKey}
