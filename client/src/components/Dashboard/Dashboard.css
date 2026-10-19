@@ -400,3 +400,36 @@ button.day { cursor: pointer; }
   align-items: center;
   gap: 8px;
 }
+
+/* =============================================================================
+   SHORTCUTS ("Jump to", top of the Daily tab)
+   ============================================================================= */
+
+.shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.srow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-top: 1px solid var(--line);
+}
+.srow:first-child { border-top: 0; }
+.srow > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.srow b {
+  font-size: 15px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.srow .sub { font-size: 12px; }
+.srow .btn { flex: none; }
