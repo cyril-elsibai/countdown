@@ -1,36 +1,33 @@
 import { useState, useEffect } from 'react';
 import { wordleDashboardApi } from '../../api';
 import type { WordleUserStats, WordleStatsResponse } from '../../api';
+import { formatDuration as formatTime } from './format';
 
 type Timeframe = 'forever' | 'month' | 'week';
 
 const TIMEFRAME_LABELS: Record<Timeframe, string> = {
-  forever: 'Forever',
-  month: 'Last 30 Days',
-  week: 'Last 7 Days',
+  forever: 'All time',
+  month: '30 days',
+  week: '7 days',
 };
 
-function formatTime(seconds: number | null | undefined): string {
-  if (seconds == null) return '—';
-  if (seconds >= 300) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-  return `${seconds.toFixed(1)}s`;
-}
+// Shown in the big number row above; repeated in the table only when comparing
+const SUMMARY_LABELS = ['Games played', 'Solved', 'Current streak', 'Longest streak'];
 
-function GuessDist({ dist, total }: { dist: number[]; total: number }) {
+/** Solved games by number of guesses. Neutral bars: no single row is "this game" here. */
+function GuessDist({ dist }: { dist: number[] }) {
   const max = Math.max(...dist, 1);
   return (
-    <div className="guess-dist">
+    <div className="dist">
       {dist.map((count, i) => (
-        <div key={i} className="guess-dist-row">
-          <span className="guess-dist-label">{i + 1}</span>
-          <div className="guess-dist-bar-wrap">
-            <div
-              className="guess-dist-bar"
-              style={{ width: total > 0 ? `${Math.max((count / max) * 100, count > 0 ? 8 : 0)}%` : '0%' }}
-            >
-              {count > 0 && <span className="guess-dist-count">{count}</span>}
-            </div>
-          </div>
+        <div key={i}>
+          <em>{i + 1}</em>
+          <span
+            className={`bar${count === 0 ? ' zero' : ''}`}
+            style={count > 0 ? { width: `${Math.max((count / max) * 100, 8)}%` } : undefined}
+          >
+            {count}
+          </span>
         </div>
       ))}
     </div>
@@ -65,15 +62,15 @@ export default function WordStats() {
     load(friendId || undefined);
   };
 
-  if (loading) return <div className="stats-loading">Loading stats...</div>;
-  if (error) return <div className="stats-error">{error}</div>;
+  if (loading) return <div className="dash-note">Loading stats…</div>;
+  if (error) return <div className="dash-note">{error}</div>;
   if (!data) return null;
 
   const { myStats, friendStats, friendName, friends } = data;
   const mySlice: WordleUserStats | undefined = myStats[timeframe];
   const friendSlice: WordleUserStats | null = friendStats ? (friendStats[timeframe] ?? null) : null;
 
-  if (!mySlice) return <div className="stats-error">Stats unavailable — please refresh.</div>;
+  if (!mySlice) return <div className="dash-note">Stats unavailable. Please refresh.</div>;
 
   const winner = (myVal: number | null, friendVal: number | null, lowerIsBetter: boolean): 'me' | 'friend' | 'tie' | null => {
     if (!comparing || !friendSlice) return null;
@@ -88,7 +85,7 @@ export default function WordStats() {
 
   const rows: Row[] = [
     {
-      label: 'Games Played',
+      label: 'Games played',
       myValue: String(mySlice.totalGamesPlayed),
       friendValue: friendSlice ? String(friendSlice.totalGamesPlayed) : '—',
       rawMy: mySlice.totalGamesPlayed,
@@ -96,7 +93,7 @@ export default function WordStats() {
       lowerIsBetter: false,
     },
     {
-      label: 'Success Rate',
+      label: 'Solved',
       myValue: `${mySlice.successRate}%`,
       friendValue: friendSlice ? `${friendSlice.successRate}%` : '—',
       rawMy: mySlice.successRate,
@@ -104,7 +101,7 @@ export default function WordStats() {
       lowerIsBetter: false,
     },
     {
-      label: 'Avg Guesses',
+      label: 'Avg. guesses',
       myValue: mySlice.avgGuesses !== null ? String(mySlice.avgGuesses) : '—',
       friendValue: friendSlice ? (friendSlice.avgGuesses !== null ? String(friendSlice.avgGuesses) : '—') : '—',
       rawMy: mySlice.avgGuesses,
@@ -112,7 +109,7 @@ export default function WordStats() {
       lowerIsBetter: true,
     },
     {
-      label: 'Best Time',
+      label: 'Best time',
       myValue: formatTime(mySlice.bestTime),
       friendValue: friendSlice ? formatTime(friendSlice.bestTime) : '—',
       rawMy: mySlice.bestTime,
@@ -120,7 +117,7 @@ export default function WordStats() {
       lowerIsBetter: true,
     },
     {
-      label: 'Current Streak',
+      label: 'Current streak',
       myValue: `${mySlice.currentStreak} day${mySlice.currentStreak !== 1 ? 's' : ''}`,
       friendValue: friendSlice ? `${friendSlice.currentStreak} day${friendSlice.currentStreak !== 1 ? 's' : ''}` : '—',
       rawMy: mySlice.currentStreak,
@@ -128,7 +125,7 @@ export default function WordStats() {
       lowerIsBetter: false,
     },
     {
-      label: 'Longest Streak',
+      label: 'Longest streak',
       myValue: `${mySlice.longestStreak} day${mySlice.longestStreak !== 1 ? 's' : ''}`,
       friendValue: friendSlice ? `${friendSlice.longestStreak} day${friendSlice.longestStreak !== 1 ? 's' : ''}` : '—',
       rawMy: mySlice.longestStreak,
@@ -139,12 +136,13 @@ export default function WordStats() {
 
   return (
     <div className="stats-page">
-      {/* Timeframe */}
-      <div className="stats-timeframe">
+      <div className="seg small" role="tablist">
         {(['forever', 'month', 'week'] as Timeframe[]).map(tf => (
           <button
             key={tf}
-            className={`stats-timeframe-btn ${timeframe === tf ? 'active' : ''}`}
+            role="tab"
+            aria-selected={timeframe === tf}
+            className={timeframe === tf ? 'on' : ''}
             onClick={() => setTimeframe(tf)}
           >
             {TIMEFRAME_LABELS[tf]}
@@ -152,77 +150,76 @@ export default function WordStats() {
         ))}
       </div>
 
-      {/* Friend picker */}
-      <div className="stats-header">
-        {friends.length > 0 ? (
-          <div className="stats-compare-bar">
-            <label htmlFor="friend-select">Compare with:</label>
+      <div className="statrow">
+        <div><b>{mySlice.totalGamesPlayed}</b><span>Played</span></div>
+        <div><b>{mySlice.successRate}</b><span>Solved %</span></div>
+        <div><b>{mySlice.currentStreak}</b><span>Streak</span></div>
+        <div><b>{mySlice.longestStreak}</b><span>Longest</span></div>
+      </div>
+
+      {mySlice.totalGamesPlayed > 0 && (
+        <section className="stats-block">
+          <h3 className="section-label">Guess distribution</h3>
+          <div className={comparing && friendSlice ? 'dist-cols' : ''}>
+            <div>
+              {comparing && friendSlice && <p className="sub">You</p>}
+              <GuessDist dist={mySlice.guessDist} />
+            </div>
+            {comparing && friendSlice && (
+              <div>
+                <p className="sub">{friendName || 'Friend'}</p>
+                <GuessDist dist={friendSlice.guessDist} />
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
+      <section className="stats-block">
+        <div className="picker">
+          <h3 className="section-label">{comparing ? 'Compare' : 'Details'}</h3>
+          {friends.length > 0 ? (
             <select
               id="friend-select"
+              aria-label="Compare with a friend"
               value={selectedFriend}
               onChange={e => handleFriendChange(e.target.value)}
-              className="stats-friend-select"
             >
-              <option value="">— just my stats —</option>
+              <option value="">Compare with…</option>
               {friends.map(f => (
                 <option key={f.id} value={f.id}>{f.name || 'Unnamed'}</option>
               ))}
             </select>
-          </div>
-        ) : (
-          <p className="stats-no-friends">Add friends to compare your stats!</p>
-        )}
-      </div>
+          ) : (
+            <span className="sub">Add friends to compare</span>
+          )}
+        </div>
 
-      {/* Stats table */}
-      <div className="stats-table-wrap">
-        <table className="stats-table">
-          <thead>
-            <tr>
-              <th className="stats-col-label"></th>
-              <th className="stats-col-player">You</th>
-              {comparing && <th className="stats-col-player">{friendName || 'Friend'}</th>}
-            </tr>
-          </thead>
+        {/* The better value is bold with a dot. Not green: green means "right letter" everywhere else. */}
+        <table className="cmp">
+          {comparing && (
+            <thead>
+              <tr>
+                <th />
+                <th>You</th>
+                <th>{friendName || 'Friend'}</th>
+              </tr>
+            </thead>
+          )}
           <tbody>
-            {rows.map(row => {
+            {rows.filter(row => comparing || !SUMMARY_LABELS.includes(row.label)).map(row => {
               const w = winner(row.rawMy, row.rawFriend, row.lowerIsBetter);
               return (
                 <tr key={row.label}>
-                  <td className="stats-row-label">{row.label}</td>
-                  <td className={`stats-row-value ${comparing && w === 'me' ? 'stats-winner' : ''}`}>
-                    {row.myValue}
-                    {comparing && w === 'me' && <span className="stats-win-dot" />}
-                  </td>
-                  {comparing && (
-                    <td className={`stats-row-value ${w === 'friend' ? 'stats-winner' : ''}`}>
-                      {row.friendValue}
-                      {w === 'friend' && <span className="stats-win-dot" />}
-                    </td>
-                  )}
+                  <td>{row.label}</td>
+                  <td className={comparing && w === 'me' ? 'win' : ''}>{row.myValue}</td>
+                  {comparing && <td className={w === 'friend' ? 'win' : ''}>{row.friendValue}</td>}
                 </tr>
               );
             })}
           </tbody>
         </table>
-      </div>
-
-      {/* Guess distribution */}
-      <div className="stats-dist-section">
-        <h4 className="stats-dist-title">Guess Distribution</h4>
-        <div className={comparing && friendSlice ? 'stats-dist-cols' : ''}>
-          <div>
-            {comparing && friendSlice && <p className="stats-dist-player">You</p>}
-            <GuessDist dist={mySlice.guessDist} total={mySlice.totalGamesPlayed} />
-          </div>
-          {comparing && friendSlice && (
-            <div>
-              <p className="stats-dist-player">{friendName || 'Friend'}</p>
-              <GuessDist dist={friendSlice.guessDist} total={friendSlice.totalGamesPlayed} />
-            </div>
-          )}
-        </div>
-      </div>
+      </section>
     </div>
   );
 }

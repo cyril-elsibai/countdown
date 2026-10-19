@@ -1,23 +1,13 @@
 import { useState, useEffect } from 'react';
 import { wordleDashboardApi } from '../../api';
-import type {
-  WordleLeaderboardResponse,
-  WordleOverallLeaderboardResponse,
-  WordleLeaderboardEntry,
-  WordleOverallLeaderboardEntry,
-} from '../../api';
+import type { WordleLeaderboardResponse, WordleOverallLeaderboardResponse } from '../../api';
+import { formatDuration, ResultChip } from './format';
 
 interface Props {
   wordId: string | null; // null = overall leaderboard
 }
 
 type FilterType = 'global' | 'friends';
-
-function formatTime(seconds: number | null): string {
-  if (seconds === null) return '—';
-  if (seconds >= 300) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-  return `${seconds.toFixed(1)}s`;
-}
 
 export default function WordLeaderboard({ wordId }: Props) {
   const isOverall = wordId === null;
@@ -45,99 +35,81 @@ export default function WordLeaderboard({ wordId }: Props) {
     }
   }
 
-  if (loading) return <div className="leaderboard-loading">Loading leaderboard...</div>;
-  if (error) return <div className="leaderboard-error">{error}</div>;
+  if (loading) return <div className="dash-note">Loading leaderboard…</div>;
+  if (error) return <div className="dash-note">{error}</div>;
 
   if (!isOverall && wordData) {
     return (
-      <div className="leaderboard">
-        <div className="leaderboard-section">
-          <div className="leaderboard-info">
-            {wordData.dailyNumber && (
-              <h3 className="leaderboard-title">
-                Daily #{wordData.dailyNumber} · {wordData.wordLength} letters
-              </h3>
-            )}
-            {wordData.userRank && (
-              <span className="user-rank-badge">Your rank: #{wordData.userRank}</span>
-            )}
+      <div className="leaderboard-section">
+        <div className="you-rank">
+          <div>
+            <h3 className="section-label">Leaderboard · {wordData.wordLength} letters</h3>
+            <b>{wordData.dailyNumber ? `Daily #${wordData.dailyNumber}` : 'Random word'}</b>
           </div>
-
-          <div className="leaderboard-filter">
-            <button className={filter === 'global' ? 'active' : ''} onClick={() => setFilter('global')}>Global</button>
-            <button className={filter === 'friends' ? 'active' : ''} onClick={() => setFilter('friends')}>Friends</button>
-          </div>
-
-          {wordData.leaderboard.length === 0 ? (
-            <div className="leaderboard-empty">
-              {filter === 'friends' ? 'No friends have played this word yet.' : 'No one has played this word yet.'}
-            </div>
-          ) : (
-            <table className="leaderboard-table">
-              <thead>
-                <tr><th>Rank</th><th>Player</th><th>Guesses</th><th>Time</th></tr>
-              </thead>
-              <tbody>
-                {wordData.leaderboard.map((entry: WordleLeaderboardEntry) => (
-                  <tr key={entry.userId} className={entry.rank === wordData.userRank ? 'current-user' : ''}>
-                    <td className="rank-cell">
-                      {entry.solved && entry.rank <= 3
-                        ? <span className="medal">{entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}</span>
-                        : `#${entry.rank}`}
-                    </td>
-                    <td className="name-cell">{entry.name}</td>
-                    <td className={`status-cell ${entry.solved ? 'status-solved' : 'status-away'}`}>
-                      {entry.solved ? `${entry.guessCount} guess${entry.guessCount !== 1 ? 'es' : ''}` : '✗'}
-                    </td>
-                    <td className="status-cell">
-                      {entry.solved ? formatTime(entry.duration) : '—'}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+          {wordData.userRank && <span className="sub">You: #{wordData.userRank}</span>}
         </div>
+
+        <div className="seg small" role="tablist">
+          <button role="tab" aria-selected={filter === 'global'} className={filter === 'global' ? 'on' : ''} onClick={() => setFilter('global')}>Global</button>
+          <button role="tab" aria-selected={filter === 'friends'} className={filter === 'friends' ? 'on' : ''} onClick={() => setFilter('friends')}>Friends</button>
+        </div>
+
+        {wordData.leaderboard.length === 0 ? (
+          <div className="dash-note">
+            {filter === 'friends' ? 'None of your friends have played this word yet.' : 'Nobody has played this word yet.'}
+          </div>
+        ) : (
+          <ol className="list">
+            {wordData.leaderboard.map(entry => (
+              <li
+                key={entry.userId}
+                className={`lrow${entry.rank === wordData.userRank ? ' me' : ''}${entry.solved && entry.rank <= 3 ? ' top' : ''}`}
+              >
+                <span className="r">{entry.rank}</span>
+                <span className="who">{entry.name || 'Anonymous'}</span>
+                <span className="right">
+                  {entry.solved && entry.duration != null && <span className="sub">{formatDuration(entry.duration)}</span>}
+                  <ResultChip solved={entry.solved} guessCount={entry.guessCount} />
+                </span>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     );
   }
 
   if (isOverall && overallData) {
     return (
-      <div className="leaderboard">
-        <div className="leaderboard-section">
-          <div className="leaderboard-info">
-            <h3 className="leaderboard-title">All-Time Leaderboard</h3>
-            {overallData.userRank && (
-              <span className="user-rank-badge">
-                Your rank: #{overallData.userRank} · {overallData.userPoints} pts
-              </span>
-            )}
+      <div className="leaderboard-section">
+        <div className="you-rank">
+          <div>
+            <h3 className="section-label">All-time points</h3>
+            {overallData.userRank && <b>#{overallData.userRank}</b>}
           </div>
-
-          {overallData.leaderboard.length === 0 ? (
-            <div className="leaderboard-empty">No leaderboard data yet.</div>
+          {overallData.userRank ? (
+            <span className="sub">{overallData.userPoints.toLocaleString()} pts</span>
           ) : (
-            <table className="leaderboard-table">
-              <thead>
-                <tr><th>Rank</th><th>Player</th><th>Points</th></tr>
-              </thead>
-              <tbody>
-                {overallData.leaderboard.map((entry: WordleOverallLeaderboardEntry) => (
-                  <tr key={entry.userId} className={entry.rank === overallData.userRank ? 'current-user' : ''}>
-                    <td className="rank-cell">
-                      {entry.rank <= 3
-                        ? <span className="medal">{entry.rank === 1 ? '🥇' : entry.rank === 2 ? '🥈' : '🥉'}</span>
-                        : `#${entry.rank}`}
-                    </td>
-                    <td className="name-cell">{entry.name}</td>
-                    <td className="points-cell">{entry.totalPoints} pts</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <span className="sub">Not ranked yet</span>
           )}
         </div>
+
+        {overallData.leaderboard.length === 0 ? (
+          <div className="dash-note">No points yet. Solve a daily word to get on the board.</div>
+        ) : (
+          <ol className="list">
+            {overallData.leaderboard.map(entry => (
+              <li
+                key={entry.userId}
+                className={`lrow${entry.rank === overallData.userRank ? ' me' : ''}${entry.rank <= 3 ? ' top' : ''}`}
+              >
+                <span className="r">{entry.rank}</span>
+                <span className="who">{entry.name || 'Anonymous'}</span>
+                <span className="pts">{entry.totalPoints.toLocaleString()}</span>
+              </li>
+            ))}
+          </ol>
+        )}
       </div>
     );
   }

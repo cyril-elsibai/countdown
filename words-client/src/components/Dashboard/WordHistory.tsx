@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { wordleDashboardApi } from '../../api';
 import type { WordlePlayHistoryEntry, WordleFriendActivity } from '../../api';
+import { formatDuration, formatTimeAgo, ResultChip } from './format';
 
 interface Props {
   onPlayWord: (wordId: string) => void;
@@ -8,24 +9,6 @@ interface Props {
 }
 
 type View = 'me' | 'friends';
-
-function formatTimeAgo(dateStr: string): string {
-  const diffMins = Math.floor((Date.now() - new Date(dateStr).getTime()) / 60000);
-  const diffHours = Math.floor(diffMins / 60);
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffMins < 1) return 'just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  if (diffHours < 24) return `${diffHours}h ago`;
-  if (diffDays === 1) return 'yesterday';
-  if (diffDays < 7) return `${diffDays} days ago`;
-  return new Date(dateStr).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-}
-
-function formatTime(seconds: number | null): string {
-  if (seconds === null) return '—';
-  if (seconds >= 300) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-  return `${seconds.toFixed(1)}s`;
-}
 
 export default function WordHistory({ onPlayWord, onSelectWord }: Props) {
   const [view, setView] = useState<View>('me');
@@ -76,84 +59,55 @@ export default function WordHistory({ onPlayWord, onSelectWord }: Props) {
 
   return (
     <div className="play-history">
-      <div className="history-toggle">
-        <button className={`history-toggle-btn ${view === 'me' ? 'active' : ''}`} onClick={() => setView('me')}>Me</button>
-        <button className={`history-toggle-btn ${view === 'friends' ? 'active' : ''}`} onClick={() => setView('friends')}>Friends</button>
+      <div className="seg small" role="tablist">
+        <button role="tab" aria-selected={view === 'me'} className={view === 'me' ? 'on' : ''} onClick={() => setView('me')}>Me</button>
+        <button role="tab" aria-selected={view === 'friends'} className={view === 'friends' ? 'on' : ''} onClick={() => setView('friends')}>Friends</button>
       </div>
 
       {view === 'me' && (
-        <>
-          {myLoading && <div className="history-loading">Loading...</div>}
-          {myError && <div className="history-error">{myError}</div>}
-          {!myLoading && !myError && myHistory.length === 0 && (
-            <div className="history-empty">No words played yet.</div>
-          )}
-          {!myLoading && !myError && myHistory.length > 0 && (
-            <div className="history-list">
-              {myHistory.map(item => (
-                <div key={item.wordId} className="history-item">
-                  <span className="history-item-name">
-                    {item.name || 'Word'} <span className="history-word-length">{item.wordLength}L</span>
-                  </span>
-                  {item.solved
-                    ? <span className="history-status solved">{item.guessCount} guess{item.guessCount !== 1 ? 'es' : ''} · {formatTime(item.duration)}</span>
-                    : item.guessCount < 6
-                      ? <span className="history-status in-progress">In progress</span>
-                      : <span className="history-status tried">Failed</span>
-                  }
-                  <span className="history-item-date">{formatTimeAgo(item.playedAt)}</span>
-                  <button
-                    className={`history-action-btn ${item.solved ? 'view' : 'play'}`}
-                    onClick={() => onPlayWord(item.wordId)}
-                  >
-                    {item.solved ? 'View' : 'Play'}
+        myLoading ? <div className="dash-note">Loading…</div>
+        : myError ? <div className="dash-note">{myError}</div>
+        : myHistory.length === 0 ? <div className="dash-note">No words played yet.</div>
+        : (
+          <ul className="list">
+            {myHistory.map(item => (
+              <li key={item.wordId} className="hrow">
+                <b>{item.name || 'Random word'} <span className="sub">· {item.wordLength} letters</span></b>
+                <span className="when">
+                  {formatTimeAgo(item.playedAt)}{item.solved && item.duration != null ? ` · ${formatDuration(item.duration)}` : ''}
+                </span>
+                <span className="right">
+                  <ResultChip solved={item.solved} guessCount={item.guessCount} />
+                  <button className="btn mini line" onClick={() => onPlayWord(item.wordId)}>
+                    {item.solved || item.guessCount >= 6 ? 'View' : 'Play'}
                   </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )
       )}
 
       {view === 'friends' && (
-        <>
-          {friendLoading && <div className="history-loading">Loading...</div>}
-          {friendError && <div className="history-error">{friendError}</div>}
-          {!friendLoading && !friendError && friendActivity.length === 0 && (
-            <div className="activity-empty">
-              <div className="empty-icon">👥</div>
-              <h3>No Recent Activity</h3>
-              <p>Your friends haven't played any words recently.</p>
-            </div>
-          )}
-          {!friendLoading && !friendError && friendActivity.length > 0 && (
-            <div className="activity-feed">
-              {friendActivity.map(item => (
-                <div key={item.id} className="activity-card">
-                  <div className="activity-avatar">{(item.name || 'F')[0].toUpperCase()}</div>
-                  <div className="activity-content">
-                    <div className="activity-header">
-                      <span className="activity-name">{item.name}</span>
-                      <span className="activity-time">{formatTimeAgo(item.playedAt)}</span>
-                    </div>
-                    <div className="activity-body">
-                      {item.dailyNumber && (
-                        <span className="activity-challenge">Daily #{item.dailyNumber} · {item.wordLength}L</span>
-                      )}
-                      {item.solved
-                        ? <span className="activity-result solved">{item.guessCount} guess{item.guessCount !== 1 ? 'es' : ''}</span>
-                        : <span className="activity-result failed">Did not solve</span>
-                      }
-                    </div>
-                  </div>
-                  <button className="activity-view-btn" onClick={() => onSelectWord(item.wordId)}>
-                    View
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </>
+        friendLoading && friendActivity.length === 0 ? <div className="dash-note">Loading…</div>
+        : friendError ? <div className="dash-note">{friendError}</div>
+        : friendActivity.length === 0 ? <div className="dash-note">Your friends haven't played any words recently.</div>
+        : (
+          <ul className="list">
+            {friendActivity.map(item => (
+              <li key={item.id} className="hrow">
+                <b>{item.name}</b>
+                <span className="when">
+                  {item.dailyNumber ? `Daily #${item.dailyNumber}` : 'Random word'} · {formatTimeAgo(item.playedAt)}
+                </span>
+                <span className="right">
+                  <ResultChip solved={item.solved} guessCount={item.solved ? item.guessCount : 6} />
+                  <button className="btn mini line" onClick={() => onSelectWord(item.wordId)}>Ranks</button>
+                </span>
+              </li>
+            ))}
+          </ul>
+        )
       )}
     </div>
   );

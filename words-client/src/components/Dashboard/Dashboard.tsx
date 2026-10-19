@@ -1,4 +1,12 @@
-import { useState } from 'react';
+/**
+ * Dashboard: four tabs as a segmented control (they fit at phone width, so
+ * no burger menu): Daily calendar, Ranks (all-time points), Stats, History.
+ * A dock at the bottom always offers today's word and a random one.
+ * Mirrors 6/7 Numbers' dashboard so both games work the same way.
+ */
+
+import { useState, useEffect } from 'react';
+import { wordleApi } from '../../api';
 import WordCalendar from './WordCalendar';
 import WordLeaderboard from './WordLeaderboard';
 import WordStats from './WordStats';
@@ -13,88 +21,80 @@ interface Props {
 
 type Tab = 'daily' | 'leaderboard' | 'stats' | 'history';
 
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'daily', label: 'Daily' },
+  { id: 'leaderboard', label: 'Ranks' },
+  { id: 'stats', label: 'Stats' },
+  { id: 'history', label: 'History' },
+];
+
+/** Hours until the next daily word (midnight UTC). */
+function hoursUntilTomorrow(): number {
+  const now = new Date();
+  const tomorrow = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+  return Math.ceil((tomorrow - now.getTime()) / 3600000);
+}
+
 export default function Dashboard({ onPlayWord, onPlayRandom, onPlayDaily }: Props) {
   const [tab, setTab] = useState<Tab>('daily');
-  const [menuOpen, setMenuOpen] = useState(false);
   const [selectedWordId, setSelectedWordId] = useState<string | null>(null);
+  const [dailyOver, setDailyOver] = useState<boolean | null>(null);
 
+  useEffect(() => {
+    wordleApi.getDaily()
+      .then(state => setDailyOver(state.gameOver))
+      .catch(() => setDailyOver(false));
+  }, []);
+
+  // Per-word leaderboard opens inside the Daily tab, with a back link to the calendar
   const handleSelectWord = (wordId: string) => {
     setSelectedWordId(wordId);
-    setTab('leaderboard');
+    setTab('daily');
   };
 
-  const tabLabel = tab === 'daily' ? 'Daily' : tab === 'leaderboard' ? 'Leaderboard' : tab === 'stats' ? 'Stats' : 'History';
+  const selectTab = (t: Tab) => {
+    setTab(t);
+    setSelectedWordId(null);
+  };
 
   return (
     <div className="dashboard-page">
-      <div className="dashboard-container">
-
-        {/* Desktop tabs */}
-        <nav className="dashboard-tabs desktop-only">
-          {(['daily', 'leaderboard', 'stats', 'history'] as Tab[]).map(t => (
-            <button
-              key={t}
-              className={`dashboard-tab ${tab === t ? 'active' : ''}`}
-              onClick={() => { setTab(t); if (t !== 'leaderboard') setSelectedWordId(null); }}
-            >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          ))}
-        </nav>
-
-        {/* Mobile menu */}
-        <div className="mobile-menu-bar mobile-only">
-          <span className="mobile-active-tab">{tabLabel}</span>
-          <button className="burger-btn" onClick={() => setMenuOpen(!menuOpen)}>
-            {menuOpen ? '✕' : '☰'}
+      <nav className="seg dash-tabs" role="tablist">
+        {TABS.map(t => (
+          <button
+            key={t.id}
+            role="tab"
+            aria-selected={tab === t.id}
+            className={tab === t.id ? 'on' : ''}
+            onClick={() => selectTab(t.id)}
+          >
+            {t.label}
           </button>
-        </div>
-        {menuOpen && <div className="burger-overlay mobile-only" onClick={() => setMenuOpen(false)} />}
-        {menuOpen && (
-          <div className="burger-menu mobile-only">
-            {(['daily', 'leaderboard', 'stats', 'history'] as Tab[]).map(t => (
-              <button
-                key={t}
-                className={tab === t ? 'active' : ''}
-                onClick={() => { setTab(t); if (t !== 'leaderboard') setSelectedWordId(null); setMenuOpen(false); }}
-              >
-                {t.charAt(0).toUpperCase() + t.slice(1)}
-              </button>
-            ))}
-          </div>
+        ))}
+      </nav>
+
+      <main className="dashboard-content">
+        {tab === 'daily' && !selectedWordId && (
+          <WordCalendar onSelectWord={handleSelectWord} onPlayWord={onPlayWord} />
         )}
+        {tab === 'daily' && selectedWordId && (
+          <>
+            <button className="back-btn" onClick={() => setSelectedWordId(null)}>← Calendar</button>
+            <WordLeaderboard wordId={selectedWordId} />
+          </>
+        )}
+        {tab === 'leaderboard' && <WordLeaderboard wordId={null} />}
+        {tab === 'stats' && <WordStats />}
+        {tab === 'history' && (
+          <WordHistory onPlayWord={onPlayWord} onSelectWord={handleSelectWord} />
+        )}
+      </main>
 
-        <main className="dashboard-content">
-          {tab === 'daily' && (
-            <WordCalendar onSelectWord={handleSelectWord} onPlayWord={onPlayWord} />
-          )}
-
-          {tab === 'leaderboard' && (
-            <div>
-              {selectedWordId && (
-                <button className="back-btn" onClick={() => setSelectedWordId(null)}>
-                  ← All-time leaderboard
-                </button>
-              )}
-              <WordLeaderboard wordId={selectedWordId} />
-            </div>
-          )}
-
-          {tab === 'stats' && <WordStats />}
-
-          {tab === 'history' && (
-            <WordHistory onPlayWord={onPlayWord} onSelectWord={handleSelectWord} />
-          )}
-        </main>
-
-        <div className="dashboard-footer-actions">
-          <button className="challenge-btn" onClick={onPlayDaily}>
-            Play Today's Word
-          </button>
-          <button className="challenge-btn random-btn" onClick={onPlayRandom}>
-            Play Random
-          </button>
-        </div>
+      <div className="dock">
+        <button className="btn ink grow" onClick={onPlayDaily}>
+          {dailyOver === null ? 'Loading…' : dailyOver ? `Next word in ${hoursUntilTomorrow()}h` : "Play today's word"}
+        </button>
+        <button className="btn line" onClick={onPlayRandom}>Random</button>
       </div>
     </div>
   );
