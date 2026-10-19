@@ -22,7 +22,6 @@ export default function HelpSheet({ onClose }: Props) {
     <>
       <div className="scrim" onClick={onClose} />
       <div className="sheet" role="dialog" aria-label="How to play">
-        <div className="grab" />
         <div className="sheet-top">
           <h2 className="sheet-title">How to play</h2>
           <button className="icon-btn close-x" onClick={onClose} aria-label="Close">

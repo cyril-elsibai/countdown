@@ -29,7 +29,6 @@ export default function WordSheet({ challenge, onPlay, onViewLeaderboard, onClos
     <>
       <div className="scrim" onClick={onClose} />
       <div className="sheet" role="dialog" aria-label={`Daily #${challenge.dailyNumber}`}>
-        <div className="grab" />
         <div className="sheet-top">
           <div>
             <h2 className="sheet-title">Daily #{challenge.dailyNumber}</h2>

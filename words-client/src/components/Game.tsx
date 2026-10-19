@@ -343,7 +343,6 @@ export default function Game({ initialState, isDaily, userId, onPlayRandom, onDa
         <>
           <div className="scrim delayed" onClick={() => setResultClosed(true)} />
           <div className="sheet delayed" role="dialog" aria-label={solved ? 'Solved' : 'Result'}>
-            <div className="grab" />
             <div className="sheet-top">
               <div className="eyebrow">{solved ? 'Solved' : 'Not this time'}{word.name ? ` · ${word.name}` : ''}</div>
               {close}
