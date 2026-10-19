@@ -1196,10 +1196,19 @@ export default function App() {
                 ? ` · best ${Math.abs(target - previousResult.result)} away`
                 : ''}
           </span>
-          <span className={`timer${timerStopped ? ' over' : ''}`}>
-            {gamePhase === 'playing'
-              ? (timerStopped ? 'Overtime' : `${timer.toFixed(1)}s`)
-              : '0.0s'}
+          <span className="meta-r">
+            <span className={`timer${timerStopped ? ' over' : ''}`}>
+              {gamePhase === 'playing'
+                ? (timerStopped ? 'Overtime' : `${timer.toFixed(1)}s`)
+                : '0.0s'}
+            </span>
+            {/* Signed-in players get a way out next to the game, not only the header icon.
+                Once the frame is solved there's nothing to give up, so it just says Dashboard. */}
+            {user && gamePhase === 'playing' && (
+              <button className="give-up" onClick={navigateToDashboard}>
+                {locked ? 'Dashboard' : 'Give up'}
+              </button>
+            )}
           </span>
         </div>
 

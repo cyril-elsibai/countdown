@@ -4,7 +4,7 @@
  * =============================================================================
  *
  * Four tabs shown as a segmented control (they fit at phone width, so no
- * burger menu): Daily calendar, Ranks (all-time points), Stats, History.
+ * burger menu): Daily (shortcuts + calendar), Ranks (all-time points), Stats, History.
  * A dock at the bottom always offers today's daily and a random frame.
  * Accessible at /dashboard route.
  *
@@ -16,6 +16,7 @@ import ChallengeCalendar from './ChallengeCalendar';
 import Leaderboard from './Leaderboard';
 import PlayHistory from './PlayHistory';
 import Stats from './Stats';
+import Shortcuts from './Shortcuts';
 import { gameApi, PreviousResult } from '../../api';
 import './Dashboard.css';
 
@@ -107,6 +108,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }:
       </nav>
 
       <main className="dashboard-content">
+        {activeTab === 'daily' && !selectedFrameId && <Shortcuts onPlayFrame={onPlayFrame} />}
         {activeTab === 'daily' && !selectedFrameId && (
           <ChallengeCalendar
             onSelectFrame={handleSelectFrame}

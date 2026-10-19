@@ -142,6 +142,95 @@ router.get('/history', requireAuth, async (req: AuthRequest, res: Response) => {
 });
 
 // =============================================================================
+// SUGGESTIONS ENDPOINT (dashboard shortcuts)
+// =============================================================================
+
+/**
+ * GET /api/dashboard/suggestions
+ *
+ * Shortcuts for daily players so they don't have to page back through the
+ * calendar. Only past dailies are considered: today's daily already has its
+ * own button in the dashboard dock. Each list is newest first and capped at
+ * a few items: the lists overlap (a daily a friend solved may also be
+ * unplayed), so the client picks, per row, the newest item not already shown.
+ *
+ * Response:
+ * {
+ *   unplayed:      { count, items: Pick[] }  // past dailies you never submitted
+ *   othersSolved:  { count, items: Pick[] }  // you submitted but didn't solve; someone else did
+ *   friendsSolved: { count, items: Pick[] }  // a friend solved it, you haven't
+ * }
+ * Pick = { id, dailyNumber, date, targetNumber, yourResult: number | null, friendName?: string }
+ */
+router.get('/suggestions', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const todayStart = new Date();
+    todayStart.setUTCHours(0, 0, 0, 0);
+
+    const friendships = await prisma.friendship.findMany({
+      where: { status: 'ACCEPTED', OR: [{ userId: req.userId }, { friendId: req.userId }] },
+      select: { userId: true, friendId: true },
+    });
+    const friendIds = new Set(friendships.map(f => (f.userId === req.userId ? f.friendId : f.userId)));
+
+    const frames = await prisma.frame.findMany({
+      where: { date: { not: null, lt: todayStart } },
+      select: {
+        id: true,
+        name: true,
+        date: true,
+        targetNumber: true,
+        gameResults: {
+          select: { userId: true, solved: true, result: true, user: { select: { name: true } } },
+        },
+      },
+      orderBy: { date: 'desc' },
+    });
+
+    type Pick = {
+      id: string;
+      dailyNumber: number | null;
+      date: string;
+      targetNumber: number;
+      yourResult: number | null;
+      friendName?: string;
+    };
+    const unplayed: Pick[] = [];
+    const othersSolved: Pick[] = [];
+    const friendsSolved: Pick[] = [];
+
+    for (const frame of frames) {
+      const mine = frame.gameResults.find(r => r.userId === req.userId);
+      if (mine?.solved) continue;
+
+      const pick: Pick = {
+        id: frame.id,
+        dailyNumber: getDailyNumber(frame.name),
+        date: frame.date!.toISOString(),
+        targetNumber: frame.targetNumber,
+        yourResult: mine?.result ?? null,
+      };
+
+      if (!mine) unplayed.push(pick);
+      else if (frame.gameResults.some(r => r.solved && r.userId !== req.userId)) othersSolved.push(pick);
+
+      const friendWin = frame.gameResults.find(r => r.solved && r.userId && friendIds.has(r.userId));
+      if (friendWin) friendsSolved.push({ ...pick, friendName: friendWin.user?.name ?? 'A friend' });
+    }
+
+    const summarize = (list: Pick[]) => ({ count: list.length, items: list.slice(0, 5) });
+    res.json({
+      unplayed: summarize(unplayed),
+      othersSolved: summarize(othersSolved),
+      friendsSolved: summarize(friendsSolved),
+    });
+  } catch (error) {
+    console.error('Suggestions error:', error);
+    res.status(500).json({ error: 'Failed to get suggestions' });
+  }
+});
+
+// =============================================================================
 // PER-FRAME LEADERBOARD ENDPOINT
 // =============================================================================
 

@@ -630,6 +630,28 @@ export interface UserChallengeResult {
 /**
  * Represents a challenge in the history view.
  */
+/** One past daily suggested as a shortcut on the dashboard. */
+export interface SuggestionPick {
+  id: string;
+  dailyNumber: number | null;
+  date: string;
+  targetNumber: number;
+  yourResult: number | null;
+  friendName?: string;
+}
+
+/** Each shortcut: how many dailies match, and the newest few (lists overlap). */
+export interface SuggestionGroup {
+  count: number;
+  items: SuggestionPick[];
+}
+
+export interface SuggestionsResponse {
+  unplayed: SuggestionGroup;      // past dailies never submitted
+  othersSolved: SuggestionGroup;  // submitted, not solved, someone else solved it
+  friendsSolved: SuggestionGroup; // a friend solved it, you haven't
+}
+
 export interface HistoryChallenge {
   id: string;
   date: string;                        // ISO date string
@@ -798,6 +820,9 @@ export const dashboardApi = {
     const query = params.toString() ? `?${params.toString()}` : '';
     return request<HistoryResponse>(`/dashboard/history${query}`);
   },
+
+  /** Shortcuts to past dailies worth playing (see SuggestionsResponse). */
+  getSuggestions: () => request<SuggestionsResponse>('/dashboard/suggestions'),
 
   /**
    * Gets the leaderboard for a specific frame.
