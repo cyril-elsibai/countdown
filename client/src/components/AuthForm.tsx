@@ -16,6 +16,9 @@ export default function AuthForm({ onSuccess, onCancel, initialMode = 'login' }:
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(false);
   const [showResend, setShowResend] = useState(false);
+  // After register / forgot, the form is replaced by a "check your inbox" screen
+  const [sent, setSent] = useState<null | 'register' | 'forgot'>(null);
+  const [resent, setResent] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,13 +33,14 @@ export default function AuthForm({ onSuccess, onCancel, initialMode = 'login' }:
         setToken(response.token);
         onSuccess(response.user);
       } else if (mode === 'register') {
-        const response = await authApi.register(email, password, name || undefined);
-        setMessage(response.message);
-        setShowResend(true);
+        await authApi.register(email, password, name || undefined);
         // Don't call onSuccess - user needs to verify email first
+        setSent('register');
+        setResent(false);
       } else if (mode === 'forgot') {
-        const response = await authApi.forgotPassword(email);
-        setMessage(response.message + ' Check the server console for the reset link.');
+        await authApi.forgotPassword(email);
+        setSent('forgot');
+        setResent(false);
       }
     } catch (err: unknown) {
       const errorMessage = err instanceof Error ? err.message : 'Something went wrong';
@@ -56,13 +60,86 @@ export default function AuthForm({ onSuccess, onCancel, initialMode = 'login' }:
     setLoading(true);
     try {
       const response = await authApi.resendVerification(email);
-      setMessage(response.message + ' Check the server console for the verification link.');
+      setMessage(response.message);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to resend');
     } finally {
       setLoading(false);
     }
   };
+
+  const handleSendAgain = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      if (sent === 'register') await authApi.resendVerification(email);
+      else await authApi.forgotPassword(email);
+      setResent(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to resend');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const goToSignIn = () => {
+    setSent(null);
+    setMode('login');
+    setPassword('');
+    setError('');
+    setMessage('');
+    setShowResend(false);
+  };
+
+  const startOver = () => {
+    setSent(null);
+    setError('');
+    setMessage('');
+  };
+
+  if (sent) {
+    return (
+      <div className="auth-overlay">
+        <button className="auth-close" onClick={onCancel}>&times;</button>
+        <div className="auth-modal">
+          <div className="auth-sent-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3.5 6l8.5 7 8.5-7"/></svg>
+          </div>
+          <p className="auth-mode-title">Check your inbox</p>
+          <p className="auth-sent-text">
+            {sent === 'register' ? 'We sent a confirmation link to' : 'If an account exists, we sent a reset link to'}
+            <strong className="auth-sent-email">{email}</strong>
+            {sent === 'register'
+              ? 'Click it to activate the account, then come back to sign in.'
+              : 'Click it to choose a new password.'}
+          </p>
+
+          {error && <div className="auth-error">{error}</div>}
+
+          <button type="button" className="auth-submit" onClick={goToSignIn}>
+            Go to sign in
+          </button>
+
+          <div className="auth-switch">
+            {resent ? (
+              'Sent again. Check your spam folder too.'
+            ) : (
+              <>
+                Didn't get it?{' '}
+                <button onClick={handleSendAgain} disabled={loading}>
+                  {loading ? 'Sending...' : 'Resend email'}
+                </button>
+              </>
+            )}
+          </div>
+          <div className="auth-switch auth-switch-tight">
+            Wrong address?{' '}
+            <button onClick={startOver}>Start over</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const getSubmitText = () => {
     if (loading) return 'Please wait...';

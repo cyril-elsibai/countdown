@@ -885,6 +885,40 @@ select:focus-visible {
   font-size: 14px;
   color: var(--muted);
 }
+.auth-switch-tight { margin-top: 10px; }
+.auth-switch button:disabled { opacity: 0.4; cursor: default; }
+
+/* Auth: "check your inbox" screen after register / forgot password */
+.auth-sent-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 12px;
+  border: 2px solid var(--fg);
+  display: grid;
+  place-items: center;
+  margin-bottom: 18px;
+}
+.auth-sent-icon svg {
+  width: 32px;
+  height: 32px;
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 1.8;
+  stroke-linejoin: round;
+}
+.auth-sent-text {
+  font-size: 15px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: -8px 0 24px;
+}
+.auth-sent-email {
+  display: block;
+  margin: 4px 0 10px;
+  font-size: 17px;
+  color: var(--fg);
+  overflow-wrap: anywhere;
+}
 
 /* Profile & friends: centered card on a scrim */
 .dark-overlay {
