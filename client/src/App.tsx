@@ -773,9 +773,8 @@ export default function App() {
 
         newRows[row + 1].num1.active = true;
         setActivePosition({ row: row + 1, type: 'num1' });
-      } else {
-        if (timerIntervalRef.current) clearInterval(timerIntervalRef.current);
       }
+      // Last row filled without solving: the game isn't over (undo / clear), so the timer keeps running
     } else {
       const nextType = type === 'num1' ? 'operator' : 'num2';
       newRows[row][nextType].active = true;
