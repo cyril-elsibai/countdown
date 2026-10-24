@@ -24,6 +24,8 @@ interface DashboardProps {
   onNavigateHome: () => void;
   onPlayFrame: (frameId: string, frameName?: string) => void;
   onPlayRandom: () => void;
+  /** Open on this frame's leaderboard (e.g. from a shared link's challenge card) */
+  initialFrameId?: string | null;
 }
 
 type TabType = 'daily' | 'leaderboard' | 'stats' | 'history';
@@ -49,9 +51,9 @@ function getHoursUntilTomorrow(): number {
   return Math.ceil((tomorrow.getTime() - now.getTime()) / (1000 * 60 * 60));
 }
 
-export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom }: DashboardProps) {
+export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom, initialFrameId = null }: DashboardProps) {
   const [activeTab, setActiveTab] = useState<TabType>('daily');
-  const [selectedFrameId, setSelectedFrameId] = useState<string | null>(null);
+  const [selectedFrameId, setSelectedFrameId] = useState<string | null>(initialFrameId);
   const [dailyStatus, setDailyStatus] = useState<PreviousResult | null | undefined>(undefined);
   const [hoursUntilTomorrow, setHoursUntilTomorrow] = useState(getHoursUntilTomorrow());
 

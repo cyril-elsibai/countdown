@@ -638,6 +638,31 @@ select:focus-visible {
 }
 .pair .btn { flex: 1; }
 
+/* Challenge card (shared link) */
+.vs { margin: 4px 0 14px; border-top: 1px solid var(--line); }
+.vs > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 15px;
+}
+.vs > div > span:first-child { font-weight: 650; }
+.vs > div.won > span:last-child { font-weight: 750; }
+.challenge-line { margin: 0 0 14px; color: var(--muted); }
+.challenge-friend { margin-top: 14px; text-align: center; font-size: 14px; }
+.challenge-friend button {
+  background: none;
+  border: 0;
+  color: var(--fg);
+  font-size: 14px;
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
 .legend {
   display: flex;
   flex-direction: column;

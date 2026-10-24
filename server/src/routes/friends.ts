@@ -164,16 +164,15 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
  */
 router.post('/request', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
-    const { email } = req.body;
+    // By email (friends modal) or by id (challenge card from a shared link)
+    const { email, userId } = req.body;
 
-    // Validate email is provided
-    if (!email) {
+    if (!email && !userId) {
       return res.status(400).json({ error: 'Email is required' });
     }
 
-    // Find the user to add by their email
     const friendUser = await prisma.user.findUnique({
-      where: { email },
+      where: email ? { email } : { id: userId },
       select: { id: true, email: true, name: true },
     });
 
