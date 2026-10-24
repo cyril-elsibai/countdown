@@ -668,6 +668,96 @@ router.post('/frame/:id/progress', requireAuth, async (req: AuthRequest, res: Re
 });
 
 // =============================================================================
+// SHARED LINK ENDPOINT
+// =============================================================================
+
+/**
+ * GET /api/game/frame/:id/shared?from=userId
+ *
+ * Context for the challenge card shown when someone opens a shared link.
+ * Public (the sender chose to share), so guests see who challenged them too.
+ * Never returns the expression, only the sender's time.
+ *
+ * RESPONSE:
+ * {
+ *   frame: { id, name, targetNumber, isToday },
+ *   sender: { id, name, duration } | null,   // null unless the sender solved it
+ *   me: { solved, result, duration } | null, // null for guests or not started
+ *   friendship: 'self' | 'friends' | 'pending' | 'none' | null  // null for guests
+ * }
+ */
+router.get('/frame/:id/shared', optionalAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const frameId = req.params.id as string;
+    const fromId = typeof req.query.from === 'string' ? req.query.from : null;
+
+    const frame = await prisma.frame.findUnique({
+      where: { id: frameId },
+      select: { id: true, name: true, targetNumber: true, date: true },
+    });
+    if (!frame) return res.status(404).json({ error: 'Challenge not found' });
+
+    let sender: { id: string; name: string; duration: number | null } | null = null;
+    if (fromId) {
+      const senderResult = await prisma.gameResult.findFirst({
+        where: { frameId, userId: fromId, solved: true },
+        select: { duration: true, user: { select: { id: true, name: true } } },
+      });
+      if (senderResult?.user) {
+        sender = {
+          id: senderResult.user.id,
+          name: senderResult.user.name || 'A friend',
+          duration: senderResult.duration,
+        };
+      }
+    }
+
+    let me: { solved: boolean; result: number | null; duration: number | null } | null = null;
+    let friendship: 'self' | 'friends' | 'pending' | 'none' | null = null;
+    if (req.userId) {
+      const mine = await prisma.gameResult.findFirst({
+        where: { frameId, userId: req.userId },
+        select: { solved: true, result: true, duration: true },
+      });
+      // A bare "started" row (no result yet) counts as not played
+      me = mine && (mine.solved || mine.result !== null) ? mine : null;
+
+      if (sender) {
+        if (sender.id === req.userId) {
+          friendship = 'self';
+        } else {
+          const link = await prisma.friendship.findFirst({
+            where: {
+              OR: [
+                { userId: req.userId, friendId: sender.id },
+                { userId: sender.id, friendId: req.userId },
+              ],
+            },
+            select: { status: true },
+          });
+          friendship = !link ? 'none' : link.status === 'ACCEPTED' ? 'friends' : 'pending';
+        }
+      }
+    }
+
+    res.json({
+      frame: {
+        id: frame.id,
+        name: frame.name,
+        targetNumber: frame.targetNumber,
+        isToday: !!frame.date && frame.date.getTime() === getDailyDateKey().getTime(),
+      },
+      sender,
+      me,
+      friendship,
+    });
+  } catch (error) {
+    console.error('Shared frame error:', error);
+    res.status(500).json({ error: 'Failed to load challenge' });
+  }
+});
+
+// =============================================================================
 // PLAY HISTORICAL FRAME ENDPOINT
 // =============================================================================
 

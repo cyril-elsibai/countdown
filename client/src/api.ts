@@ -209,6 +209,13 @@ export interface AuthResponse {
  * - getFrame(id) - Get a specific frame by ID
  * - submit(frameId, expression, duration, result) - Submit a solution
  */
+export interface SharedFrameResponse {
+  frame: { id: string; name: string; targetNumber: number; isToday: boolean };
+  sender: { id: string; name: string; duration: number | null } | null;
+  me: { solved: boolean; result: number | null; duration: number | null } | null;
+  friendship: 'self' | 'friends' | 'pending' | 'none' | null;
+}
+
 export const gameApi = {
   /**
    * Gets today's daily challenge.
@@ -263,6 +270,10 @@ export const gameApi = {
    */
   playHistoricalFrame: (frameId: string) =>
     request<PlayFrameResponse>(`/game/frame/${frameId}/play`),
+
+  /** Context for the challenge card of a shared link (works for guests too) */
+  getShared: (frameId: string, fromUserId: string | null) =>
+    request<SharedFrameResponse>(`/game/frame/${frameId}/shared${fromUserId ? `?from=${encodeURIComponent(fromUserId)}` : ''}`),
 
   startFrame: (frameId: string) =>
     request<{ success: boolean }>(`/game/frame/${frameId}/start`, { method: 'POST' }),
@@ -474,6 +485,13 @@ export const friendsApi = {
     request<{ friend: Friend }>('/friends/request', {
       method: 'POST',
       body: JSON.stringify({ email }),
+    }),
+
+  /** Same as sendRequest, by user id (from a shared link's challenge card) */
+  sendRequestToUser: (userId: string) =>
+    request<{ friend: Friend }>('/friends/request', {
+      method: 'POST',
+      body: JSON.stringify({ userId }),
     }),
 
   /**

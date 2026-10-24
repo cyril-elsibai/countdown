@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { gameApi, authApi, friendsApi, dashboardApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult, UserStats } from './api';
+import { gameApi, authApi, friendsApi, dashboardApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult, UserStats, SharedFrameResponse } from './api';
 import AuthForm from './components/AuthForm';
 import ResetPasswordForm from './components/ResetPasswordForm';
 import Profile from './components/Profile';
@@ -7,6 +7,7 @@ import FriendsModal from './components/FriendsModal';
 import Admin from './components/Admin';
 import { Dashboard } from './components/Dashboard';
 import TutorialModal from './components/TutorialModal';
+import ChallengeCard from './components/ChallengeCard';
 
 // Types
 type TileState = {
@@ -33,6 +34,13 @@ const OVERTIME_THRESHOLD = 300; // 5 minutes in seconds
 
 type GamePhase = 'loading' | 'pre-game' | 'countdown' | 'playing';
 
+// The URL the app was opened with, read once: the guest redirect below rewrites the
+// address during the first render, and StrictMode renders twice
+const BOOT_PLAY_MATCH = window.location.pathname.match(/^\/play\/(.+)$/);
+const BOOT_FRAME_ID = BOOT_PLAY_MATCH ? BOOT_PLAY_MATCH[1] : null;
+// Shared links carry the sender (?from=userId): open the challenge card instead of the game
+const BOOT_FROM = BOOT_FRAME_ID ? new URLSearchParams(window.location.search).get('from') : null;
+
 
 export default function App() {
   // Check if we're on the admin page
@@ -42,19 +50,20 @@ export default function App() {
 
   // Check for /play/:frameId route
   const playMatch = window.location.pathname.match(/^\/play\/(.+)$/);
-  const initialFrameId = playMatch ? playMatch[1] : null;
+  const initialFrameId = BOOT_FRAME_ID;
+  const initialFrom = BOOT_FROM;
 
   // Non-logged-in users can only access the daily challenge (home)
   const loggedIn = isLoggedIn();
   const initialRoute = loggedIn
-    ? (window.location.pathname === '/dashboard' ? 'dashboard' : initialFrameId ? 'play' : 'home')
+    ? (window.location.pathname === '/dashboard' || initialFrom ? 'dashboard' : initialFrameId ? 'play' : 'home')
     : 'home';
 
   // Redirect URL to home if not logged in and on a protected route
-  if (!loggedIn && (window.location.pathname === '/dashboard' || initialFrameId)) {
-    if (initialFrameId) {
+  if (!loggedIn && (window.location.pathname === '/dashboard' || playMatch)) {
+    if (playMatch && !initialFrom) {
       // Preserve the shared frame so we can route there after sign-in
-      sessionStorage.setItem('pendingFrame', initialFrameId);
+      sessionStorage.setItem('pendingFrame', playMatch[1]);
     }
     window.history.replaceState({}, '', '/');
   }
@@ -92,11 +101,15 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [pendingFriendCount, setPendingFriendCount] = useState(0);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen') && !isLoggedIn());
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen') && !isLoggedIn() && !initialFrom);
   const [initialAuthMode, setInitialAuthMode] = useState<'login' | 'register'>('login');
   const [previousResult, setPreviousResult] = useState<PreviousResult | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
   const [dashboardKey, setDashboardKey] = useState(0);
+  // Frame whose leaderboard the dashboard opens on (from the challenge card)
+  const [dashboardFrameId, setDashboardFrameId] = useState<string | null>(null);
+  const [shared, setShared] = useState<SharedFrameResponse | null>(null);
+  const sharedFromRef = useRef<string | null>(initialFrom);
   const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
   const [countdownNumber, setCountdownNumber] = useState(3);
@@ -235,7 +248,15 @@ export default function App() {
 
   // Initialize game — load shared frame directly if URL contains /play/:id and user is logged in
   useEffect(() => {
-    if (loggedIn && initialFrameId) {
+    if (initialFrameId && initialFrom) {
+      // Shared link: show who challenged you; the game starts from the card
+      window.history.replaceState({}, '', loggedIn ? '/dashboard' : '/');
+      gameApi.getShared(initialFrameId, initialFrom)
+        .then(setShared)
+        .catch(() => { if (loggedIn) handlePlayHistorical(initialFrameId); });
+      if (loggedIn) setLoading(false); // the dashboard sits behind the card
+      else initializeGame();
+    } else if (loggedIn && initialFrameId) {
       handlePlayHistorical(initialFrameId);
     } else {
       initializeGame();
@@ -425,6 +446,14 @@ export default function App() {
     setUser(loggedInUser);
     setShowAuthModal(false);
 
+    // Logged in from the challenge card: show it again with your own result
+    if (shared) {
+      setCurrentRoute('dashboard');
+      window.history.replaceState({}, '', '/dashboard');
+      gameApi.getShared(shared.frame.id, sharedFromRef.current).then(setShared).catch(() => setShared(null));
+      return;
+    }
+
     // If the user arrived via a shared frame link, route there now
     const pendingFrameId = sessionStorage.getItem('pendingFrame');
     if (pendingFrameId) {
@@ -498,8 +527,9 @@ export default function App() {
     activeFrameRef.current = null;
   };
 
-  const navigateToDashboard = () => {
+  const navigateToDashboard = (openFrameId: string | null = null) => {
     saveActiveFrameProgress();
+    setDashboardFrameId(openFrameId);
     setCurrentRoute('dashboard');
     setDashboardKey(k => k + 1);
     window.history.pushState({}, '', '/dashboard');
@@ -591,7 +621,8 @@ export default function App() {
     const timeStr = winTime <= OVERTIME_THRESHOLD ? `${winTime.toFixed(1)}s` : 'overtime';
     // One square per step, colored by distance band: shows the path without spoiling the answer
     const text = `6/7 Numbers · ${name}\n${target} in ${timeStr}\n${shareSquares()}`;
-    const url = `${window.location.origin}/play/${frame?.id}`;
+    // The sender's id lets the link open a challenge card ("Cyril solved it in 42s")
+    const url = `${window.location.origin}/play/${frame?.id}${user ? `?from=${user.id}` : ''}`;
 
     if (navigator.share) {
       try {
@@ -1053,8 +1084,8 @@ export default function App() {
     );
   }
 
-  // Redirect to home if not logged in on dashboard
-  if (currentRoute === 'dashboard' && !user) {
+  // Redirect to home if not logged in on dashboard (a token means /me is still loading)
+  if (currentRoute === 'dashboard' && !user && !isLoggedIn()) {
     navigateToHome();
     return null;
   }
@@ -1085,7 +1116,7 @@ export default function App() {
                 {pendingFriendCount > 0 && <span className="badge">{pendingFriendCount}</span>}
               </button>
               {currentRoute !== 'dashboard' && (
-                <button className="icon-btn" onClick={navigateToDashboard} aria-label="Dashboard" title="Dashboard">
+                <button className="icon-btn" onClick={() => navigateToDashboard()} aria-label="Dashboard" title="Dashboard">
                   <svg viewBox="0 0 24 24"><path d="M5 20v-8M12 20V5M19 20v-5"/></svg>
                 </button>
               )}
@@ -1099,6 +1130,26 @@ export default function App() {
           ) : null}
         </div>
       </header>
+
+      {shared && !showAuthModal && (
+        <ChallengeCard
+          data={shared}
+          loggedIn={!!user || isLoggedIn()}
+          onPlay={() => {
+            const id = shared.frame.id;
+            setShared(null);
+            if (isLoggedIn()) handlePlayHistorical(id);
+            else setGamePhase('countdown');
+          }}
+          onLeaderboard={() => {
+            const id = shared.frame.id;
+            setShared(null);
+            navigateToDashboard(id);
+          }}
+          onLogin={openAuth}
+          onClose={() => setShared(null)}
+        />
+      )}
 
       {showAuthModal && (
         <AuthForm
@@ -1141,6 +1192,7 @@ export default function App() {
       {currentRoute === 'dashboard' ? (
         <Dashboard
           key={dashboardKey}
+          initialFrameId={dashboardFrameId}
           onNavigateHome={navigateToHome}
           onPlayFrame={handlePlayHistorical}
           onPlayRandom={handlePlayRandom}
@@ -1204,7 +1256,7 @@ export default function App() {
             {/* Signed-in players get a way out next to the game, not only the header icon.
                 Once the frame is solved there's nothing to give up, so it just says Dashboard. */}
             {user && gamePhase === 'playing' && (
-              <button className="give-up" onClick={navigateToDashboard}>
+              <button className="give-up" onClick={() => navigateToDashboard()}>
                 {locked ? 'Dashboard' : 'Give up'}
               </button>
             )}
@@ -1360,7 +1412,7 @@ export default function App() {
                 </button>
                 <div className="pair">
                   <button className="btn line" onClick={handlePlayRandom}>Play random</button>
-                  <button className="btn line" onClick={navigateToDashboard}>Dashboard</button>
+                  <button className="btn line" onClick={() => navigateToDashboard()}>Dashboard</button>
                 </div>
               </div>
             </div>
