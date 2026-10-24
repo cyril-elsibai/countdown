@@ -642,11 +642,20 @@ router.post('/frame/:id/progress', requireAuth, async (req: AuthRequest, res: Re
     });
 
     if (existing && !existing.solved) {
+      // Only keep the new result if it's closer: after an Undo the board can hold a
+      // worse number than the one already submitted, and that must not overwrite it
+      let bestResult = existing.result;
+      if (typeof result === 'number' && result > 0) {
+        const frame = await prisma.frame.findUnique({ where: { id: frameId }, select: { targetNumber: true } });
+        const closer = !frame || existing.result === null
+          || Math.abs(frame.targetNumber - result) <= Math.abs(frame.targetNumber - existing.result);
+        if (closer) bestResult = result;
+      }
       await prisma.gameResult.update({
         where: { id: existing.id },
         data: {
           duration: typeof duration === 'number' ? Math.round(duration * 100) / 100 : existing.duration,
-          result: typeof result === 'number' && result > 0 ? result : existing.result,
+          result: bestResult,
         },
       });
     }
