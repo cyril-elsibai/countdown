@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /play/
+Disallow: /verify
+Disallow: /reset-password
+
+Sitemap: https://www.67numbers.com/sitemap.xml
