@@ -164,29 +164,11 @@ function JobsTab() {
       },
     },
     {
-      id: 'seed-words',
-      name: 'Seed Daily Words (67words)',
-      schedule: 'On server startup',
-      run: async () => {
-        const r = await adminApi.seedWords();
-        return `Created ${r.created}, existing ${r.existing}`;
-      },
-    },
-    {
       id: 'calculate-points',
       name: 'Calculate Points (67numbers)',
       schedule: 'Startup + daily 00:00:30 UTC',
       run: async () => {
         const r = await adminApi.calculatePoints();
-        return `${r.usersProcessed} users, ${r.resultsProcessed} results processed`;
-      },
-    },
-    {
-      id: 'calculate-wordle-points',
-      name: 'Calculate Points (67words)',
-      schedule: 'Startup + daily 00:00:30 UTC',
-      run: async () => {
-        const r = await adminApi.calculateWordlePoints();
         return `${r.usersProcessed} users, ${r.resultsProcessed} results processed`;
       },
     },
@@ -205,15 +187,6 @@ function JobsTab() {
       schedule: 'Manual only',
       run: async () => {
         const r = await adminApi.generateDummyNumbers();
-        return `${r.usersCreated} users, ${r.resultsCreated} results created`;
-      },
-    },
-    {
-      id: 'generate-dummy-words',
-      name: 'Generate Dummy Data (67words)',
-      schedule: 'Manual only',
-      run: async () => {
-        const r = await adminApi.generateDummyWords();
         return `${r.usersCreated} users, ${r.resultsCreated} results created`;
       },
     },

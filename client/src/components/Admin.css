@@ -1,144 +1,25 @@
-/* Admin panel styles — internal tool, kept separate from the player-facing design. */
-.admin-page { --red: #C0392B; --yellow-hover: #A93226; --blue: #3B6EA8; --white: #FFFFFF; }
-
-/* =============================================================================
-   ADMIN MODAL (overlay style)
-   ============================================================================= */
-
-.admin-modal {
-  background: #1C1C1C;
-  padding: 30px;
-  width: 100%;
-  max-width: 800px;
-  max-height: 90vh;
-  overflow-y: auto;
-  position: relative;
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 8px;
-}
-
-.admin-modal h2 {
-  margin: 0 0 20px 0;
-  text-align: center;
-  color: #fff;
-  font-weight: 900;
-  letter-spacing: -0.02em;
-}
-
-.admin-modal h3 {
-  margin: 0 0 14px 0;
-  color: var(--blue);
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-/* Tiles input */
-.tiles-input {
-  display: flex;
-  gap: 8px;
-}
-
-.tiles-input input {
-  width: 60px;
-  padding: 8px;
-  background: rgba(255,255,255,0.08);
-  border: 2px solid rgba(255,255,255,0.15);
-  border-radius: 4px;
-  font-size: 1rem;
-  text-align: center;
-  color: #fff;
-}
-
-.tiles-input input:focus {
-  outline: none;
-  border-color: var(--blue);
-}
-
-.form-group small {
-  color: rgba(255,255,255,0.4);
-  font-size: 0.78rem;
-}
-
-/* Challenges table */
-.challenges-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.9rem;
-}
-
-.challenges-table th,
-.challenges-table td {
-  padding: 10px 8px;
-  text-align: left;
-  border-bottom: 1px solid rgba(255,255,255,0.06);
-}
-
-.challenges-table th {
-  font-weight: 700;
-  color: rgba(255,255,255,0.4);
-  font-size: 0.75rem;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.challenges-table tbody tr:hover {
-  background: rgba(255,255,255,0.04);
-}
-
-.challenges-table tr.today {
-  background: rgba(228, 49, 26, 0.08);
-}
-
-.challenges-table tr.today:hover {
-  background: rgba(228, 49, 26, 0.12);
-}
-
-.challenges-table tr.past {
-  color: rgba(255,255,255,0.3);
-}
-
-.challenges-table .challenge-number {
-  font-weight: 700;
-  color: rgba(255,255,255,0.4);
-  white-space: nowrap;
-}
-
-.challenges-table .challenge-date {
-  white-space: nowrap;
-}
-
-.challenges-table .challenge-tiles {
-  font-family: monospace;
-  font-size: 0.85rem;
-  color: rgba(255,255,255,0.5);
-}
-
-.challenges-table button {
-  padding: 4px 10px;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 4px;
-  background: rgba(255,255,255,0.06);
-  color: #fff;
-  cursor: pointer;
-  font-size: 0.78rem;
-  font-weight: 700;
-}
-
-.challenges-table button:hover {
-  background: rgba(255,255,255,0.14);
-}
-
-.admin-list {
-  overflow-x: auto;
-}
-
-/* Admin Page */
+/* Admin panel — internal tool. Same ink-on-paper system as the game, locked to the
+   dark palette so it's never mistaken for the player-facing app. Redefining the
+   tokens here also restyles the shared form pieces (.form-group, .auth-submit). */
 .admin-page {
+  --bg: #131416;
+  --fg: #F1F2F3;
+  --muted: #9AA1A8;
+  --line: #33363B;
+  --line-strong: #5C6168;
+  --key: #2E3136;
+  --key-strong: #464A50;
+  --exact: #4C9160;
+  --shadow: rgba(0, 0, 0, 0.5);
+  --error: #F2867E;
+  --panel: #1A1C1F;
+
+  color-scheme: dark;
   min-height: 100vh;
-  background-color: #111111;
-  padding: 20px;
-  color: #fff;
+  padding: 24px 20px 48px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font);
 }
 
 .admin-container {
@@ -146,112 +27,106 @@
   margin: 0 auto;
 }
 
+/* Header */
 .admin-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  padding-bottom: 15px;
-  border-bottom: 3px solid var(--red);
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--line);
 }
 
-.admin-header h1 {
+.admin-header h1,
+.admin-login h1 {
   margin: 0;
-  color: var(--red);
-  font-weight: 900;
-  letter-spacing: -0.03em;
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--fg);
 }
 
 .logout-btn {
-  padding: 8px 16px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 4px;
+  height: 36px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
   cursor: pointer;
-  color: #fff;
-  font-weight: 700;
-  font-size: 0.85rem;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
 }
+.logout-btn:hover { background: var(--key); }
 
-.logout-btn:hover {
-  background: rgba(255,255,255,0.12);
-}
-
+/* Login */
 .admin-login {
-  max-width: 400px;
-  margin: 100px auto;
-  padding: 30px;
-  background: rgba(255,255,255,0.04);
-  border: 2px solid rgba(255,255,255,0.1);
+  max-width: 380px;
+  margin: 96px auto;
+  padding: 28px;
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
+.admin-login h1 { margin-bottom: 24px; text-align: center; }
+.admin-login .form-group { margin-bottom: 16px; }
 
-.admin-login h1 {
-  margin: 0 0 25px 0;
-  text-align: center;
-  color: var(--red);
-  font-weight: 900;
-  letter-spacing: -0.03em;
-}
-
+/* Tabs: same segmented control as the dashboard */
 .admin-tabs {
-  display: flex;
-  gap: 0;
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
   margin-bottom: 20px;
-  border-bottom: 2px solid rgba(255,255,255,0.1);
+  padding: 3px;
+  border-radius: 8px;
+  background: var(--key);
 }
 
 .admin-tab {
-  padding: 10px 22px;
-  background: none;
-  border: none;
-  border-bottom: 3px solid transparent;
-  margin-bottom: -2px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  font-weight: 700;
-  color: rgba(255,255,255,0.4);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  transition: color 0.15s;
-}
-
-.admin-tab:hover {
-  color: rgba(255,255,255,0.8);
-}
-
-.admin-tab.active {
-  color: var(--red);
-  border-bottom-color: var(--red);
-}
-
-.admin-tab-content {
-  background: rgba(255,255,255,0.02);
-  padding: 20px;
-}
-
-.admin-edit-section {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
+  height: 32px;
+  padding: 0 20px;
+  border: 0;
   border-radius: 6px;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  cursor: pointer;
+}
+.admin-tab:hover { color: var(--fg); }
+.admin-tab.active {
+  background: var(--bg);
+  color: var(--fg);
+  box-shadow: 0 1px 2px var(--shadow);
+}
+
+/* Panels */
+.admin-edit-section,
+.admin-list-section {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
   padding: 20px;
   margin-bottom: 20px;
 }
 
-.admin-edit-section h3 {
-  margin: 0 0 14px 0;
-  color: var(--blue);
-  font-size: 0.8rem;
+.admin-edit-section h3,
+.admin-list-section h3 {
+  margin: 0 0 16px;
+  font-size: 12px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.08em;
+  color: var(--muted);
 }
 
+/* Edit form */
 .admin-edit-form {
   display: flex;
   flex-wrap: wrap;
-  gap: 15px 25px;
+  gap: 16px 24px;
   align-items: center;
 }
 
@@ -263,136 +138,152 @@
   margin-bottom: 0;
 }
 
-.admin-edit-form .form-group label {
-  margin-bottom: 0;
-  white-space: nowrap;
-  color: rgba(255,255,255,0.6);
+.admin-edit-form .form-group label { white-space: nowrap; }
+.admin-edit-form .form-group input { height: 40px; }
+.admin-edit-form .form-group input[type="date"] { width: auto; }
+.admin-edit-form .form-group > input[type="text"] { width: 100px; }
+.admin-edit-form .form-group small { display: none; }
+
+.tiles-input {
+  display: flex;
+  gap: 6px;
 }
 
-.admin-edit-form .form-group input[type="date"] {
-  width: auto;
-  color-scheme: dark;
+.admin-page .tiles-input input {
+  width: 52px;
+  padding: 0;
+  text-align: center;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
 }
 
-.admin-edit-form .form-group > input[type="text"] {
-  width: 100px;
+.admin-page .form-group input::placeholder {
+  color: var(--line-strong);
+  font-weight: 400;
 }
 
-.admin-edit-form .form-group small {
-  display: none;
+.admin-page .form-group input:focus {
+  outline: none;
+  border-color: var(--fg);
 }
 
+/* Buttons: ink primary, outlined secondary — as in the game */
 .admin-edit-actions {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin-left: auto;
 }
 
-.admin-edit-actions button {
-  padding: 10px 16px;
-  border: 1px solid rgba(255,255,255,0.2);
-  border-radius: 4px;
-  background: rgba(255,255,255,0.06);
-  color: #fff;
-  cursor: pointer;
-  font-size: 0.88rem;
+.admin-edit-actions button,
+.challenges-table button,
+.jobs-table button {
+  height: 40px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 6px;
+  background: none;
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 13px;
   font-weight: 700;
   white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
+  cursor: pointer;
 }
 
-.admin-edit-actions button:hover:not(:disabled) {
-  background: rgba(255,255,255,0.12);
+.admin-edit-actions button:hover:not(:disabled),
+.challenges-table button:hover:not(:disabled),
+.jobs-table button:hover:not(:disabled) {
+  background: var(--key);
 }
 
 .admin-edit-actions button.primary {
-  background: var(--red);
-  border-color: var(--red);
-  color: var(--white);
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--bg);
 }
-
 .admin-edit-actions button.primary:hover:not(:disabled) {
-  background: var(--yellow-hover);
-  border-color: var(--yellow-hover);
+  background: var(--fg);
+  opacity: 0.88;
 }
 
 .admin-edit-actions button.secondary {
   border-style: dashed;
-  color: rgba(255,255,255,0.4);
+  color: var(--muted);
 }
 
-.admin-edit-actions button:disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
+.admin-page button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
-.admin-list-section {
-  background: rgba(255,255,255,0.04);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 6px;
-  padding: 20px;
+/* Tables */
+.admin-list {
+  overflow-x: auto;
 }
 
-.admin-list-section h3 {
-  margin: 0 0 14px 0;
-  color: var(--blue);
-  font-size: 0.8rem;
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
-}
-
-.challenge-source {
-  font-size: 0.82rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.challenge-source.random {
-  color: rgba(255,255,255,0.3);
-}
-
-.challenge-source.manual {
-  color: var(--blue);
-}
-
+.challenges-table,
 .jobs-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 0.88rem;
+  font-size: 14px;
+  font-variant-numeric: tabular-nums;
 }
+
+.challenges-table th,
 .jobs-table th {
-  text-align: left;
   padding: 8px 10px;
-  font-size: 0.75rem;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: rgba(255,255,255,0.35);
-  border-bottom: 1px solid rgba(255,255,255,0.08);
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  border-bottom: 1px solid var(--line);
 }
+
+.challenges-table td,
 .jobs-table td {
-  padding: 10px 10px;
-  border-bottom: 1px solid rgba(255,255,255,0.05);
-  color: rgba(255,255,255,0.75);
+  padding: 10px;
+  text-align: left;
   vertical-align: middle;
+  border-bottom: 1px solid var(--line);
 }
-.jobs-table .job-schedule {
-  color: rgba(255,255,255,0.4);
-  font-size: 0.82rem;
-}
-.jobs-table .job-result {
-  font-size: 0.82rem;
-  color: rgba(255,255,255,0.5);
-}
-.jobs-table .job-result.success { color: #a5d6a7; }
-.jobs-table .job-result.error   { color: #ff8a65; }
 
+.challenges-table tbody tr:hover { background: var(--key); }
 
-/* Shared form pieces (.auth-submit, inputs) follow the player-facing ink style;
-   restore contrast on the admin's dark panels. */
-.admin-page .auth-submit { background: var(--blue); color: var(--white); }
-.admin-page .form-group input { background: #FFFFFF; color: #15171A; border-color: #5C6168; }
-.admin-page .form-group label { color: #BBBBBB; }
-.admin-page .auth-error { color: #FF8A65; }
-.admin-page .auth-message { color: #A5D6A7; }
+/* Today: ink bar on the left, no color */
+.challenges-table tr.today { background: var(--key); }
+.challenges-table tr.today td:first-child { box-shadow: inset 3px 0 0 var(--fg); }
+.challenges-table tr.today td { font-weight: 700; }
+
+.challenges-table tr.past { color: var(--muted); }
+
+.challenges-table .challenge-number {
+  font-weight: 700;
+  white-space: nowrap;
+}
+.challenges-table .challenge-date { white-space: nowrap; }
+.challenges-table .challenge-tiles { color: var(--muted); }
+
+.challenges-table button {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.challenge-source {
+  font-size: 12px;
+  font-weight: 650;
+}
+.challenge-source.random { color: var(--muted); }
+.challenge-source.manual { color: var(--fg); }
+
+.jobs-table .job-schedule { color: var(--muted); font-size: 13px; }
+.jobs-table .job-result { font-size: 13px; }
+.jobs-table .job-result.success { color: var(--exact); }
+.jobs-table .job-result.error { color: var(--error); }
+.jobs-table button {
+  height: 32px;
+  padding: 0 12px;
+  font-size: 12px;
+}
