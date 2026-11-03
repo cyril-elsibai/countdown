@@ -1,5 +1,5 @@
 import './Admin.css';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { adminApi, Challenge, setAdminToken, clearAdminToken, isAdminLoggedIn } from '../api';
 
 type AdminTab = 'challenges' | 'jobs';
@@ -262,6 +262,7 @@ function JobsTab() {
 
 function ChallengesTab() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
+  const editSectionRef = useRef<HTMLElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -294,6 +295,8 @@ function ChallengesTab() {
     setEditTarget(String(challenge.targetNumber));
     setError('');
     setMessage('');
+    // The form sits above the list: bring it into view, or the click looks like it did nothing
+    editSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   const handleNewChallenge = () => {
@@ -429,7 +432,7 @@ function ChallengesTab() {
       {error && <div className="auth-error">{error}</div>}
 
       {/* Edit Form - Full width at top */}
-      <section className="admin-edit-section">
+      <section className="admin-edit-section" ref={editSectionRef}>
         <h3>{editDate ? `Edit ${challenges.find(c => c.date.startsWith(editDate))?.name ?? editDate} - ${formatDate(editDate)}` : 'Create New Challenge'}</h3>
 
         <div className="admin-edit-form">
