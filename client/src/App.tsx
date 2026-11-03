@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { track } from '@vercel/analytics/react';
 import { gameApi, authApi, friendsApi, dashboardApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult, UserStats, SharedFrameResponse } from './api';
 import AuthForm from './components/AuthForm';
 import ResetPasswordForm from './components/ResetPasswordForm';
@@ -623,6 +624,7 @@ export default function App() {
     const text = `6/7 Numbers · ${name}\n${target} in ${timeStr}\n${shareSquares()}`;
     // The sender's id lets the link open a challenge card ("Cyril solved it in 42s")
     const url = `${window.location.origin}/play/${frame?.id}${user ? `?from=${user.id}` : ''}`;
+    track('share_result', { daily: currentRoute === 'home', loggedIn: !!user });
 
     if (navigator.share) {
       try {
