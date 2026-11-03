@@ -11,6 +11,7 @@
   --key-strong: #464A50;
   --exact: #4C9160;
   --shadow: rgba(0, 0, 0, 0.5);
+  --scrim: rgba(0, 0, 0, 0.55);
   --error: #F2867E;
   --panel: #1A1C1F;
 
@@ -120,6 +121,34 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--muted);
+}
+
+/* Editing an existing challenge: the form floats over the blurred page */
+.admin-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: var(--scrim);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+
+.admin-edit-section.dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 11;
+  width: min(900px, calc(100vw - 32px));
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+  margin: 0;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 12px 40px var(--shadow);
+}
+
+.admin-page .form-group input:disabled {
+  color: var(--muted);
+  opacity: 1;
 }
 
 /* Edit form */

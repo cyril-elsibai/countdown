@@ -1,5 +1,5 @@
 import './Admin.css';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { adminApi, Challenge, setAdminToken, clearAdminToken, isAdminLoggedIn } from '../api';
 
 type AdminTab = 'challenges' | 'jobs';
@@ -262,7 +262,6 @@ function JobsTab() {
 
 function ChallengesTab() {
   const [challenges, setChallenges] = useState<Challenge[]>([]);
-  const editSectionRef = useRef<HTMLElement>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
@@ -272,6 +271,8 @@ function ChallengesTab() {
   const [editTiles, setEditTiles] = useState<string[]>(['', '', '', '', '', '']);
   const [editTarget, setEditTarget] = useState('');
   const [saving, setSaving] = useState(false);
+  // Editing an existing challenge opens the form as a dialog over the blurred page
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     loadChallenges();
@@ -295,9 +296,24 @@ function ChallengesTab() {
     setEditTarget(String(challenge.targetNumber));
     setError('');
     setMessage('');
-    // The form sits above the list: bring it into view, or the click looks like it did nothing
-    editSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    setEditing(true);
   };
+
+  const closeEdit = () => {
+    setEditing(false);
+    setEditDate('');
+    setEditTiles(['', '', '', '', '', '']);
+    setEditTarget('');
+    setError('');
+    setMessage('');
+  };
+
+  useEffect(() => {
+    if (!editing) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') closeEdit(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [editing]);
 
   const handleNewChallenge = () => {
     const tomorrow = new Date();
@@ -381,7 +397,11 @@ function ChallengesTab() {
 
     try {
       const response = await adminApi.saveChallenge(editDate, { tiles, targetNumber: target });
-      setMessage(response.created ? 'Challenge created successfully' : 'Challenge updated successfully');
+      if (editing) {
+        closeEdit();
+      } else {
+        setMessage(response.created ? 'Challenge created successfully' : 'Challenge updated successfully');
+      }
       loadChallenges();
     } catch (err) {
       // This will catch uniqueness errors from the backend
@@ -428,12 +448,18 @@ function ChallengesTab() {
 
   return (
     <>
-      {message && <div className="auth-message">{message}</div>}
-      {error && <div className="auth-error">{error}</div>}
+      {editing && <div className="admin-scrim" onClick={closeEdit} />}
 
-      {/* Edit Form - Full width at top */}
-      <section className="admin-edit-section" ref={editSectionRef}>
+      {/* Edit Form - Full width at top; becomes a dialog while editing */}
+      <section
+        className={`admin-edit-section${editing ? ' dialog' : ''}`}
+        role={editing ? 'dialog' : undefined}
+        aria-modal={editing || undefined}
+      >
         <h3>{editDate ? `Edit ${challenges.find(c => c.date.startsWith(editDate))?.name ?? editDate} - ${formatDate(editDate)}` : 'Create New Challenge'}</h3>
+
+        {message && <div className="auth-message">{message}</div>}
+        {error && <div className="auth-error">{error}</div>}
 
         <div className="admin-edit-form">
           <div className="form-group">
@@ -443,6 +469,7 @@ function ChallengesTab() {
               id="editDate"
               value={editDate}
               onChange={(e) => setEditDate(e.target.value)}
+              disabled={editing}
             />
           </div>
 
@@ -476,9 +503,15 @@ function ChallengesTab() {
           </div>
 
           <div className="admin-edit-actions">
-            <button onClick={handleNewChallenge} className="secondary">
-              + New Challenge
-            </button>
+            {editing ? (
+              <button onClick={closeEdit} className="secondary">
+                Cancel
+              </button>
+            ) : (
+              <button onClick={handleNewChallenge} className="secondary">
+                + New Challenge
+              </button>
+            )}
             <button onClick={handleGenerateRandom} disabled={saving}>
               Generate Random
             </button>
