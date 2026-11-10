@@ -59,6 +59,15 @@ export default function TutorialModal({ onClose, onClearAll, onPlay }: TutorialM
           Not exact? Submit your closest result any time.
         </p>
 
+        <p className="sub">
+          <b>Points</b> come from daily challenges. The fewer players solve one, the more it's worth,
+          with a bonus for speed. Points update as more people play, so yours can change after you've played.
+        </p>
+
+        <p className="sub">
+          <b>Streak</b> counts the days in a row you solve the daily on its day. A new one starts at midnight UTC.
+        </p>
+
         {onClearAll ? (
           <div className="actions">
             <button className="btn ink wide" onClick={handleClose}>Back to the game</button>
