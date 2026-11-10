@@ -61,6 +61,30 @@
 }
 .logout-btn:hover { background: var(--key); }
 
+/* Subscriber count */
+.admin-stats {
+  display: flex;
+  gap: 32px;
+  margin-bottom: 20px;
+}
+.admin-stats > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.admin-stats b {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.admin-stats span,
+.admin-stats.muted {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--muted);
+}
+
 /* Login */
 .admin-login {
   max-width: 380px;

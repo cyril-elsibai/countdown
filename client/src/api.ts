@@ -915,6 +915,10 @@ export const adminApi = {
    */
   verify: () => adminRequest<{ valid: boolean }>('/admin/verify'),
 
+  /** Registered account counts (dummy users excluded). */
+  userStats: () =>
+    adminRequest<{ total: number; verified: number; lastWeek: number }>('/admin/stats/users'),
+
   /**
    * Lists daily challenges for a 30-day window.
    * Includes play statistics for each challenge.

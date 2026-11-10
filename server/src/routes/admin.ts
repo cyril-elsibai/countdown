@@ -168,6 +168,26 @@ router.get('/verify', requireAdmin, (req: AdminRequest, res: Response) => {
   res.json({ valid: true });
 });
 
+/**
+ * GET /api/admin/stats/users
+ * Registered account counts, dummy users excluded.
+ */
+router.get('/stats/users', requireAdmin, async (req: AdminRequest, res: Response) => {
+  try {
+    const real = { email: { not: { endsWith: DUMMY_EMAIL_DOMAIN } } };
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const [total, verified, lastWeek] = await Promise.all([
+      prisma.user.count({ where: real }),
+      prisma.user.count({ where: { ...real, emailVerified: true } }),
+      prisma.user.count({ where: { ...real, createdAt: { gte: weekAgo } } }),
+    ]);
+    res.json({ total, verified, lastWeek });
+  } catch (error) {
+    console.error('User stats error:', error);
+    res.status(500).json({ error: 'Failed to load user stats' });
+  }
+});
+
 // =============================================================================
 // LIST CHALLENGES ENDPOINT
 // =============================================================================

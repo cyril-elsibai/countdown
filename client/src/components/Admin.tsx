@@ -112,6 +112,8 @@ export default function Admin() {
           <button onClick={handleLogout} className="logout-btn">Logout</button>
         </div>
 
+        <SubscriberCount />
+
         <div className="admin-tabs">
           <button
             className={`admin-tab ${activeTab === 'challenges' ? 'active' : ''}`}
@@ -132,6 +134,29 @@ export default function Admin() {
           {activeTab === 'jobs' && <JobsTab />}
         </div>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// SUBSCRIBERS
+// =============================================================================
+
+function SubscriberCount() {
+  const [stats, setStats] = useState<{ total: number; verified: number; lastWeek: number } | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    adminApi.userStats().then(setStats).catch(() => setFailed(true));
+  }, []);
+
+  if (failed) return <div className="admin-stats muted">Subscriber count unavailable</div>;
+
+  return (
+    <div className="admin-stats">
+      <div><b>{stats?.total ?? '…'}</b><span>Subscribers</span></div>
+      <div><b>{stats?.verified ?? '…'}</b><span>Verified email</span></div>
+      <div><b>{stats ? `+${stats.lastWeek}` : '…'}</b><span>Last 7 days</span></div>
     </div>
   );
 }
