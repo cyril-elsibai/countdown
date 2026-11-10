@@ -143,13 +143,13 @@ export default function Stats() {
     },
   ];
 
-  // Distance distribution, bucketed like Countdown scoring. Absent on older servers.
+  // Distance distribution, in the game's three color bands. Absent on older servers;
+  // servers still on the 4-bucket shape send within5/within10 instead of close.
   const dist = myStatsSlice.distanceDist;
   const distRows = dist
     ? [
         { label: 'Exact', value: dist.exact, band: 'exact' },
-        { label: '1–5', value: dist.within5, band: 'close' },
-        { label: '6–10', value: dist.within10, band: 'close' },
+        { label: '1–10', value: dist.close ?? (dist.within5 ?? 0) + (dist.within10 ?? 0), band: 'close' },
         { label: '11+', value: dist.further, band: 'far' },
       ]
     : [];

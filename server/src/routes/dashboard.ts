@@ -618,7 +618,7 @@ function sliceResults(results: { solved: boolean; result: number | null; duratio
   return since ? results.filter(r => r.playedAt >= since) : results;
 }
 
-function computeStatsFromResults(results: { solved: boolean; result: number | null; duration: number | null; frame: { targetNumber: number; date: Date | null } }[]) {
+function computeStatsFromResults(results: { solved: boolean; result: number | null; duration: number | null; playedAt: Date; frame: { targetNumber: number; date: Date | null } }[]) {
   const totalGamesPlayed = results.length;
   const solvedResults = results.filter(r => r.solved);
   const successRate = totalGamesPlayed > 0
@@ -640,20 +640,23 @@ function computeStatsFromResults(results: { solved: boolean; result: number | nu
 
   const perfectSolves = solvedResults.length;
 
-  // How far from the target each game ended, bucketed like Countdown scoring
-  // (exact / within 5 / within 10 / further). Drives the Stats tab bar chart.
-  const distanceDist = { exact: 0, within5: 0, within10: 0, further: 0 };
+  // How far from the target each game ended, in the game's three color bands
+  // (exact = green, within 10 = yellow, further = gray). Drives the Stats tab bar chart.
+  const distanceDist = { exact: 0, close: 0, further: 0 };
   for (const r of resultsWithValue) {
     const d = Math.abs(r.frame.targetNumber - r.result!);
     if (d === 0) distanceDist.exact++;
-    else if (d <= 5) distanceDist.within5++;
-    else if (d <= 10) distanceDist.within10++;
+    else if (d <= 10) distanceDist.close++;
     else distanceDist.further++;
   }
 
+  // A daily only counts toward the streak if it was solved on its own (UTC) day.
+  // Past dailies played later still earn points but can't fill streak gaps.
+  // A solved result can't be resubmitted, so playedAt is the solve time.
+  const dayOf = (d: Date) => d.toISOString().split('T')[0];
   const solvedDailyDates = results
-    .filter(r => r.solved && r.frame.date !== null)
-    .map(r => r.frame.date!.toISOString().split('T')[0])
+    .filter(r => r.solved && r.frame.date !== null && dayOf(r.playedAt) === dayOf(r.frame.date))
+    .map(r => dayOf(r.frame.date!))
     .sort();
 
   let currentStreak = 0;
