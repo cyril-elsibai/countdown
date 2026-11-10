@@ -8,12 +8,19 @@ interface TutorialModalProps {
   onClose: () => void;
   // Present only during an active game: clearing all rows lives here instead of on the keyboard
   onClearAll?: () => void;
+  // Present only before a game has started: "Let's play" then starts it instead of just closing
+  onPlay?: () => void;
 }
 
-export default function TutorialModal({ onClose, onClearAll }: TutorialModalProps) {
+export default function TutorialModal({ onClose, onClearAll, onPlay }: TutorialModalProps) {
   const handleClose = () => {
     localStorage.setItem('tutorialSeen', '1');
     onClose();
+  };
+
+  const handlePlay = () => {
+    localStorage.setItem('tutorialSeen', '1');
+    (onPlay ?? onClose)();
   };
 
   return (
@@ -58,7 +65,7 @@ export default function TutorialModal({ onClose, onClearAll }: TutorialModalProp
             <button className="btn line wide" onClick={onClearAll}>Clear all rows</button>
           </div>
         ) : (
-          <button className="btn ink wide" onClick={handleClose}>Let's play</button>
+          <button className="btn ink wide" onClick={handlePlay}>Let's play</button>
         )}
       </div>
     </>

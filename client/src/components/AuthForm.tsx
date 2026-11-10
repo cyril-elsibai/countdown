@@ -197,7 +197,7 @@ export default function AuthForm({ onSuccess, onCancel, initialMode = 'login' }:
                 id="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
+                placeholder={mode === 'register' ? 'At least 6 characters' : undefined}
                 required
                 minLength={6}
               />

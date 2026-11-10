@@ -1188,6 +1188,9 @@ export default function App() {
           onClearAll={gamePhase === 'playing' && !locked && currentRoute !== 'dashboard'
             ? () => { resetGame(); setShowTutorial(false); }
             : undefined}
+          onPlay={gamePhase === 'pre-game' && currentRoute !== 'dashboard'
+            ? () => { setShowTutorial(false); setGamePhase('countdown'); }
+            : undefined}
         />
       )}
 
@@ -1437,10 +1440,16 @@ export default function App() {
                 <span className="solve-time">{winTimeLabel}</span>
                 <span className="sub">{winSteps} {winSteps === 1 ? 'step' : 'steps'}</span>
               </div>
+              <div className="sharebox">{`${frame?.name ?? ''}\n${target} in ${winTimeLabel === 'Overtime' ? 'overtime' : winTimeLabel}\n${shareSquares()}`}</div>
               <p>Create an account to save this result, keep a streak, play past dailies and compete with friends.</p>
               <div className="actions">
-                <button className="btn ink wide" onClick={() => openAuth('register')}>Create an account</button>
-                <button className="btn line wide" onClick={() => openAuth('login')}>Log in</button>
+                <button className="btn ink wide" onClick={handleShare}>
+                  {shareCopied ? 'Copied to clipboard' : 'Share result'}
+                </button>
+                <div className="pair">
+                  <button className="btn line" onClick={() => openAuth('register')}>Create an account</button>
+                  <button className="btn line" onClick={() => openAuth('login')}>Log in</button>
+                </div>
               </div>
             </div>
           </>
