@@ -335,23 +335,17 @@ router.get('/leaderboard', requireAuth, async (req: AuthRequest, res: Response) 
     });
 
     const targetNumber = frame.targetNumber;
-    const OVERTIME_SECONDS = 60;
 
     // Exclude entries where no result was ever submitted (opened but never calculated)
     const submitted = results.filter(r => r.result !== null);
 
-    // Split into three groups
-    const solvedInTime  = submitted.filter(r => r.solved && (r.duration ?? Infinity) <= OVERTIME_SECONDS);
-    const solvedOvertime = submitted.filter(r => r.solved && (r.duration ?? Infinity) > OVERTIME_SECONDS);
-    const unsolved      = submitted.filter(r => !r.solved);
+    const solved   = submitted.filter(r => r.solved);
+    const unsolved = submitted.filter(r => !r.solved);
 
-    // Group 1: solved within time → fastest first
-    solvedInTime.sort((a, b) => (a.duration ?? Infinity) - (b.duration ?? Infinity));
+    // Solved → fastest first, overtime included (a 70s solve beats a 4min one)
+    solved.sort((a, b) => (a.duration ?? Infinity) - (b.duration ?? Infinity));
 
-    // Group 2: solved overtime → submission time order
-    solvedOvertime.sort((a, b) => a.playedAt.getTime() - b.playedAt.getTime());
-
-    // Group 3: unsolved → closest to target, then submission time for ties
+    // Unsolved → closest to target, then submission time for ties
     unsolved.sort((a, b) => {
       const diffA = Math.abs(targetNumber - a.result!);
       const diffB = Math.abs(targetNumber - b.result!);
@@ -359,7 +353,7 @@ router.get('/leaderboard', requireAuth, async (req: AuthRequest, res: Response) 
       return a.playedAt.getTime() - b.playedAt.getTime();
     });
 
-    const sortedResults = [...solvedInTime, ...solvedOvertime, ...unsolved];
+    const sortedResults = [...solved, ...unsolved];
 
     // Build leaderboard with ranks
     const leaderboard = sortedResults.map((result, index) => ({
