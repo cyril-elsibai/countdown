@@ -123,12 +123,24 @@ async function request<T>(
     headers: { ...headers, ...options.headers },
   });
 
-  // Parse the JSON response
-  const data = await response.json();
+  return parseResponse<T>(response);
+}
 
-  // Check for errors
+/**
+ * Reads a JSON response, or throws the server's error message.
+ * A non-JSON answer (e.g. an HTML 404 while Railway is still deploying a new
+ * route that Vercel already shipped) gets a readable message instead of
+ * Safari's "The string did not match the expected pattern".
+ */
+async function parseResponse<T>(response: Response): Promise<T> {
+  let data: any;
+  try {
+    data = await response.json();
+  } catch {
+    throw new Error('The server is updating. Try again in a minute.');
+  }
+
   if (!response.ok) {
-    // Throw an error with the server's message
     throw new Error(data.error || 'Request failed');
   }
 
@@ -594,13 +606,7 @@ async function adminRequest<T>(endpoint: string, options: RequestInit = {}): Pro
     headers: { ...headers, ...options.headers },
   });
 
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data.error || 'Request failed');
-  }
-
-  return data;
+  return parseResponse<T>(response);
 }
 
 // =============================================================================
