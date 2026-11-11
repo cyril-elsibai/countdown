@@ -36,8 +36,8 @@ export default function TutorialModal({ onClose, onClearAll, onPlay }: TutorialM
         </div>
 
         <p>
-          Reach the target using the six numbers and + − × ÷. Each number can be used once.
-          Every result becomes a new number you can use in the next row.
+          Reach the target using the six numbers and + − × ÷. Each number can be used once,
+          and <b>you don't have to use them all.</b> Every result becomes a new number you can use in the next row.
         </p>
 
         <div className="eqrow example">
