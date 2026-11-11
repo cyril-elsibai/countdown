@@ -71,9 +71,9 @@ export default function GroupBoard({ group, onLeft, onSelectPlayer, myId }: Grou
   return (
     <div className="leaderboard-section group-board">
       <div className="you-rank">
-        <div>
-          <h3 className="section-label">{memberCount} member{memberCount !== 1 ? 's' : ''}</h3>
+        <div className="group-title" aria-label={`${group.name}, ${memberCount} member${memberCount !== 1 ? 's' : ''}`}>
           <b>{group.name}</b>
+          <span className="count">({memberCount})</span>
         </div>
         <button className="btn line mini" onClick={invite}>{copied ? 'Link copied' : 'Invite'}</button>
       </div>

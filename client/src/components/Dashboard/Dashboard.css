@@ -473,12 +473,27 @@ button.day { cursor: pointer; }
 /* Input styles come from .inline-form (16px text: iOS won't zoom on focus) */
 .new-group .btn { height: 46px; }
 
-.group-board .you-rank > div { min-width: 0; }
-.group-board .you-rank b {
+.group-board .you-rank { align-items: center; }
+
+/* Group name, then the member count in parentheses; a long name truncates, the count stays */
+.group-board .group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+.group-board .group-title b {
   font-size: 28px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+.group-board .group-title .count {
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 18px;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
 }
 .group-board .you-rank .btn { flex-shrink: 0; }
 .group-leave {
