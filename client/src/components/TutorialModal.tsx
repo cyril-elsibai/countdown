@@ -62,6 +62,7 @@ export default function TutorialModal({ onClose, onClearAll, onPlay }: TutorialM
         <p className="sub">
           <b>Points</b> come from daily challenges. The fewer players solve one, the more it's worth,
           with a bonus for speed. Points update as more people play, so yours can change after you've played.
+          The ranking counts the last 100 days, so newcomers can catch up.
         </p>
 
         <p className="sub">

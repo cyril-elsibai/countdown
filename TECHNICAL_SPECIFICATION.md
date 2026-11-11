@@ -161,10 +161,13 @@ User clicks Sign Out
 
 **Points Calculation (runs on server startup + daily at midnight UTC):**
 ```
-For each solved daily challenge GameResult:
-    Base points = 100 - completion% (harder = more points)
+For each solved daily challenge GameResult dated within the last 100 days (today included):
+    Base points = 20 + 80 × (100 - completion%) / 100
+      (every solve earns at least 20; rarer solves earn up to 100)
     Multiplier: <60s = 1.2x, <5min = 1.1x, else 1.0x
     → Upsert UserStats with total points per user
+    → Users with no solve left in the window drop to 0 (off the ranking)
+completion% = solves / attempts on that frame (attempts include started-but-abandoned games)
 ```
 
 ---

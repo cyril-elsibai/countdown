@@ -890,8 +890,8 @@ export const dashboardApi = {
    *
    * @returns Top 50 users by points with user's rank
    */
-  getOverallLeaderboard: () =>
-    request<OverallLeaderboardResponse>('/dashboard/overall-leaderboard'),
+  getOverallLeaderboard: (filter: 'global' | 'friends' = 'global') =>
+    request<OverallLeaderboardResponse>(`/dashboard/overall-leaderboard${filter === 'friends' ? '?filter=friends' : ''}`),
 
   /**
    * Gets recent activity from friends.

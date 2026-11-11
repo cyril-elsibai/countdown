@@ -382,6 +382,15 @@ router.get('/leaderboard', requireAuth, async (req: AuthRequest, res: Response) 
   }
 });
 
+/** You plus your accepted friends: the "Friends" scope of the leaderboards */
+async function friendAndSelfIds(userId: string): Promise<string[]> {
+  const friendships = await prisma.friendship.findMany({
+    where: { status: 'ACCEPTED', OR: [{ userId }, { friendId: userId }] },
+    select: { userId: true, friendId: true },
+  });
+  return [...friendships.map(f => (f.userId === userId ? f.friendId : f.userId)), userId];
+}
+
 // =============================================================================
 // OVERALL LEADERBOARD ENDPOINT
 // =============================================================================
@@ -407,10 +416,14 @@ router.get('/leaderboard', requireAuth, async (req: AuthRequest, res: Response) 
  */
 router.get('/overall-leaderboard', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
+    // ?filter=friends → only you and your accepted friends, ranked among yourselves
+    const scope = req.query.filter === 'friends' ? await friendAndSelfIds(req.userId!) : undefined;
+
     // Get top 50 users by total points from cached UserStats
     const topStats = await prisma.userStats.findMany({
       where: {
         totalPoints: { gt: 0 },
+        ...(scope && { userId: { in: scope } }),
       },
       orderBy: {
         totalPoints: 'desc',
@@ -446,6 +459,7 @@ router.get('/overall-leaderboard', requireAuth, async (req: AuthRequest, res: Re
       const usersAhead = await prisma.userStats.count({
         where: {
           totalPoints: { gt: currentUserStats.totalPoints },
+          ...(scope && { userId: { in: scope } }),
         },
       });
       userRank = usersAhead + 1;

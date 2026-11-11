@@ -6,7 +6,7 @@
  * Handles the daily batch recalculation of user points for the leaderboard.
  * This job runs once per day at UTC midnight and recalculates:
  * 1. Frame stats (totalAttempts, solvedCount, completionPercent)
- * 2. User total points based on all their solved challenges
+ * 2. User total points based on their solved dailies of the last RANKING_WINDOW_DAYS days
  *
  * @module server/services/pointsCalculator
  */
@@ -20,6 +20,9 @@ import { prisma } from '../db';
  * Time bonus: <60s = 1.2x, <5min = 1.1x, else 1.0x
  */
 const SOLVE_POINTS = 20;
+/** The ranking only counts dailies from this many days back (today included),
+ *  so newer players can catch up with long-time ones. */
+export const RANKING_WINDOW_DAYS = 100;
 const RARITY_POINTS = 80;
 
 function calculatePoints(completionPercent: number, durationSeconds: number | null): number {
@@ -143,13 +146,17 @@ export async function runPointsCalculation(triggeredBy?: string): Promise<Calcul
     // =========================================================================
     console.log('[PointsCalculator] Step 2: Calculating user points...');
 
-    // Get all solved game results with frame data
+    // Solved dailies dated within the ranking window (today and the 99 days before)
+    const windowStart = new Date();
+    windowStart.setUTCHours(0, 0, 0, 0);
+    windowStart.setUTCDate(windowStart.getUTCDate() - (RANKING_WINDOW_DAYS - 1));
+
     const solvedResults = await prisma.gameResult.findMany({
       where: {
         solved: true,
         userId: { not: null },
         frame: {
-          date: { not: null }, // Only daily challenges count
+          date: { gte: windowStart, lte: new Date() }, // Only daily challenges count
         },
       },
       select: {
@@ -201,6 +208,12 @@ export async function runPointsCalculation(triggeredBy?: string): Promise<Calcul
 
       usersProcessed++;
     }
+
+    // Players whose solves all left the window drop to 0 (off the ranking)
+    await prisma.userStats.updateMany({
+      where: { userId: { notIn: [...userPointsMap.keys()] }, totalPoints: { not: 0 } },
+      data: { totalPoints: 0, lastCalculated: now },
+    });
 
     console.log(`[PointsCalculator] Updated stats for ${usersProcessed} users`);
 

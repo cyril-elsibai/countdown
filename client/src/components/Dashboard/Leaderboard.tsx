@@ -51,7 +51,7 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: 
         const response = await dashboardApi.getLeaderboard(filter, frameId || undefined);
         setDailyData(response);
       } else {
-        const response = await dashboardApi.getOverallLeaderboard();
+        const response = await dashboardApi.getOverallLeaderboard(filter);
         setOverallData(response);
       }
     } catch (err) {
@@ -84,6 +84,18 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: 
     return <span className={`chip ${bandFromDifference(entry.difference)}`}>{entry.difference} away</span>;
   };
 
+  // Global / Friends, shared by both leaderboards
+  const filterTabs = (
+    <div className="seg small" role="tablist">
+      <button role="tab" aria-selected={filter === 'global'} className={filter === 'global' ? 'on' : ''} onClick={() => setFilter('global')}>
+        Global
+      </button>
+      <button role="tab" aria-selected={filter === 'friends'} className={filter === 'friends' ? 'on' : ''} onClick={() => setFilter('friends')}>
+        Friends
+      </button>
+    </div>
+  );
+
   const renderDailyLeaderboard = () => {
     if (!dailyData) return null;
 
@@ -97,14 +109,7 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: 
           {dailyData.userRank && <span className="sub">You: #{dailyData.userRank}</span>}
         </div>
 
-        <div className="seg small" role="tablist">
-          <button role="tab" aria-selected={filter === 'global'} className={filter === 'global' ? 'on' : ''} onClick={() => setFilter('global')}>
-            Global
-          </button>
-          <button role="tab" aria-selected={filter === 'friends'} className={filter === 'friends' ? 'on' : ''} onClick={() => setFilter('friends')}>
-            Friends
-          </button>
-        </div>
+        {filterTabs}
 
         {dailyData.leaderboard.length === 0 ? (
           <div className="dash-note">
@@ -138,7 +143,7 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: 
       <div className="leaderboard-section">
         <div className="you-rank">
           <div>
-            <h3 className="section-label">All-time points</h3>
+            <h3 className="section-label">Last 100 days</h3>
             {overallData.userRank && <b>#{overallData.userRank}</b>}
           </div>
           {overallData.userRank ? (
@@ -148,8 +153,14 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: 
           )}
         </div>
 
+        {filterTabs}
+
         {overallData.leaderboard.length === 0 ? (
-          <div className="dash-note">No points yet. Solve a daily to get on the board.</div>
+          <div className="dash-note">
+            {filter === 'friends'
+              ? 'No points among your friends yet. Invite some from the Friends menu.'
+              : 'No points yet. Solve a daily to get on the board.'}
+          </div>
         ) : (
           <ol className="list">
             {overallData.leaderboard.map((entry: OverallLeaderboardEntry) => (
