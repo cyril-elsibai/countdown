@@ -97,6 +97,9 @@ export default function FriendsModal({ userId, onClose }: FriendsModalProps) {
 
         <div className="profile-header">
           <h1 className="profile-title">Friends</h1>
+          <button className="icon-btn close-x" onClick={onClose} aria-label="Close">
+            <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18"/></svg>
+          </button>
         </div>
 
         {message && <div className="auth-message">{message}</div>}

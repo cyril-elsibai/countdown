@@ -974,6 +974,8 @@ select:focus-visible {
   align-items: center;
   margin-bottom: 12px;
 }
+.profile-header-actions { display: flex; align-items: center; gap: 4px; }
+.profile-header .close-x { margin-right: -10px; }
 .profile-title {
   font-size: 28px;
   line-height: 1;
