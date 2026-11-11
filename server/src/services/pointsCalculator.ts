@@ -15,11 +15,15 @@ import { prisma } from '../db';
 
 /**
  * Calculate points for a single game result.
- * Base points = 100 - completionPercent (harder = more points)
+ * Base points = 20 for any solve + up to 80 for rarity (fewer solvers = more points).
+ * The floor matters with few players: a daily everyone solved used to be worth 0.
  * Time bonus: <60s = 1.2x, <5min = 1.1x, else 1.0x
  */
+const SOLVE_POINTS = 20;
+const RARITY_POINTS = 80;
+
 function calculatePoints(completionPercent: number, durationSeconds: number | null): number {
-  const basePoints = 100 - completionPercent;
+  const basePoints = SOLVE_POINTS + RARITY_POINTS * (100 - completionPercent) / 100;
   let multiplier = 1.0;
 
   if (durationSeconds !== null) {
