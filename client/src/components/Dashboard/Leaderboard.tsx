@@ -198,7 +198,7 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer, in
         <button className="add" onClick={() => setNewGroupName(newGroupName === null ? '' : null)}>+ New group</button>
       </div>
       {newGroupName !== null && (
-        <form className="new-group" onSubmit={createGroup}>
+        <form className="inline-form new-group" onSubmit={createGroup}>
           <input
             autoFocus
             value={newGroupName}

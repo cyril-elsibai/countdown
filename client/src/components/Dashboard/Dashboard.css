@@ -276,7 +276,7 @@ button.day { cursor: pointer; }
   background: var(--bg);
   color: var(--fg);
   font-family: inherit;
-  font-size: 14px;
+  font-size: 16px; /* 16px stops iOS zooming on focus */
   font-weight: 650;
 }
 
@@ -470,24 +470,8 @@ button.day { cursor: pointer; }
 }
 .scopes button.add { border-style: dashed; }
 
-.new-group {
-  display: flex;
-  gap: 8px;
-}
-.new-group input {
-  flex: 1;
-  min-width: 0;
-  height: 40px;
-  padding: 0 12px;
-  border: 1.5px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--bg);
-  color: var(--fg);
-  font-family: inherit;
-  font-size: 15px;
-}
-.new-group input:focus { outline: none; border-color: var(--fg); }
-.new-group .btn { height: 40px; }
+/* Input styles come from .inline-form (16px text: iOS won't zoom on focus) */
+.new-group .btn { height: 46px; }
 
 .group-board .you-rank > div { min-width: 0; }
 .group-board .you-rank b {
