@@ -626,10 +626,13 @@ function computeStatsFromResults(results: { solved: boolean; result: number | nu
     : 0;
 
   const resultsWithValue = results.filter(r => r.result !== null);
-  const averageDistance = resultsWithValue.length > 0
+  // "Avg. miss": how far off on the games not solved (solves would only drag it to 0,
+  // and the success rate already says how often you solve)
+  const missed = resultsWithValue.filter(r => !r.solved);
+  const averageDistance = missed.length > 0
     ? Math.round(
-        resultsWithValue.reduce((sum, r) => sum + Math.abs(r.frame.targetNumber - r.result!), 0)
-        / resultsWithValue.length
+        missed.reduce((sum, r) => sum + Math.abs(r.frame.targetNumber - r.result!), 0)
+        / missed.length
       )
     : null;
 

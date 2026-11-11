@@ -76,7 +76,7 @@ export default function PlayerSheet({ playerId, onCompare, onClose }: PlayerShee
             <table className="cmp">
               <tbody>
                 <tr><td>Exact solves</td><td>{slice.perfectSolves}</td></tr>
-                <tr><td>Avg. distance</td><td>{slice.averageDistance ?? '—'}</td></tr>
+                <tr><td>Avg. miss</td><td>{slice.averageDistance ?? '—'}</td></tr>
                 <tr><td>Best time</td><td>{formatTime(slice.bestTime)}</td></tr>
               </tbody>
             </table>

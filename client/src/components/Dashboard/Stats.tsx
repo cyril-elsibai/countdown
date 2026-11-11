@@ -178,13 +178,14 @@ export default function Stats({ compareWith = null }: StatsProps) {
       lowerIsBetter: false,
     },
     {
-      label: 'Avg. distance',
+      label: 'Avg. miss',
       myValue: myStatsSlice.averageDistance !== null ? String(myStatsSlice.averageDistance) : '—',
       friendValue: friendStatsSlice
         ? (friendStatsSlice.averageDistance !== null ? String(friendStatsSlice.averageDistance) : '—')
         : '—',
-      rawMy: myStatsSlice.averageDistance,
-      rawFriend: friendStatsSlice?.averageDistance ?? null,
+      // No miss yet is the best possible: compare it as 0, not as "no value"
+      rawMy: myStatsSlice.totalGamesPlayed > 0 ? (myStatsSlice.averageDistance ?? 0) : null,
+      rawFriend: friendStatsSlice && friendStatsSlice.totalGamesPlayed > 0 ? (friendStatsSlice.averageDistance ?? 0) : null,
       lowerIsBetter: true,
     },
     {
