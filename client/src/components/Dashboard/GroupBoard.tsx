@@ -5,7 +5,8 @@
  *
  * One group's leaderboard inside the Ranks tab. Today (default): today's daily
  * among members, with who hasn't played yet at the bottom. This week: points
- * since Monday. Invite shares the group link; Leave removes you.
+ * since Monday. 100 days: the main ranking's points among members. Invite shares
+ * the group link; Leave removes you.
  *
  * @module client/components/Dashboard/GroupBoard
  */
@@ -24,7 +25,7 @@ interface GroupBoardProps {
 }
 
 export default function GroupBoard({ group, onLeft, onSelectPlayer, myId }: GroupBoardProps) {
-  const [period, setPeriod] = useState<'today' | 'week'>('today');
+  const [period, setPeriod] = useState<'today' | 'week' | 'hundred'>('today');
   const [data, setData] = useState<GroupLeaderboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -84,6 +85,9 @@ export default function GroupBoard({ group, onLeft, onSelectPlayer, myId }: Grou
         </button>
         <button role="tab" aria-selected={period === 'week'} className={period === 'week' ? 'on' : ''} onClick={() => setPeriod('week')}>
           This week
+        </button>
+        <button role="tab" aria-selected={period === 'hundred'} className={period === 'hundred' ? 'on' : ''} onClick={() => setPeriod('hundred')}>
+          100 days
         </button>
       </div>
 

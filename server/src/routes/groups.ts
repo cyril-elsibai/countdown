@@ -165,7 +165,7 @@ router.delete('/:id/membership', requireAuth, async (req: AuthRequest, res: Resp
 });
 
 /**
- * GET /api/groups/:id/leaderboard?period=today|week
+ * GET /api/groups/:id/leaderboard?period=today|week|hundred
  * Members only.
  *
  * today: today's daily, solved fastest first, then closest, then members who
@@ -175,6 +175,9 @@ router.delete('/:id/membership', requireAuth, async (req: AuthRequest, res: Resp
  * week: points earned on this week's dailies (Monday UTC onward), with the
  *   same formula as the main ranking but live solve rates, so today counts now.
  *   { period, entries: [{ userId, name, rank, points, solves }] }
+ *
+ * hundred: the main ranking's points (last 100 days, refreshed nightly) among members.
+ *   { period, entries: [{ userId, name, rank, points, solves: null }] }
  */
 router.get('/:id/leaderboard', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
@@ -190,6 +193,19 @@ router.get('/:id/leaderboard', requireAuth, async (req: AuthRequest, res: Respon
     const members = group.members.map(m => ({ userId: m.user.id, name: displayName(m.user) }));
     const memberIds = members.map(m => m.userId);
     const base = { group: { id: group.id, name: group.name, inviteCode: group.inviteCode, memberCount: members.length } };
+
+    if (req.query.period === 'hundred') {
+      const stats = await prisma.userStats.findMany({
+        where: { userId: { in: memberIds } },
+        select: { userId: true, totalPoints: true },
+      });
+      const points = new Map(stats.map(s => [s.userId, s.totalPoints]));
+      const entries = members
+        .map(m => ({ ...m, points: points.get(m.userId) ?? 0, solves: null }))
+        .sort((a, b) => b.points - a.points || a.name.localeCompare(b.name))
+        .map((e, i) => ({ ...e, rank: i + 1 }));
+      return res.json({ ...base, period: 'hundred', entries });
+    }
 
     if (req.query.period === 'week') {
       const frames = await prisma.frame.findMany({

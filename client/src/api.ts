@@ -576,12 +576,12 @@ export interface GroupWeekEntry {
   name: string;
   rank: number;
   points: number;
-  solves: number;
+  solves: number | null;  // null on the 100-day view
 }
 
 export type GroupLeaderboardResponse = { group: Group } & (
   | { period: 'today'; dailyNumber: number | null; targetNumber: number | null; entries: GroupTodayEntry[] }
-  | { period: 'week'; entries: GroupWeekEntry[] }
+  | { period: 'week' | 'hundred'; entries: GroupWeekEntry[] }
 );
 
 export const groupsApi = {
@@ -599,7 +599,7 @@ export const groupsApi = {
   leave: (groupId: string) =>
     request<{ success: boolean }>(`/groups/${groupId}/membership`, { method: 'DELETE' }),
 
-  leaderboard: (groupId: string, period: 'today' | 'week') =>
+  leaderboard: (groupId: string, period: 'today' | 'week' | 'hundred') =>
     request<GroupLeaderboardResponse>(`/groups/${groupId}/leaderboard?period=${period}`),
 };
 
