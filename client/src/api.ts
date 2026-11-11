@@ -813,6 +813,15 @@ export interface StatsResponse {
   friends: { id: string; name: string | null }[];
 }
 
+/** Player sheet, opened from a leaderboard row (GET /api/dashboard/player/:id) */
+export interface PlayerResponse {
+  player: { id: string; name: string };
+  rank: number | null;
+  points: number;
+  stats: AllTimeframeStats;
+  friendship: 'self' | 'friends' | 'pending' | 'none';
+}
+
 /**
  * Response from GET /api/game/frame/:id/play endpoint.
  */
@@ -893,6 +902,9 @@ export const dashboardApi = {
 
   getPlayHistory: () =>
     request<PlayHistoryResponse>('/dashboard/play-history'),
+
+  /** Any player's stats, friend or not */
+  getPlayer: (playerId: string) => request<PlayerResponse>(`/dashboard/player/${playerId}`),
 
   getStats: (compareWith?: string) => {
     const params = new URLSearchParams();

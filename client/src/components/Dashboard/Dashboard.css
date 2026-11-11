@@ -371,6 +371,11 @@ button.day { cursor: pointer; }
 }
 .lrow.me + .lrow { border-top-color: transparent; }
 
+/* Rows open the player sheet */
+.lrow[role="button"] { cursor: pointer; }
+.lrow[role="button"]:hover { background: var(--key); border-radius: 6px; }
+.lrow[role="button"]:focus-visible { outline: 2px solid var(--fg); outline-offset: -2px; border-radius: 6px; }
+
 .play-history {
   display: flex;
   flex-direction: column;

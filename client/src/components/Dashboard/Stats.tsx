@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { dashboardApi, UserStats, StatsResponse } from '../../api';
 
-type Timeframe = 'forever' | 'month' | 'week';
+export type Timeframe = 'forever' | 'month' | 'week';
 
 const TIMEFRAME_LABELS: Record<Timeframe, string> = {
   forever: 'All time',
@@ -12,16 +12,92 @@ const TIMEFRAME_LABELS: Record<Timeframe, string> = {
 // Shown as big numbers at the top; the details table repeats them only when comparing
 const SUMMARY_LABELS = ['Games played', 'Success rate', 'Current streak', 'Longest streak'];
 
-export default function Stats() {
+export const formatTime = (seconds: number | null | undefined): string => {
+  if (seconds == null) return '—';
+  if (seconds >= 300) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+  return `${seconds.toFixed(2)}s`;
+};
+
+/** All time / 30 days / 7 days. Also used by the player sheet. */
+export function TimeframePicker({ value, onChange }: { value: Timeframe; onChange: (tf: Timeframe) => void }) {
+  return (
+    <div className="seg small" role="tablist">
+      {(['forever', 'month', 'week'] as Timeframe[]).map(tf => (
+        <button
+          key={tf}
+          role="tab"
+          aria-selected={value === tf}
+          className={value === tf ? 'on' : ''}
+          onClick={() => onChange(tf)}
+        >
+          {TIMEFRAME_LABELS[tf]}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/** Big numbers + distance chart for one player. Also used by the player sheet. */
+export function StatsSummary({ slice }: { slice: UserStats }) {
+  // Distance distribution, in the game's three color bands. Absent on older servers;
+  // servers still on the 4-bucket shape send within5/within10 instead of close.
+  const dist = slice.distanceDist;
+  const distRows = dist
+    ? [
+        { label: 'Exact', value: dist.exact, band: 'exact' },
+        { label: '1–10', value: dist.close ?? (dist.within5 ?? 0) + (dist.within10 ?? 0), band: 'close' },
+        { label: '11+', value: dist.further, band: 'far' },
+      ]
+    : [];
+  const distMax = Math.max(1, ...distRows.map(r => r.value));
+
+  return (
+    <>
+      <div className="statrow">
+        <div><b>{slice.totalGamesPlayed}</b><span>Played</span></div>
+        <div><b>{slice.successRate}</b><span>Solved %</span></div>
+        <div><b>{slice.currentStreak}</b><span>Streak</span></div>
+        <div><b>{slice.longestStreak}</b><span>Longest</span></div>
+      </div>
+
+      {distRows.length > 0 && slice.totalGamesPlayed > 0 && (
+        <section className="stats-block">
+          <h3 className="section-label">Distance from target</h3>
+          <div className="dist">
+            {distRows.map(row => (
+              <div key={row.label}>
+                <em>{row.label}</em>
+                {row.value > 0 ? (
+                  <span className={`bar ${row.band}-bg`} style={{ width: `${(row.value / distMax) * 100}%` }}>
+                    {row.value}
+                  </span>
+                ) : (
+                  <span className="bar zero">0</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </>
+  );
+}
+
+interface StatsProps {
+  /** Opened from a player sheet: compare with this player, friend or not */
+  compareWith?: { id: string; name: string } | null;
+}
+
+export default function Stats({ compareWith = null }: StatsProps) {
   const [data, setData] = useState<StatsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedFriend, setSelectedFriend] = useState<string>('');
-  const [comparing, setComparing] = useState(false);
+  const [selectedFriend, setSelectedFriend] = useState<string>(compareWith?.id ?? '');
+  const [comparing, setComparing] = useState(!!compareWith);
   const [timeframe, setTimeframe] = useState<Timeframe>('forever');
 
   useEffect(() => {
-    load();
+    load(compareWith?.id);
   }, []);
 
   const load = async (compareWith?: string) => {
@@ -43,17 +119,15 @@ export default function Stats() {
     load(friendId || undefined);
   };
 
-  const formatTime = (seconds: number | null | undefined): string => {
-    if (seconds == null) return '—';
-    if (seconds >= 300) return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
-    return `${seconds.toFixed(2)}s`;
-  };
-
   if (loading) return <div className="dash-note">Loading stats...</div>;
   if (error) return <div className="dash-note">{error}</div>;
   if (!data) return null;
 
-  const { myStats, friendStats, friendName, friends } = data;
+  const { myStats, friendStats, friendName } = data;
+  // A player opened from a sheet joins the dropdown for this comparison
+  const friends = compareWith && !data.friends.some(f => f.id === compareWith.id)
+    ? [...data.friends, { id: compareWith.id, name: compareWith.name }]
+    : data.friends;
   const myStatsSlice: UserStats | undefined = myStats[timeframe];
   const friendStatsSlice: UserStats | null = friendStats ? (friendStats[timeframe] ?? null) : null;
 
@@ -143,60 +217,11 @@ export default function Stats() {
     },
   ];
 
-  // Distance distribution, in the game's three color bands. Absent on older servers;
-  // servers still on the 4-bucket shape send within5/within10 instead of close.
-  const dist = myStatsSlice.distanceDist;
-  const distRows = dist
-    ? [
-        { label: 'Exact', value: dist.exact, band: 'exact' },
-        { label: '1–10', value: dist.close ?? (dist.within5 ?? 0) + (dist.within10 ?? 0), band: 'close' },
-        { label: '11+', value: dist.further, band: 'far' },
-      ]
-    : [];
-  const distMax = Math.max(1, ...distRows.map(r => r.value));
-
   return (
     <div className="stats-page">
-      <div className="seg small" role="tablist">
-        {(['forever', 'month', 'week'] as Timeframe[]).map(tf => (
-          <button
-            key={tf}
-            role="tab"
-            aria-selected={timeframe === tf}
-            className={timeframe === tf ? 'on' : ''}
-            onClick={() => setTimeframe(tf)}
-          >
-            {TIMEFRAME_LABELS[tf]}
-          </button>
-        ))}
-      </div>
+      <TimeframePicker value={timeframe} onChange={setTimeframe} />
 
-      <div className="statrow">
-        <div><b>{myStatsSlice.totalGamesPlayed}</b><span>Played</span></div>
-        <div><b>{myStatsSlice.successRate}</b><span>Solved %</span></div>
-        <div><b>{myStatsSlice.currentStreak}</b><span>Streak</span></div>
-        <div><b>{myStatsSlice.longestStreak}</b><span>Longest</span></div>
-      </div>
-
-      {distRows.length > 0 && myStatsSlice.totalGamesPlayed > 0 && (
-        <section className="stats-block">
-          <h3 className="section-label">Distance from target</h3>
-          <div className="dist">
-            {distRows.map(row => (
-              <div key={row.label}>
-                <em>{row.label}</em>
-                {row.value > 0 ? (
-                  <span className={`bar ${row.band}-bg`} style={{ width: `${(row.value / distMax) * 100}%` }}>
-                    {row.value}
-                  </span>
-                ) : (
-                  <span className="bar zero">0</span>
-                )}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
+      <StatsSummary slice={myStatsSlice} />
 
       <section className="stats-block">
         <div className="picker">

@@ -22,11 +22,13 @@ import { bandFromDifference } from './format';
 interface LeaderboardProps {
   frameId: string | null;
   onSelectFrame: (frameId: string | null) => void;
+  /** Tap a name: opens that player's sheet (or your own Stats tab) */
+  onSelectPlayer: (playerId: string, isMe: boolean) => void;
 }
 
 type FilterType = 'global' | 'friends';
 
-export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps) {
+export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: LeaderboardProps) {
   // Mode is derived from whether a frameId is provided:
   // - frameId present → per-challenge leaderboard (from tooltip)
   // - no frameId → overall points leaderboard (Main Leaderboard tab)
@@ -60,6 +62,16 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
   };
 
   const OVERTIME_SECONDS = 60;
+
+  // Rows open the player sheet; keyboard users get Enter/Space too
+  const rowProps = (playerId: string, isMe: boolean) => ({
+    role: 'button',
+    tabIndex: 0,
+    onClick: () => onSelectPlayer(playerId, isMe),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectPlayer(playerId, isMe); }
+    },
+  });
 
   // Per-day status chip uses the distance colors: solved = exact, otherwise by how far away
   const statusChip = (entry: LeaderboardEntry) => {
@@ -106,6 +118,7 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
               <li
                 key={entry.userId}
                 className={`lrow${entry.rank === dailyData.userRank ? ' me' : ''}${entry.solved && entry.rank <= 3 ? ' top' : ''}`}
+                {...rowProps(entry.userId, entry.rank === dailyData.userRank)}
               >
                 <span className="r">{entry.rank}</span>
                 <span className="who">{entry.name || 'Anonymous'}</span>
@@ -143,6 +156,7 @@ export default function Leaderboard({ frameId, onSelectFrame }: LeaderboardProps
               <li
                 key={entry.userId}
                 className={`lrow${entry.rank === overallData.userRank ? ' me' : ''}${entry.rank <= 3 ? ' top' : ''}`}
+                {...rowProps(entry.userId, entry.rank === overallData.userRank)}
               >
                 <span className="r">{entry.rank}</span>
                 <span className="who">{entry.name || 'Anonymous'}</span>

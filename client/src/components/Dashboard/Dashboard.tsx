@@ -17,6 +17,7 @@ import Leaderboard from './Leaderboard';
 import PlayHistory from './PlayHistory';
 import Stats from './Stats';
 import Shortcuts from './Shortcuts';
+import PlayerSheet from './PlayerSheet';
 import { gameApi, PreviousResult } from '../../api';
 import './Dashboard.css';
 
@@ -56,6 +57,8 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom, i
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(initialFrameId);
   const [dailyStatus, setDailyStatus] = useState<PreviousResult | null | undefined>(undefined);
   const [hoursUntilTomorrow, setHoursUntilTomorrow] = useState(getHoursUntilTomorrow());
+  const [playerId, setPlayerId] = useState<string | null>(null);
+  const [compareWith, setCompareWith] = useState<{ id: string; name: string } | null>(null);
 
   // Fetch daily challenge status on mount
   useEffect(() => {
@@ -81,6 +84,20 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom, i
   const selectTab = (tab: TabType) => {
     setActiveTab(tab);
     setSelectedFrameId(null);
+    setCompareWith(null);
+  };
+
+  // Your own name goes to your Stats tab; anyone else's opens their sheet
+  const handleSelectPlayer = (id: string, isMe: boolean) => {
+    if (isMe) selectTab('stats');
+    else setPlayerId(id);
+  };
+
+  const handleCompare = (player: { id: string; name: string }) => {
+    setPlayerId(null);
+    setSelectedFrameId(null);
+    setCompareWith(player);
+    setActiveTab('stats');
   };
 
   const getChallengeButtonText = (): string => {
@@ -125,6 +142,7 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom, i
             <Leaderboard
               frameId={selectedFrameId}
               onSelectFrame={setSelectedFrameId}
+              onSelectPlayer={handleSelectPlayer}
             />
           </>
         )}
@@ -132,13 +150,19 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom, i
           <Leaderboard
             frameId={null}
             onSelectFrame={setSelectedFrameId}
+            onSelectPlayer={handleSelectPlayer}
           />
         )}
-        {activeTab === 'stats' && <Stats />}
+        {/* Keyed so arriving from a player sheet reloads the comparison */}
+        {activeTab === 'stats' && <Stats key={compareWith?.id ?? 'me'} compareWith={compareWith} />}
         {activeTab === 'history' && (
           <PlayHistory onPlayFrame={onPlayFrame} onSelectFrame={handleSelectFrame} />
         )}
       </main>
+
+      {playerId && (
+        <PlayerSheet playerId={playerId} onCompare={handleCompare} onClose={() => setPlayerId(null)} />
+      )}
 
       <div className="dock">
         <button

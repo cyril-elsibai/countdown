@@ -734,19 +734,11 @@ router.get('/stats', requireAuth, async (req: AuthRequest, res: Response) => {
     const userId = req.userId!;
     const compareWithId = req.query.compareWith as string | undefined;
 
-    // Validate friendship if compareWith is provided
+    // Any player can be compared (stats are public to signed-in players, see /player/:id)
     if (compareWithId) {
-      const friendship = await prisma.friendship.findFirst({
-        where: {
-          status: 'ACCEPTED',
-          OR: [
-            { userId, friendId: compareWithId },
-            { userId: compareWithId, friendId: userId },
-          ],
-        },
-      });
-      if (!friendship) {
-        return res.status(403).json({ error: 'Not friends with this user' });
+      const exists = await prisma.user.findUnique({ where: { id: compareWithId }, select: { id: true } });
+      if (!exists) {
+        return res.status(404).json({ error: 'Player not found' });
       }
     }
 
@@ -777,13 +769,70 @@ router.get('/stats', requireAuth, async (req: AuthRequest, res: Response) => {
         where: { id: compareWithId },
         select: { name: true },
       });
-      friendName = friend?.name ?? 'Friend';
+      friendName = friend?.name ?? 'Player';
     }
 
     res.json({ myStats, friendStats, friendName, friends });
   } catch (error) {
     console.error('Stats error:', error);
     res.status(500).json({ error: 'Failed to get stats' });
+  }
+});
+
+/**
+ * GET /api/dashboard/player/:id
+ *
+ * Player sheet, opened from any leaderboard row. Stats are visible to every
+ * signed-in player, friend or not. Aggregates only: no email, no game list.
+ *
+ * Response:
+ * {
+ *   player: { id, name },
+ *   rank: number | null, points: number,
+ *   stats: { forever, month, week },
+ *   friendship: 'self' | 'friends' | 'pending' | 'none'
+ * }
+ */
+router.get('/player/:id', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const playerId = req.params.id as string;
+    const player = await prisma.user.findUnique({
+      where: { id: playerId },
+      select: { id: true, name: true, email: true, stats: { select: { totalPoints: true } } },
+    });
+    if (!player) {
+      return res.status(404).json({ error: 'Player not found' });
+    }
+
+    const points = player.stats?.totalPoints ?? 0;
+    const rank = points > 0
+      ? (await prisma.userStats.count({ where: { totalPoints: { gt: points } } })) + 1
+      : null;
+
+    let friendship: 'self' | 'friends' | 'pending' | 'none' = 'self';
+    if (playerId !== req.userId) {
+      const link = await prisma.friendship.findFirst({
+        where: {
+          OR: [
+            { userId: req.userId, friendId: playerId },
+            { userId: playerId, friendId: req.userId },
+          ],
+        },
+      });
+      friendship = !link ? 'none' : link.status === 'ACCEPTED' ? 'friends' : 'pending';
+    }
+
+    res.json({
+      // Same name fallback as the all-time leaderboard
+      player: { id: player.id, name: player.name || player.email.split('@')[0] },
+      rank,
+      points,
+      stats: await computeStats(playerId),
+      friendship,
+    });
+  } catch (error) {
+    console.error('Player sheet error:', error);
+    res.status(500).json({ error: 'Failed to get player' });
   }
 });
 
