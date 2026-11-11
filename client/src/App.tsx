@@ -1183,6 +1183,7 @@ export default function App() {
           }}
         >
           6/7 Numbers
+          <span className="beta" aria-label="beta">Beta</span>
         </button>
         <div className="head-r">
           {user ? (
