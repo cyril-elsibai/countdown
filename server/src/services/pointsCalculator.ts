@@ -25,7 +25,7 @@ const SOLVE_POINTS = 20;
 export const RANKING_WINDOW_DAYS = 100;
 const RARITY_POINTS = 80;
 
-function calculatePoints(completionPercent: number, durationSeconds: number | null): number {
+export function calculatePoints(completionPercent: number, durationSeconds: number | null): number {
   const basePoints = SOLVE_POINTS + RARITY_POINTS * (100 - completionPercent) / 100;
   let multiplier = 1.0;
 

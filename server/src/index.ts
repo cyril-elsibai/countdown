@@ -30,6 +30,7 @@ import cors from 'cors';
 import authRoutes from './routes/auth';
 import gameRoutes from './routes/game';
 import friendsRoutes from './routes/friends';
+import groupsRoutes from './routes/groups';
 import adminRoutes from './routes/admin';
 import dashboardRoutes from './routes/dashboard';
 import wordleRoutes from './routes/wordle';
@@ -119,6 +120,9 @@ app.use('/api/game', gameRoutes);
  * - DELETE /:id - Remove friend or cancel request
  */
 app.use('/api/friends', friendsRoutes);
+
+// 67numbers groups: private leaderboards joined by invite link
+app.use('/api/groups', groupsRoutes);
 
 /**
  * Admin Routes (/api/admin/*)

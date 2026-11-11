@@ -27,6 +27,9 @@ interface DashboardProps {
   onPlayRandom: () => void;
   /** Open on this frame's leaderboard (e.g. from a shared link's challenge card) */
   initialFrameId?: string | null;
+  /** Open Ranks on this group (e.g. right after joining it) */
+  initialGroupId?: string | null;
+  userId?: string;
 }
 
 type TabType = 'daily' | 'leaderboard' | 'stats' | 'history';
@@ -52,8 +55,8 @@ function getHoursUntilTomorrow(): number {
   return Math.ceil((tomorrow.getTime() - now.getTime()) / (1000 * 60 * 60));
 }
 
-export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom, initialFrameId = null }: DashboardProps) {
-  const [activeTab, setActiveTab] = useState<TabType>('daily');
+export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom, initialFrameId = null, initialGroupId = null, userId }: DashboardProps) {
+  const [activeTab, setActiveTab] = useState<TabType>(initialGroupId ? 'leaderboard' : 'daily');
   const [selectedFrameId, setSelectedFrameId] = useState<string | null>(initialFrameId);
   const [dailyStatus, setDailyStatus] = useState<PreviousResult | null | undefined>(undefined);
   const [hoursUntilTomorrow, setHoursUntilTomorrow] = useState(getHoursUntilTomorrow());
@@ -149,6 +152,8 @@ export default function Dashboard({ onNavigateHome, onPlayFrame, onPlayRandom, i
         {activeTab === 'leaderboard' && (
           <Leaderboard
             frameId={null}
+            initialGroupId={initialGroupId}
+            myId={userId}
             onSelectFrame={setSelectedFrameId}
             onSelectPlayer={handleSelectPlayer}
           />

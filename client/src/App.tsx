@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { track } from '@vercel/analytics/react';
-import { gameApi, authApi, friendsApi, dashboardApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult, UserStats, SharedFrameResponse, InviteResponse } from './api';
+import { gameApi, authApi, friendsApi, dashboardApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult, UserStats, SharedFrameResponse, InviteResponse, groupsApi, GroupInviteResponse } from './api';
 import AuthForm from './components/AuthForm';
 import ResetPasswordForm from './components/ResetPasswordForm';
 import Profile from './components/Profile';
@@ -42,14 +42,18 @@ const BOOT_PLAY_MATCH = window.location.pathname.match(/^\/play\/(.+)$/);
 const BOOT_FRAME_ID = BOOT_PLAY_MATCH ? BOOT_PLAY_MATCH[1] : null;
 // Shared links carry the sender (?from=userId): open the challenge card instead of the game
 const BOOT_FROM = BOOT_FRAME_ID ? new URLSearchParams(window.location.search).get('from') : null;
-// Invite links (/?invite=userId): kept until the reader is signed in and answers,
-// even across the email-verification round trip
-const BOOT_INVITE = new URLSearchParams(window.location.search).get('invite');
-if (BOOT_INVITE) {
-  localStorage.setItem('pendingInvite', BOOT_INVITE);
+// Invite links, friend (/?invite=userId) or group (/?group=CODE): kept until the
+// reader is signed in and answers, even across the email-verification round trip
+const BOOT_PARAMS = new URLSearchParams(window.location.search);
+const BOOT_INVITE = BOOT_PARAMS.get('invite');
+const BOOT_GROUP = BOOT_PARAMS.get('group');
+if (BOOT_INVITE) localStorage.setItem('pendingInvite', BOOT_INVITE);
+if (BOOT_GROUP) localStorage.setItem('pendingGroup', BOOT_GROUP);
+if (BOOT_INVITE || BOOT_GROUP) {
   // Signed in: the card sits over the dashboard, so no daily countdown starts behind it
   window.history.replaceState({}, '', isLoggedIn() ? '/dashboard' : window.location.pathname);
 }
+const hasPendingInvite = () => !!(localStorage.getItem('pendingInvite') || localStorage.getItem('pendingGroup'));
 
 
 export default function App() {
@@ -66,7 +70,7 @@ export default function App() {
   // Non-logged-in users can only access the daily challenge (home)
   const loggedIn = isLoggedIn();
   const initialRoute = loggedIn
-    ? (window.location.pathname === '/dashboard' || initialFrom || BOOT_INVITE ? 'dashboard' : initialFrameId ? 'play' : 'home')
+    ? (window.location.pathname === '/dashboard' || initialFrom || BOOT_INVITE || BOOT_GROUP ? 'dashboard' : initialFrameId ? 'play' : 'home')
     : 'home';
 
   // Redirect URL to home if not logged in and on a protected route
@@ -111,7 +115,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [pendingFriendCount, setPendingFriendCount] = useState(0);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen') && !isLoggedIn() && !initialFrom && !BOOT_INVITE);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen') && !isLoggedIn() && !initialFrom && !BOOT_INVITE && !BOOT_GROUP);
   const [initialAuthMode, setInitialAuthMode] = useState<'login' | 'register'>('login');
   const [previousResult, setPreviousResult] = useState<PreviousResult | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
@@ -120,6 +124,8 @@ export default function App() {
   const [dashboardFrameId, setDashboardFrameId] = useState<string | null>(null);
   const [shared, setShared] = useState<SharedFrameResponse | null>(null);
   const [invite, setInvite] = useState<InviteResponse | null>(null);
+  const [groupInvite, setGroupInvite] = useState<GroupInviteResponse | null>(null);
+  const [dashboardGroupId, setDashboardGroupId] = useState<string | null>(null);
   const sharedFromRef = useRef<string | null>(initialFrom);
   const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
@@ -202,7 +208,7 @@ export default function App() {
           // Clean up URL
           window.history.replaceState({}, '', '/');
 
-          if (localStorage.getItem('pendingInvite')) {
+          if (hasPendingInvite()) {
             // Invite card next: show it over the dashboard, not over a starting countdown
             setCurrentRoute('dashboard');
             window.history.replaceState({}, '', '/dashboard');
@@ -265,6 +271,27 @@ export default function App() {
     setInvite(null);
   };
 
+  // Same for a group link
+  useEffect(() => {
+    const code = localStorage.getItem('pendingGroup');
+    if (!code) return;
+    groupsApi.invite(code)
+      .then(response => {
+        if (response.member) {
+          localStorage.removeItem('pendingGroup');
+          setGroupInvite(null);
+        } else {
+          setGroupInvite(response);
+        }
+      })
+      .catch(() => localStorage.removeItem('pendingGroup'));
+  }, [user]);
+
+  const dismissGroupInvite = () => {
+    localStorage.removeItem('pendingGroup');
+    setGroupInvite(null);
+  };
+
   // Check if user is already logged in
   useEffect(() => {
     if (isLoggedIn()) {
@@ -296,7 +323,7 @@ export default function App() {
       else initializeGame();
     } else if (loggedIn && initialFrameId) {
       handlePlayHistorical(initialFrameId);
-    } else if (loggedIn && BOOT_INVITE) {
+    } else if (loggedIn && (BOOT_INVITE || BOOT_GROUP)) {
       setLoading(false); // the dashboard sits behind the invite card
     } else {
       initializeGame();
@@ -495,7 +522,7 @@ export default function App() {
     }
 
     // Invite waiting and no game started yet: answer it over the dashboard
-    if (localStorage.getItem('pendingInvite') && gamePhase === 'pre-game') {
+    if (hasPendingInvite() && gamePhase === 'pre-game') {
       setCurrentRoute('dashboard');
       window.history.replaceState({}, '', '/dashboard');
       return;
@@ -574,9 +601,10 @@ export default function App() {
     activeFrameRef.current = null;
   };
 
-  const navigateToDashboard = (openFrameId: string | null = null) => {
+  const navigateToDashboard = (openFrameId: string | null = null, openGroupId: string | null = null) => {
     saveActiveFrameProgress();
     setDashboardFrameId(openFrameId);
+    setDashboardGroupId(openGroupId);
     setCurrentRoute('dashboard');
     setDashboardKey(k => k + 1);
     window.history.pushState({}, '', '/dashboard');
@@ -1201,15 +1229,52 @@ export default function App() {
 
       {invite && !shared && !showAuthModal && (
         <InviteCard
-          data={invite}
+          title={`${invite.inviter.name} invites you to be friends`}
+          doneTitle={`You and ${invite.inviter.name} are friends`}
+          line="Compare your scores on every daily challenge."
+          guestLine="6/7 Numbers is a daily number puzzle. Create an account to compare your scores."
+          doneLine="You'll see each other's scores in Ranks and Stats."
+          acceptLabel="Accept"
           loggedIn={!!user || isLoggedIn()}
-          onAccepted={() => localStorage.removeItem('pendingInvite')}
+          onAccept={async () => {
+            await friendsApi.acceptInvite(invite.inviter.id);
+            localStorage.removeItem('pendingInvite');
+          }}
           onLogin={openAuth}
           onPlay={() => {
             setInvite(null);
             if (!localStorage.getItem('tutorialSeen')) setShowTutorial(true);
           }}
           onDismiss={dismissInvite}
+        />
+      )}
+
+      {groupInvite && !invite && !shared && !showAuthModal && (
+        <InviteCard
+          title={`Join “${groupInvite.group.name}”`}
+          doneTitle={`You joined “${groupInvite.group.name}”`}
+          line={`${groupInvite.group.memberCount} member${groupInvite.group.memberCount !== 1 ? 's' : ''}. Compare today's daily with the group.`}
+          guestLine="6/7 Numbers is a daily number puzzle. Create an account to join the group and compare your scores."
+          doneLine="The group is in Ranks, next to Global and Friends."
+          acceptLabel="Join"
+          loggedIn={!!user || isLoggedIn()}
+          onAccept={async () => {
+            await groupsApi.join(localStorage.getItem('pendingGroup')!);
+            localStorage.removeItem('pendingGroup');
+          }}
+          doneAction={{
+            label: 'See the group',
+            onClick: () => {
+              setGroupInvite(null);
+              navigateToDashboard(null, groupInvite.group.id);
+            },
+          }}
+          onLogin={openAuth}
+          onPlay={() => {
+            setGroupInvite(null);
+            if (!localStorage.getItem('tutorialSeen')) setShowTutorial(true);
+          }}
+          onDismiss={dismissGroupInvite}
         />
       )}
 
@@ -1258,6 +1323,8 @@ export default function App() {
         <Dashboard
           key={dashboardKey}
           initialFrameId={dashboardFrameId}
+          initialGroupId={dashboardGroupId}
+          userId={user?.id}
           onNavigateHome={navigateToHome}
           onPlayFrame={handlePlayHistorical}
           onPlayRandom={handlePlayRandom}

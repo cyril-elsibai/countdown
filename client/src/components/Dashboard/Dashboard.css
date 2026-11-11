@@ -438,3 +438,72 @@ button.day { cursor: pointer; }
 }
 .srow .sub { font-size: 12px; }
 .srow .btn { flex: none; }
+
+/* Ranks scope: Global / Friends / each group / + New group. Pills, scroll sideways. */
+.scopes {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin: 0 -16px;
+  padding: 0 16px;
+}
+.scopes::-webkit-scrollbar { display: none; }
+.scopes button {
+  flex-shrink: 0;
+  height: 32px;
+  padding: 0 14px;
+  border: 1.5px solid var(--line);
+  border-radius: 16px;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.scopes button.on {
+  border-color: var(--fg);
+  background: var(--fg);
+  color: var(--bg);
+}
+.scopes button.add { border-style: dashed; }
+
+.new-group {
+  display: flex;
+  gap: 8px;
+}
+.new-group input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border: 1.5px solid var(--line-strong);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: inherit;
+  font-size: 15px;
+}
+.new-group input:focus { outline: none; border-color: var(--fg); }
+.new-group .btn { height: 40px; }
+
+.group-board .you-rank > div { min-width: 0; }
+.group-board .you-rank b {
+  font-size: 28px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-board .you-rank .btn { flex-shrink: 0; }
+.group-leave {
+  align-self: center;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 13px;
+  text-decoration: underline;
+  cursor: pointer;
+}

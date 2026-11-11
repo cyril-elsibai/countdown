@@ -545,6 +545,65 @@ export const friendsApi = {
 };
 
 // =============================================================================
+// GROUPS API (67numbers private leaderboards)
+// =============================================================================
+
+export interface Group {
+  id: string;
+  name: string;
+  inviteCode: string;
+  memberCount: number;
+}
+
+/** Who you'd be joining from a group link (/?group=CODE) */
+export interface GroupInviteResponse {
+  group: { id: string; name: string; memberCount: number };
+  member: boolean | null;  // null for guests
+}
+
+export interface GroupTodayEntry {
+  userId: string;
+  name: string;
+  rank: number | null;      // null = hasn't played today
+  played: boolean;
+  solved: boolean;
+  duration: number | null;
+  difference: number | null;
+}
+
+export interface GroupWeekEntry {
+  userId: string;
+  name: string;
+  rank: number;
+  points: number;
+  solves: number;
+}
+
+export type GroupLeaderboardResponse = { group: Group } & (
+  | { period: 'today'; dailyNumber: number | null; targetNumber: number | null; entries: GroupTodayEntry[] }
+  | { period: 'week'; entries: GroupWeekEntry[] }
+);
+
+export const groupsApi = {
+  list: () => request<{ groups: Group[] }>('/groups'),
+
+  create: (name: string) =>
+    request<{ group: Group }>('/groups', { method: 'POST', body: JSON.stringify({ name }) }),
+
+  /** Public: guests see the group name too */
+  invite: (code: string) => request<GroupInviteResponse>(`/groups/invite/${code}`),
+
+  join: (code: string) =>
+    request<{ group: { id: string; name: string } }>(`/groups/invite/${code}/join`, { method: 'POST' }),
+
+  leave: (groupId: string) =>
+    request<{ success: boolean }>(`/groups/${groupId}/membership`, { method: 'DELETE' }),
+
+  leaderboard: (groupId: string, period: 'today' | 'week') =>
+    request<GroupLeaderboardResponse>(`/groups/${groupId}/leaderboard?period=${period}`),
+};
+
+// =============================================================================
 // ADMIN TOKEN MANAGEMENT
 // =============================================================================
 

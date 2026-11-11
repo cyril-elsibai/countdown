@@ -1,33 +1,39 @@
 /**
- * Invite card, shown when someone opens an invite link (/?invite=userId).
+ * Invite card, shown when someone opens an invite link: a friend invite
+ * (/?invite=userId) or a group invite (/?group=CODE). App.tsx fills in the words.
  *
- * Logged in → Accept makes you friends straight away (the inviter sent the link,
- * you clicked Accept: both agreed). Guest → create an account or log in first;
- * the invite waits in localStorage and this card comes back once signed in.
+ * Logged in → Accept answers it in one tap. Guest → create an account or log
+ * in first; the invite waits in localStorage and this card comes back once
+ * signed in.
  */
 
 import { useState } from 'react';
-import { friendsApi, InviteResponse } from '../api';
 
 interface Props {
-  data: InviteResponse;
+  title: string;
+  doneTitle: string;
+  line: string;         // logged in, before accepting
+  guestLine: string;
+  doneLine: string;
+  acceptLabel: string;
   loggedIn: boolean;
-  onAccepted: () => void;
+  onAccept: () => Promise<void>;
+  /** After accepting: the main button (e.g. open the group's leaderboard) */
+  doneAction?: { label: string; onClick: () => void };
   onLogin: (mode: 'login' | 'register') => void;
   onPlay: () => void;     // guest: look at today's challenge first
   onDismiss: () => void;  // logged in: drop the invite
 }
 
-export default function InviteCard({ data, loggedIn, onAccepted, onLogin, onPlay, onDismiss }: Props) {
-  const { inviter } = data;
+export default function InviteCard(props: Props) {
+  const { loggedIn, onLogin, onPlay, onDismiss } = props;
   const [state, setState] = useState<'idle' | 'sending' | 'done' | 'error'>('idle');
 
   const accept = async () => {
     setState('sending');
     try {
-      await friendsApi.acceptInvite(inviter.id);
+      await props.onAccept();
       setState('done');
-      onAccepted();
     } catch {
       setState('error');
     }
@@ -35,9 +41,7 @@ export default function InviteCard({ data, loggedIn, onAccepted, onLogin, onPlay
 
   // A guest closing the card keeps the invite for after sign-up
   const close = loggedIn ? onDismiss : onPlay;
-  const title = state === 'done'
-    ? `You and ${inviter.name} are friends`
-    : `${inviter.name} invites you to be friends`;
+  const title = state === 'done' ? props.doneTitle : props.title;
 
   return (
     <>
@@ -53,24 +57,27 @@ export default function InviteCard({ data, loggedIn, onAccepted, onLogin, onPlay
 
         {state === 'done' ? (
           <>
-            <p className="challenge-line">You'll see each other's scores in Ranks and Stats.</p>
-            <button className="btn ink wide" onClick={onDismiss}>Close</button>
+            <p className="challenge-line">{props.doneLine}</p>
+            {props.doneAction ? (
+              <div className="pair">
+                <button className="btn ink" onClick={props.doneAction.onClick}>{props.doneAction.label}</button>
+                <button className="btn line" onClick={onDismiss}>Close</button>
+              </div>
+            ) : (
+              <button className="btn ink wide" onClick={onDismiss}>Close</button>
+            )}
           </>
         ) : loggedIn ? (
           <>
-            <p className="challenge-line">
-              {state === 'error' ? 'Couldn’t accept. Try again.' : 'Compare your scores on every daily challenge.'}
-            </p>
+            <p className="challenge-line">{state === 'error' ? 'Couldn’t accept. Try again.' : props.line}</p>
             <div className="pair">
-              <button className="btn ink" onClick={accept} disabled={state === 'sending'}>Accept</button>
+              <button className="btn ink" onClick={accept} disabled={state === 'sending'}>{props.acceptLabel}</button>
               <button className="btn line" onClick={onDismiss}>Not now</button>
             </div>
           </>
         ) : (
           <>
-            <p className="challenge-line">
-              6/7 Numbers is a daily number puzzle. Create an account to compare your scores.
-            </p>
+            <p className="challenge-line">{props.guestLine}</p>
             <div className="pair">
               <button className="btn ink" onClick={() => onLogin('register')}>Create account</button>
               <button className="btn line" onClick={() => onLogin('login')}>Log in</button>

@@ -81,6 +81,7 @@ model User {
   wordleResults    WordleResult[]       // 67words game results
   wordleAttempts   WordleAttempt[]      // 67words daily attempt timing
   wordleUserStats  WordleUserStats?     // 67words leaderboard points
+  groupMemberships GroupMember[]        // 67numbers groups the user belongs to
 }
 
 // =============================================================================
@@ -288,6 +289,33 @@ model Friendship {
 
   // Composite unique constraint: one friendship per user pair (in this direction)
   @@unique([userId, friendId])
+}
+
+// =============================================================================
+// GROUP MODELS (67numbers only)
+// =============================================================================
+
+// Group: a private leaderboard, Wordle-group style ("Office", "Family").
+// Anyone with the invite link (/?group=inviteCode) can join; members see
+// today's daily and this week's points ranked among themselves. A group is
+// deleted when its last member leaves.
+model Group {
+  id          String        @id @default(cuid())
+  name        String
+  inviteCode  String        @unique              // Short random code in the invite link
+  createdAt   DateTime      @default(now())
+  members     GroupMember[]                       // No owner: every member is equal
+}
+
+model GroupMember {
+  groupId  String
+  group    Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt DateTime @default(now())
+
+  @@id([groupId, userId])
+  @@index([userId])
 }
 
 // =============================================================================

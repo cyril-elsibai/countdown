@@ -15,8 +15,11 @@ import {
   OverallLeaderboardEntry,
   LeaderboardResponse,
   OverallLeaderboardResponse,
+  groupsApi,
+  Group,
 } from '../../api';
 import { bandFromDifference } from './format';
+import GroupBoard from './GroupBoard';
 
 
 interface LeaderboardProps {
@@ -24,11 +27,14 @@ interface LeaderboardProps {
   onSelectFrame: (frameId: string | null) => void;
   /** Tap a name: opens that player's sheet (or your own Stats tab) */
   onSelectPlayer: (playerId: string, isMe: boolean) => void;
+  /** Ranks tab only: open on this group (e.g. right after joining it) */
+  initialGroupId?: string | null;
+  myId?: string;
 }
 
 type FilterType = 'global' | 'friends';
 
-export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: LeaderboardProps) {
+export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer, initialGroupId = null, myId }: LeaderboardProps) {
   // Mode is derived from whether a frameId is provided:
   // - frameId present → per-challenge leaderboard (from tooltip)
   // - no frameId → overall points leaderboard (Main Leaderboard tab)
@@ -38,6 +44,45 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: 
   const [overallData, setOverallData] = useState<OverallLeaderboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Ranks tab scope beyond Global / Friends: one of your groups
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [groupId, setGroupId] = useState<string | null>(initialGroupId);
+  const [newGroupName, setNewGroupName] = useState<string | null>(null);  // null = form closed
+  const [groupError, setGroupError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (frameId) return;
+    groupsApi.list().then(r => setGroups(r.groups)).catch(() => {});
+  }, [frameId]);
+
+  const createGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newGroupName?.trim()) return;
+    setGroupError(null);
+    try {
+      const { group } = await groupsApi.create(newGroupName.trim());
+      setGroups([...groups, group]);
+      setGroupId(group.id);
+      setNewGroupName(null);
+    } catch (err) {
+      setGroupError(err instanceof Error ? err.message : 'Failed to create group');
+    }
+  };
+
+  // Keep the selected pill visible when the row scrolls sideways
+  useEffect(() => {
+    document.querySelector('.scopes .on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [groupId, groups]);
+
+  const selectScope = (scope: FilterType | string) => {
+    setNewGroupName(null);
+    if (scope === 'global' || scope === 'friends') {
+      setGroupId(null);
+      setFilter(scope);
+    } else {
+      setGroupId(scope);
+    }
+  };
 
   useEffect(() => {
     loadLeaderboard();
@@ -136,11 +181,62 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: 
     );
   };
 
+  // Global / Friends / each group / + New group, scrolls sideways when there are many
+  const scopeChips = (
+    <>
+      <div className="scopes" role="tablist">
+        {(['global', 'friends'] as FilterType[]).map(f => (
+          <button key={f} role="tab" aria-selected={!groupId && filter === f} className={!groupId && filter === f ? 'on' : ''} onClick={() => selectScope(f)}>
+            {f === 'global' ? 'Global' : 'Friends'}
+          </button>
+        ))}
+        {groups.map(g => (
+          <button key={g.id} role="tab" aria-selected={groupId === g.id} className={groupId === g.id ? 'on' : ''} onClick={() => selectScope(g.id)}>
+            {g.name}
+          </button>
+        ))}
+        <button className="add" onClick={() => setNewGroupName(newGroupName === null ? '' : null)}>+ New group</button>
+      </div>
+      {newGroupName !== null && (
+        <form className="new-group" onSubmit={createGroup}>
+          <input
+            autoFocus
+            value={newGroupName}
+            maxLength={40}
+            onChange={e => setNewGroupName(e.target.value)}
+            placeholder="Group name, e.g. Office"
+            aria-label="Group name"
+          />
+          <button type="submit" className="btn ink" disabled={!newGroupName.trim()}>Create</button>
+        </form>
+      )}
+      {groupError && <div className="dash-note">{groupError}</div>}
+    </>
+  );
+
+  const selectedGroup = groups.find(g => g.id === groupId);
+
   const renderOverallLeaderboard = () => {
+    if (selectedGroup) {
+      return (
+        <div className="leaderboard-section">
+          {scopeChips}
+          <GroupBoard
+            key={selectedGroup.id}
+            group={selectedGroup}
+            myId={myId}
+            onSelectPlayer={onSelectPlayer}
+            onLeft={() => { setGroups(groups.filter(g => g.id !== selectedGroup.id)); setGroupId(null); }}
+          />
+        </div>
+      );
+    }
     if (!overallData) return null;
 
     return (
       <div className="leaderboard-section">
+        {scopeChips}
+
         <div className="you-rank">
           <div>
             <h3 className="section-label">Last 100 days</h3>
@@ -152,8 +248,6 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: 
             <span className="sub">Not ranked yet. Points update daily.</span>
           )}
         </div>
-
-        {filterTabs}
 
         {overallData.leaderboard.length === 0 ? (
           <div className="dash-note">
@@ -182,7 +276,9 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer }: 
 
   return (
     <div className="leaderboard">
-      {loading ? (
+      {type === 'overall' && selectedGroup ? (
+        renderOverallLeaderboard()
+      ) : loading ? (
         <div className="dash-note">Loading leaderboard...</div>
       ) : error ? (
         <div className="dash-note">{error}</div>
