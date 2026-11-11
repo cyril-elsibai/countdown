@@ -1058,3 +1058,4 @@ select:focus-visible {
     transition: none !important;
   }
 }
+.friends-modal .invite-btn { margin-bottom: 12px; }

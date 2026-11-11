@@ -27,7 +27,7 @@
 
 import { Router, Response } from 'express';
 import { prisma } from '../db';
-import { requireAuth, AuthRequest } from '../middleware/auth';
+import { requireAuth, optionalAuth, AuthRequest } from '../middleware/auth';
 
 // Create Express router instance
 const router = Router();
@@ -233,6 +233,109 @@ router.post('/request', requireAuth, async (req: AuthRequest, res: Response) => 
   } catch (error) {
     console.error('Send friend request error:', error);
     res.status(500).json({ error: 'Failed to send friend request' });
+  }
+});
+
+// =============================================================================
+// INVITE LINK ENDPOINTS
+// =============================================================================
+
+/**
+ * GET /api/friends/invite/:userId
+ *
+ * Who sent an invite link (/?invite=userId). Public, so guests see who invited
+ * them; never returns the email.
+ *
+ * RESPONSE (200 OK):
+ * {
+ *   inviter: { id, name },
+ *   friendship: 'self' | 'friends' | 'pending' | 'none' | null  // null for guests
+ * }
+ */
+router.get('/invite/:userId', optionalAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const inviterId = req.params.userId as string;
+    const inviter = await prisma.user.findUnique({
+      where: { id: inviterId },
+      select: { id: true, name: true },
+    });
+    if (!inviter) {
+      return res.status(404).json({ error: 'Invite not found' });
+    }
+
+    let friendship: 'self' | 'friends' | 'pending' | 'none' | null = null;
+    if (req.userId) {
+      if (req.userId === inviter.id) {
+        friendship = 'self';
+      } else {
+        const link = await prisma.friendship.findFirst({
+          where: {
+            OR: [
+              { userId: req.userId, friendId: inviter.id },
+              { userId: inviter.id, friendId: req.userId },
+            ],
+          },
+        });
+        friendship = !link ? 'none' : link.status === 'ACCEPTED' ? 'friends' : 'pending';
+      }
+    }
+
+    res.json({ inviter: { id: inviter.id, name: inviter.name || 'A friend' }, friendship });
+  } catch (error) {
+    console.error('Get invite error:', error);
+    res.status(500).json({ error: 'Failed to load invite' });
+  }
+});
+
+/**
+ * POST /api/friends/invite/:userId/accept
+ *
+ * Accepts an invite link. The inviter sent the link and the current user
+ * clicked Accept, so both agreed: the friendship is ACCEPTED straight away,
+ * and any pending request between them (either direction) is upgraded.
+ */
+router.post('/invite/:userId/accept', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const inviterId = req.params.userId as string;
+    if (inviterId === req.userId) {
+      return res.status(400).json({ error: 'You cannot add yourself as a friend' });
+    }
+
+    const inviter = await prisma.user.findUnique({
+      where: { id: inviterId },
+      select: { id: true, email: true, name: true },
+    });
+    if (!inviter) {
+      return res.status(404).json({ error: 'Invite not found' });
+    }
+
+    const existing = await prisma.friendship.findFirst({
+      where: {
+        OR: [
+          { userId: req.userId, friendId: inviter.id },
+          { userId: inviter.id, friendId: req.userId },
+        ],
+      },
+    });
+
+    const friendship = existing
+      ? await prisma.friendship.update({ where: { id: existing.id }, data: { status: 'ACCEPTED' } })
+      : await prisma.friendship.create({
+          data: { userId: inviter.id, friendId: req.userId!, status: 'ACCEPTED' },
+        });
+
+    res.json({
+      friend: {
+        id: friendship.id,
+        status: 'ACCEPTED',
+        direction: friendship.userId === req.userId ? 'sent' : 'received',
+        user: inviter,
+        createdAt: friendship.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error('Accept invite error:', error);
+    res.status(500).json({ error: 'Failed to accept invite' });
   }
 });
 

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { track } from '@vercel/analytics/react';
-import { gameApi, authApi, friendsApi, dashboardApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult, UserStats, SharedFrameResponse } from './api';
+import { gameApi, authApi, friendsApi, dashboardApi, Frame, clearToken, isLoggedIn, setToken, User, PreviousResult, UserStats, SharedFrameResponse, InviteResponse } from './api';
 import AuthForm from './components/AuthForm';
 import ResetPasswordForm from './components/ResetPasswordForm';
 import Profile from './components/Profile';
@@ -9,6 +9,7 @@ import Admin from './components/Admin';
 import { Dashboard } from './components/Dashboard';
 import TutorialModal from './components/TutorialModal';
 import ChallengeCard from './components/ChallengeCard';
+import InviteCard from './components/InviteCard';
 
 // Types
 type TileState = {
@@ -41,6 +42,14 @@ const BOOT_PLAY_MATCH = window.location.pathname.match(/^\/play\/(.+)$/);
 const BOOT_FRAME_ID = BOOT_PLAY_MATCH ? BOOT_PLAY_MATCH[1] : null;
 // Shared links carry the sender (?from=userId): open the challenge card instead of the game
 const BOOT_FROM = BOOT_FRAME_ID ? new URLSearchParams(window.location.search).get('from') : null;
+// Invite links (/?invite=userId): kept until the reader is signed in and answers,
+// even across the email-verification round trip
+const BOOT_INVITE = new URLSearchParams(window.location.search).get('invite');
+if (BOOT_INVITE) {
+  localStorage.setItem('pendingInvite', BOOT_INVITE);
+  // Signed in: the card sits over the dashboard, so no daily countdown starts behind it
+  window.history.replaceState({}, '', isLoggedIn() ? '/dashboard' : window.location.pathname);
+}
 
 
 export default function App() {
@@ -57,7 +66,7 @@ export default function App() {
   // Non-logged-in users can only access the daily challenge (home)
   const loggedIn = isLoggedIn();
   const initialRoute = loggedIn
-    ? (window.location.pathname === '/dashboard' || initialFrom ? 'dashboard' : initialFrameId ? 'play' : 'home')
+    ? (window.location.pathname === '/dashboard' || initialFrom || BOOT_INVITE ? 'dashboard' : initialFrameId ? 'play' : 'home')
     : 'home';
 
   // Redirect URL to home if not logged in and on a protected route
@@ -102,7 +111,7 @@ export default function App() {
   const [showProfile, setShowProfile] = useState(false);
   const [showFriends, setShowFriends] = useState(false);
   const [pendingFriendCount, setPendingFriendCount] = useState(0);
-  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen') && !isLoggedIn() && !initialFrom);
+  const [showTutorial, setShowTutorial] = useState(() => !localStorage.getItem('tutorialSeen') && !isLoggedIn() && !initialFrom && !BOOT_INVITE);
   const [initialAuthMode, setInitialAuthMode] = useState<'login' | 'register'>('login');
   const [previousResult, setPreviousResult] = useState<PreviousResult | null>(null);
   const [dailyPlayed, setDailyPlayed] = useState(false);
@@ -110,6 +119,7 @@ export default function App() {
   // Frame whose leaderboard the dashboard opens on (from the challenge card)
   const [dashboardFrameId, setDashboardFrameId] = useState<string | null>(null);
   const [shared, setShared] = useState<SharedFrameResponse | null>(null);
+  const [invite, setInvite] = useState<InviteResponse | null>(null);
   const sharedFromRef = useRef<string | null>(initialFrom);
   const [serverStartTime, setServerStartTime] = useState<Date | null>(null);
   const [gamePhase, setGamePhase] = useState<GamePhase>('loading');
@@ -192,8 +202,14 @@ export default function App() {
           // Clean up URL
           window.history.replaceState({}, '', '/');
 
-          // Refresh game data now that user is authenticated
-          initializeGame();
+          if (localStorage.getItem('pendingInvite')) {
+            // Invite card next: show it over the dashboard, not over a starting countdown
+            setCurrentRoute('dashboard');
+            window.history.replaceState({}, '', '/dashboard');
+          } else {
+            // Refresh game data now that user is authenticated
+            initializeGame();
+          }
 
           // Clear success message after 5 seconds
           setTimeout(() => setVerificationStatus('none'), 5000);
@@ -228,6 +244,27 @@ export default function App() {
     return () => clearInterval(interval);
   }, [user]);
 
+  // Pending invite link: show it on arrival, and again once the reader signs in
+  useEffect(() => {
+    const inviterId = localStorage.getItem('pendingInvite');
+    if (!inviterId) return;
+    friendsApi.invite(inviterId)
+      .then(response => {
+        if (response.friendship === 'self' || response.friendship === 'friends') {
+          localStorage.removeItem('pendingInvite');
+          setInvite(null);
+        } else {
+          setInvite(response);
+        }
+      })
+      .catch(() => localStorage.removeItem('pendingInvite'));
+  }, [user]);
+
+  const dismissInvite = () => {
+    localStorage.removeItem('pendingInvite');
+    setInvite(null);
+  };
+
   // Check if user is already logged in
   useEffect(() => {
     if (isLoggedIn()) {
@@ -259,6 +296,8 @@ export default function App() {
       else initializeGame();
     } else if (loggedIn && initialFrameId) {
       handlePlayHistorical(initialFrameId);
+    } else if (loggedIn && BOOT_INVITE) {
+      setLoading(false); // the dashboard sits behind the invite card
     } else {
       initializeGame();
     }
@@ -452,6 +491,13 @@ export default function App() {
       setCurrentRoute('dashboard');
       window.history.replaceState({}, '', '/dashboard');
       gameApi.getShared(shared.frame.id, sharedFromRef.current).then(setShared).catch(() => setShared(null));
+      return;
+    }
+
+    // Invite waiting and no game started yet: answer it over the dashboard
+    if (localStorage.getItem('pendingInvite') && gamePhase === 'pre-game') {
+      setCurrentRoute('dashboard');
+      window.history.replaceState({}, '', '/dashboard');
       return;
     }
 
@@ -1153,6 +1199,20 @@ export default function App() {
         />
       )}
 
+      {invite && !shared && !showAuthModal && (
+        <InviteCard
+          data={invite}
+          loggedIn={!!user || isLoggedIn()}
+          onAccepted={() => localStorage.removeItem('pendingInvite')}
+          onLogin={openAuth}
+          onPlay={() => {
+            setInvite(null);
+            if (!localStorage.getItem('tutorialSeen')) setShowTutorial(true);
+          }}
+          onDismiss={dismissInvite}
+        />
+      )}
+
       {showAuthModal && (
         <AuthForm
           initialMode={initialAuthMode}
@@ -1179,7 +1239,7 @@ export default function App() {
       )}
 
       {showFriends && (
-        <FriendsModal onClose={() => setShowFriends(false)} />
+        <FriendsModal userId={user?.id} onClose={() => setShowFriends(false)} />
       )}
 
       {showTutorial && (

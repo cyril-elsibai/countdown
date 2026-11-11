@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
+import { track } from '@vercel/analytics/react';
 import { friendsApi, Friend } from '../api';
 
 interface FriendsModalProps {
+  userId?: string;
   onClose: () => void;
 }
 
-export default function FriendsModal({ onClose }: FriendsModalProps) {
+export default function FriendsModal({ userId, onClose }: FriendsModalProps) {
   const [friendEmail, setFriendEmail] = useState('');
   const [friends, setFriends] = useState<Friend[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,6 +50,26 @@ export default function FriendsModal({ onClose }: FriendsModalProps) {
     }
   };
 
+  // Invite link for WhatsApp, Messages…: whoever opens it can become friends in one tap
+  const handleInvite = async () => {
+    if (!userId) return;
+    setError('');
+    setMessage('');
+    const url = `${window.location.origin}/?invite=${userId}`;
+    const text = 'Play 6/7 Numbers with me, a daily number puzzle.';
+    track('invite_shared');
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: '6/7 Numbers', text, url });
+      } catch {
+        // user cancelled — do nothing
+      }
+    } else {
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      setMessage('Invite link copied');
+    }
+  };
+
   const handleAcceptRequest = async (id: string) => {
     try {
       const response = await friendsApi.acceptRequest(id);
@@ -82,6 +104,9 @@ export default function FriendsModal({ onClose }: FriendsModalProps) {
 
         {/* Add friend */}
         <section className="profile-section">
+          {userId && (
+            <button className="btn ink wide invite-btn" onClick={handleInvite}>Invite a friend</button>
+          )}
           <form onSubmit={handleSendRequest} className="inline-form">
             <input
               type="email"
@@ -130,7 +155,7 @@ export default function FriendsModal({ onClose }: FriendsModalProps) {
           {friendsLoading ? (
             <p className="friends-loading">Loading...</p>
           ) : accepted.length === 0 ? (
-            <p className="friends-empty">No friends yet. Add someone above!</p>
+            <p className="friends-empty">No friends yet. Invite someone above!</p>
           ) : (
             <ul className="friends-list">
               {accepted.map((friend) => (

@@ -209,6 +209,12 @@ export interface AuthResponse {
  * - getFrame(id) - Get a specific frame by ID
  * - submit(frameId, expression, duration, result) - Submit a solution
  */
+/** Who sent an invite link (/?invite=userId) and where the reader stands with them */
+export interface InviteResponse {
+  inviter: { id: string; name: string };
+  friendship: 'self' | 'friends' | 'pending' | 'none' | null;  // null for guests
+}
+
 export interface SharedFrameResponse {
   frame: { id: string; name: string; targetNumber: number; isToday: boolean };
   sender: { id: string; name: string; duration: number | null } | null;
@@ -493,6 +499,13 @@ export const friendsApi = {
       method: 'POST',
       body: JSON.stringify({ userId }),
     }),
+
+  /** Who sent an invite link. Public: guests see it too */
+  invite: (inviterId: string) => request<InviteResponse>(`/friends/invite/${inviterId}`),
+
+  /** Accepts an invite link: friends straight away, no pending request */
+  acceptInvite: (inviterId: string) =>
+    request<{ friend: Friend }>(`/friends/invite/${inviterId}/accept`, { method: 'POST' }),
 
   /**
    * Accepts a pending friend request.
