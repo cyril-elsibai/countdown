@@ -551,6 +551,7 @@ export const friendsApi = {
 export interface Group {
   id: string;
   name: string;
+  alias: string | null;  // my own name for the group, only I see it
   inviteCode: string;
   memberCount: number;
 }
@@ -595,6 +596,10 @@ export const groupsApi = {
 
   join: (code: string) =>
     request<{ group: { id: string; name: string } }>(`/groups/invite/${code}/join`, { method: 'POST' }),
+
+  /** Empty alias goes back to the group's real name */
+  rename: (groupId: string, alias: string) =>
+    request<{ alias: string | null }>(`/groups/${groupId}/membership`, { method: 'PATCH', body: JSON.stringify({ alias }) }),
 
   leave: (groupId: string) =>
     request<{ success: boolean }>(`/groups/${groupId}/membership`, { method: 'DELETE' }),

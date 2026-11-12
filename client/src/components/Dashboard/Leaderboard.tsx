@@ -192,7 +192,7 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer, in
         ))}
         {groups.map(g => (
           <button key={g.id} role="tab" aria-selected={groupId === g.id} className={groupId === g.id ? 'on' : ''} onClick={() => selectScope(g.id)}>
-            {g.name}
+            {g.alias || g.name}
           </button>
         ))}
         <button className="add" onClick={() => setNewGroupName(newGroupName === null ? '' : null)}>+ New group</button>
@@ -227,6 +227,7 @@ export default function Leaderboard({ frameId, onSelectFrame, onSelectPlayer, in
             myId={myId}
             onSelectPlayer={onSelectPlayer}
             onLeft={() => { setGroups(groups.filter(g => g.id !== selectedGroup.id)); setGroupId(null); }}
+            onRenamed={alias => setGroups(groups.map(g => g.id === selectedGroup.id ? { ...g, alias } : g))}
           />
         </div>
       );

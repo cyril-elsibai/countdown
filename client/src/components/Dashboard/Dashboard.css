@@ -475,6 +475,21 @@ button.day { cursor: pointer; }
 
 .group-board .you-rank { align-items: center; }
 
+/* Your alias (or the group's name), the real name under it when you've renamed it */
+.group-board .group-name { min-width: 0; }
+.group-board .group-real-name {
+  color: var(--muted);
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.group-board .group-actions {
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+}
+
 /* Group name, then the member count in parentheses; a long name truncates, the count stays */
 .group-board .group-title {
   display: flex;

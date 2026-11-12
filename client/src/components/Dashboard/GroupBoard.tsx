@@ -6,7 +6,7 @@
  * One group's leaderboard inside the Ranks tab. Today (default): today's daily
  * among members, with who hasn't played yet at the bottom. This week: points
  * since Monday. 100 days: the main ranking's points among members. Invite shares
- * the group link; Leave removes you.
+ * the group link; Rename sets your own alias for it; Leave removes you.
  *
  * @module client/components/Dashboard/GroupBoard
  */
@@ -20,15 +20,17 @@ import { bandFromDifference, formatDuration } from './format';
 interface GroupBoardProps {
   group: Group;
   onLeft: () => void;
+  onRenamed: (alias: string | null) => void;
   onSelectPlayer: (playerId: string, isMe: boolean) => void;
   myId?: string;
 }
 
-export default function GroupBoard({ group, onLeft, onSelectPlayer, myId }: GroupBoardProps) {
+export default function GroupBoard({ group, onLeft, onRenamed, onSelectPlayer, myId }: GroupBoardProps) {
   const [period, setPeriod] = useState<'today' | 'week' | 'hundred'>('today');
   const [data, setData] = useState<GroupLeaderboardResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [alias, setAlias] = useState<string | null>(null);  // null = rename form closed
 
   useEffect(() => {
     setData(null);
@@ -45,6 +47,17 @@ export default function GroupBoard({ group, onLeft, onSelectPlayer, myId }: Grou
     if (outcome === 'copied') {
       setCopied(true);
       setTimeout(() => setCopied(false), 2500);
+    }
+  };
+
+  const rename = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const result = await groupsApi.rename(group.id, alias ?? '');
+      onRenamed(result.alias);
+      setAlias(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to rename group');
     }
   };
 
@@ -72,12 +85,30 @@ export default function GroupBoard({ group, onLeft, onSelectPlayer, myId }: Grou
   return (
     <div className="leaderboard-section group-board">
       <div className="you-rank">
-        <div className="group-title" aria-label={`${group.name}, ${memberCount} member${memberCount !== 1 ? 's' : ''}`}>
-          <b>{group.name}</b>
-          <span className="count">({memberCount})</span>
+        <div className="group-name">
+          <div className="group-title" aria-label={`${group.alias || group.name}, ${memberCount} member${memberCount !== 1 ? 's' : ''}`}>
+            <b>{group.alias || group.name}</b>
+            <span className="count">({memberCount})</span>
+          </div>
+          {group.alias && <div className="group-real-name">Group name: {group.name}</div>}
         </div>
         <button className="btn line mini" onClick={invite}>{copied ? 'Link copied' : 'Invite'}</button>
       </div>
+
+      {alias !== null && (
+        <form className="inline-form new-group" onSubmit={rename}>
+          <input
+            autoFocus
+            value={alias}
+            maxLength={40}
+            onChange={e => setAlias(e.target.value)}
+            placeholder={group.name}
+            aria-label="Your name for this group"
+          />
+          <button type="submit" className="btn ink">Save</button>
+        </form>
+      )}
+      {alias !== null && <div className="dash-note">Only you see this name. Leave it empty to use “{group.name}”.</div>}
 
       <div className="seg small" role="tablist">
         <button role="tab" aria-selected={period === 'today'} className={period === 'today' ? 'on' : ''} onClick={() => setPeriod('today')}>
@@ -127,7 +158,10 @@ export default function GroupBoard({ group, onLeft, onSelectPlayer, myId }: Grou
         <div className="dash-note">Invite people to start competing.</div>
       )}
 
-      <button className="group-leave" onClick={leave}>Leave group</button>
+      <div className="group-actions">
+        <button className="group-leave" onClick={() => setAlias(alias === null ? group.alias ?? '' : null)}>Rename</button>
+        <button className="group-leave" onClick={leave}>Leave group</button>
+      </div>
     </div>
   );
 }

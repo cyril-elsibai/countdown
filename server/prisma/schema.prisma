@@ -313,6 +313,7 @@ model GroupMember {
   userId   String
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   joinedAt DateTime @default(now())
+  alias    String?  // the member's own name for the group, shown only to them
 
   @@id([groupId, userId])
   @@index([userId])

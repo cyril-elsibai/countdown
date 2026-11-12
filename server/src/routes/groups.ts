@@ -7,7 +7,8 @@
  * its invite link (/?group=inviteCode) in a WhatsApp chat, and everyone who
  * opens it joins. Members see today's daily and this week's points ranked
  * among themselves. No owner: every member is equal, and the group is
- * deleted when its last member leaves.
+ * deleted when its last member leaves. Each member can give a group their own
+ * alias (e.g. two groups both called "Family"); only they see it.
  *
  * @module server/routes/groups
  */
@@ -46,7 +47,7 @@ function weekStartUTC(): Date {
 
 /**
  * GET /api/groups
- * The current user's groups: { groups: [{ id, name, inviteCode, memberCount }] }
+ * The current user's groups: { groups: [{ id, name, alias, inviteCode, memberCount }] }
  */
 router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
   try {
@@ -59,6 +60,7 @@ router.get('/', requireAuth, async (req: AuthRequest, res: Response) => {
       groups: memberships.map(m => ({
         id: m.group.id,
         name: m.group.name,
+        alias: m.alias,
         inviteCode: m.group.inviteCode,
         memberCount: m.group._count.members,
       })),
@@ -90,7 +92,7 @@ router.post('/', requireAuth, async (req: AuthRequest, res: Response) => {
         members: { create: { userId: req.userId! } },
       },
     });
-    res.status(201).json({ group: { id: group.id, name: group.name, inviteCode: group.inviteCode, memberCount: 1 } });
+    res.status(201).json({ group: { id: group.id, name: group.name, alias: null, inviteCode: group.inviteCode, memberCount: 1 } });
   } catch (error) {
     console.error('Create group error:', error);
     res.status(500).json({ error: 'Failed to create group' });
@@ -142,6 +144,30 @@ router.post('/invite/:code/join', requireAuth, async (req: AuthRequest, res: Res
   } catch (error) {
     console.error('Join group error:', error);
     res.status(500).json({ error: 'Failed to join group' });
+  }
+});
+
+/**
+ * PATCH /api/groups/:id/membership  { alias }
+ * Sets the current member's own name for the group; empty clears it. { alias }
+ */
+router.patch('/:id/membership', requireAuth, async (req: AuthRequest, res: Response) => {
+  try {
+    const alias = typeof req.body.alias === 'string' ? req.body.alias.trim() : '';
+    if (alias.length > MAX_NAME_LENGTH) {
+      return res.status(400).json({ error: `Group names are ${MAX_NAME_LENGTH} characters max` });
+    }
+    const { count } = await prisma.groupMember.updateMany({
+      where: { groupId: req.params.id as string, userId: req.userId },
+      data: { alias: alias || null },
+    });
+    if (count === 0) {
+      return res.status(404).json({ error: 'Group not found' });
+    }
+    res.json({ alias: alias || null });
+  } catch (error) {
+    console.error('Rename group error:', error);
+    res.status(500).json({ error: 'Failed to rename group' });
   }
 });
 
