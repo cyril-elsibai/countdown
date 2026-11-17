@@ -1010,6 +1010,7 @@ select:focus-visible {
 .profile-logout svg { width: 20px; height: 20px; }
 .profile-section { padding: 14px 0; border-top: 1px solid var(--line); }
 .profile-section:first-of-type { border-top: 0; }
+.profile-email { font-size: 16px; overflow-wrap: anywhere; }
 .profile-section h3,
 .friends-section-title {
   font-size: 12px;

@@ -78,6 +78,12 @@ export default function Profile({ user, onUserUpdate, onClose, onLogout }: Profi
         </div>
 
         <section className="profile-section">
+          <h3>Email</h3>
+          {/* Read-only: tells you which account you're on when you have more than one */}
+          <div className="profile-email">{user.email}</div>
+        </section>
+
+        <section className="profile-section">
           <h3>In game name</h3>
           <form onSubmit={handleUpdateName} className="inline-form">
             <input
