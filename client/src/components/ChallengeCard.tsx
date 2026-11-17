@@ -3,7 +3,9 @@
  *
  * Says who sent it and their time, then adapts to where the reader stands:
  * not played → Play, started → Try again, solved → side-by-side + leaderboard,
- * guest → Log in (or Play when it's today's daily, the only frame guests can play).
+ * guest → Play when it's today's daily, the only frame guests can play. For an
+ * older daily the guest can still play today's (said plainly, so they don't think
+ * it's the shared one), or create an account to play the shared one.
  * Never shows the sender's expression.
  */
 
@@ -14,13 +16,15 @@ import { distanceBand, formatDuration } from './Dashboard/format';
 interface Props {
   data: SharedFrameResponse;
   loggedIn: boolean;
+  /** Today's daily name (e.g. "Daily #321"), for guests opening an older one */
+  todayName?: string;
   onPlay: () => void;
   onLeaderboard: () => void;
   onLogin: (mode: 'login' | 'register') => void;
   onClose: () => void;
 }
 
-export default function ChallengeCard({ data, loggedIn, onPlay, onLeaderboard, onLogin, onClose }: Props) {
+export default function ChallengeCard({ data, loggedIn, todayName, onPlay, onLeaderboard, onLogin, onClose }: Props) {
   const { frame, sender, me, friendship } = data;
   const [friendState, setFriendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
 
@@ -94,23 +98,24 @@ export default function ChallengeCard({ data, loggedIn, onPlay, onLeaderboard, o
           </div>
         )}
 
-        {!loggedIn ? (
+        {!loggedIn && frame.isToday ? (
+          <>
+            <p className="challenge-line">Play as a guest, or log in to keep your score.</p>
+            <div className="pair">
+              <button className="btn ink" onClick={onPlay}>Play</button>
+              <button className="btn line" onClick={() => onLogin('login')}>Log in</button>
+            </div>
+          </>
+        ) : !loggedIn ? (
           <>
             <p className="challenge-line">
-              {frame.isToday ? 'Play as a guest, or log in to keep your score.' : 'Log in to play this challenge.'}
+              This was {frame.name}. {todayName ? `Today's challenge is ${todayName.replace('Daily ', '')}.` : "Today's challenge is a new one."}
             </p>
-            <div className="pair">
-              {frame.isToday ? (
-                <>
-                  <button className="btn ink" onClick={onPlay}>Play</button>
-                  <button className="btn line" onClick={() => onLogin('login')}>Log in</button>
-                </>
-              ) : (
-                <>
-                  <button className="btn ink" onClick={() => onLogin('login')}>Log in</button>
-                  <button className="btn line" onClick={() => onLogin('register')}>Create account</button>
-                </>
-              )}
+            <button className="btn ink wide" onClick={onPlay}>Play today's challenge</button>
+            <div className="challenge-friend">
+              <button onClick={() => onLogin('register')}>Create an account to play {frame.name.replace('Daily ', '')}</button>
+              {' · '}
+              <button onClick={() => onLogin('login')}>Log in</button>
             </div>
           </>
         ) : solved || self ? (

@@ -1212,6 +1212,7 @@ export default function App() {
         <ChallengeCard
           data={shared}
           loggedIn={!!user || isLoggedIn()}
+          todayName={currentRoute === 'home' ? frame?.name ?? undefined : undefined}
           onPlay={() => {
             const id = shared.frame.id;
             setShared(null);
